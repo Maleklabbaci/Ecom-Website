@@ -1,0 +1,16 @@
+# Tunnel Cloudflare : expose l'application locale en HTTPS sur ton domaine.
+# 1. installer cloudflared
+# 2. cloudflared tunnel login
+# 3. cloudflared tunnel create novadz     -> note l'UUID affiché
+# 4. copier ce fichier dans  ~/.cloudflared/config.yml  (Windows : C:\Users\<toi>\.cloudflared\config.yml)
+# 5. remplacer TUNNEL-UUID et le domaine
+# 6. cloudflared tunnel route dns novadz novadz.mondomaine.dz
+# 7. cloudflared service install
+
+tunnel: TUNNEL-UUID
+credentials-file: /root/.cloudflared/TUNNEL-UUID.json
+
+ingress:
+  - hostname: novadz.mondomaine.dz
+    service: http://localhost:4000
+  - service: http_status:404
