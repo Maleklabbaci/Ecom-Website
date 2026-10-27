@@ -6776,7 +6776,7 @@ html[data-searchalign="droite"] .theme header .ndz-search-in { margin-left: auto
 
 /* Login : ancienne carte + fond du démo landing */
 .auth-body{margin:0;background:#000;color:#fff;font-family:Geist,Inter,system-ui,sans-serif}
-.auth-stage{position:relative;min-height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.auth-stage{position:relative;min-height:100vh;min-height:100svh;display:flex;flex-direction:column;overflow:hidden}
 .auth-bg{
   position:absolute;inset:-8%;
   background:url(/shots/hero-bg2.jpg?v=5) 58% 22%/cover no-repeat;
@@ -6901,7 +6901,12 @@ html[data-searchalign="droite"] .theme header .ndz-search-in { margin-left: auto
       linear-gradient(180deg,rgba(0,0,0,.94) 0%,rgba(0,0,0,.9) 46%,rgba(0,0,0,.55) 64%,rgba(0,0,0,.42) 100%),
       radial-gradient(260px 140px at 18% 16%,rgba(214,255,69,.1),transparent 72%);
   }
-  .auth-mix{grid-template-columns:1fr;padding:24px 20px 40px;gap:22px}
+  .auth-mix{grid-template-columns:1fr;padding:24px 20px 40px;gap:22px;align-content:start}
+  /* tactile : zones à hauteur de doigt ; 16px dans les champs = pas de zoom iOS au focus */
+  .auth-card input,.auth-card select{height:48px;font-size:16px;border-radius:10px;padding:0 14px}
+  .auth-card .btn{height:48px;font-size:15px}
+  .auth-card .auth-pick{height:46px;font-size:14px}
+  .auth-card label{margin-top:14px}
   .auth-pitch h1{font-size:30px}
   .auth-nav{padding:18px 20px 0}
   .auth-types{padding:8px 20px 40px}
@@ -6914,13 +6919,19 @@ html[data-searchalign="droite"] .theme header .ndz-search-in { margin-left: auto
   .auth-brand em{display:none}
   .auth-nav-links{gap:0}
   .auth-nav-links a:not(.auth-pill){display:none}
-  .auth-pill{height:36px;padding:0 12px;white-space:nowrap;font-size:13px}
-  .auth-mix{padding:12px 14px 20px;gap:12px;align-items:start}
-  .auth-pitch h1{font-size:26px}
+  .auth-pill{height:40px;padding:0 14px;white-space:nowrap;font-size:13px}
+  .auth-mix{padding:14px 14px calc(24px + env(safe-area-inset-bottom));gap:14px;align-items:start}
+  .auth-pitch h1{font-size:28px}
   .auth-kicker{font-size:14px;margin-bottom:6px}
   .auth-spin{width:12.6em}
   .auth-pitch p{margin-top:8px;font-size:15px}
-  .auth-kinds{margin-top:10px;gap:8px}
-  .auth-kinds ul{margin-top:4px;gap:3px}
-  .auth-stage .auth-card{border-radius:22px;padding:16px 16px 14px}
+  /* téléphone : le pitch se réduit à l'accroche + le titre. Les listes
+     « Vitrine / E-commerce » et le paragraphe répètent la carte (les deux
+     choix, le « 0 DA ») et repoussaient le formulaire sous le premier
+     écran. Les pages sans liste (bienvenue, déconnexion) gardent leur phrase. */
+  .auth-kinds{display:none}
+  .auth-pitch:has(.auth-kinds)>p:not(.auth-kicker){display:none}
+  .auth-card .auth-pick{gap:6px;padding:0 6px}
+  .auth-stage .auth-card{border-radius:22px;padding:20px 18px 18px}
+  .auth-alt{margin:16px 0 0;font-size:13px}
 }

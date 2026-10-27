@@ -306,11 +306,11 @@ const authPage = (mode, error, kind = "", site = "") => {
       <p class="auth-alt">${signup
         ? `Vous avez déjà un compte ? <a href="/login">Se connecter</a>`
         : `Pas encore de boutique ? <a href="/signup">En créer une</a>`}</p>
-      <div class="auth-demo">
+      ${process.env.NOVADZ_DEMO === "1" ? `<div class="auth-demo">
         <b>Comptes de démo</b>
         <span>Marchand · demo@novadz.dz / demo1234</span>
         <span>Admin · admin@novadz.dz / admin1234</span>
-      </div>
+      </div>` : ""}
     </div>
   </div>
 </div>
@@ -367,6 +367,13 @@ const logoutPage = (user) => page("Déconnexion — NovaDZ", `
 <div class="auth-stage">
   <div class="auth-bg" aria-hidden="true"></div>
   <div class="auth-veil" aria-hidden="true"></div>
+  <div class="auth-nav">
+    <a class="auth-brand" href="/"><span class="auth-bolt">${authBolt}</span><b>templifica</b> <em>/ Création de site</em></a>
+    <div class="auth-nav-links">
+      <a href="/">Accueil</a>
+      <a class="auth-pill" href="/dashboard">${authBolt} Ma boutique</a>
+    </div>
+  </div>
   <div class="auth-mix">
     <section class="auth-pitch">
       <p class="auth-kicker">À bientôt.</p>
