@@ -58,7 +58,7 @@ body.lp{
   font:500 13px/1 Geist,sans-serif;letter-spacing:-.01em;color:#fff;
   transition:color .2s var(--nav);
 }
-.nav nav a:hover{color:rgba(255,255,255,.6)}
+.nav nav a:not(.btn-pill):hover{color:rgba(255,255,255,.6)}
 .nav nav a span{color:rgba(255,255,255,.45);margin-left:3px}
 
 .btn{
@@ -69,7 +69,8 @@ body.lp{
 }
 .lp a.btn-w,.lp button.btn-w{background:#fff;color:#111}
 .lp a.btn-d,.lp button.btn-d{background:rgba(255,255,255,.08);color:#fff}
-.lp a.btn-pill{height:40px;padding:0 16px;border-radius:999px;background:#fff;color:#111;font:500 14px/1 Geist,sans-serif}
+.lp a.btn-pill{height:40px;padding:0 16px;border-radius:999px;background:#fff;color:#111;font:500 14px/1 Geist,sans-serif;-webkit-tap-highlight-color:transparent}
+.lp .nav nav a.btn-pill:hover,.lp .nav nav a.btn-pill:focus-visible,.lp .nav nav a.btn-pill:active{background:var(--lime);color:#111}
 .btn:hover{transform:translateY(-1px)}
 .btn svg{width:14px;height:14px}
 
