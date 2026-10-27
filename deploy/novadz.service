@@ -1,0 +1,27 @@
+# Service systemd pour un serveur Linux (Ubuntu / Debian).
+# à copier dans /etc/systemd/system/novadz.service
+# puis : sudo systemctl daemon-reload && sudo systemctl enable --now novadz
+
+[Unit]
+Description=NovaDZ - plateforme e-commerce
+After=network.target
+
+[Service]
+Type=simple
+User=novadz
+WorkingDirectory=/srv/novadz
+Environment=NODE_ENV=production
+Environment=PORT=4000
+Environment=PUBLIC_URL=https://novadz.mondomaine.dz
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# durcissement
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

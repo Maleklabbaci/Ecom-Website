@@ -1,0 +1,21 @@
+# dépendances
+node_modules/
+
+# base de données et fichiers générés (ne jamais versionner)
+data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# images envoyées par les marchands
+public/uploads/
+
+# secrets locaux
+.env
+.env.local
+
+# système
+.DS_Store
+Thumbs.db
+npm-debug.log*

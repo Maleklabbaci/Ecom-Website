@@ -1,0 +1,28 @@
+{
+  "name": "novadz-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NovaDZ — plateforme SaaS multi-boutiques (style Shopify) : chaque marchand crée sa boutique, gère ses produits et reçoit ses commandes.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node --test tests/*.test.js",
+    "postinstall": "node -e \"const s=require('./src/sqlite');console.log('NovaDZ pret. SQLite:', s.which(), '- Lance: npm start')\"",
+    "fonts": "node scripts/get-fonts.js",
+    "add-template": "python3 scripts/importer-template.py"
+  },
+  "dependencies": {
+    "express": "^4.22.3"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^12.11.1"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0",
+    "puppeteer-core": "^25.16.0"
+  }
+}
