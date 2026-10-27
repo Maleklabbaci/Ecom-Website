@@ -386,7 +386,7 @@ const logoutPage = (user) => page("Déconnexion — NovaDZ", `
       <form method="post" action="/logout">
         <button class="btn btn-primary btn-block" type="submit">Oui, me déconnecter</button>
       </form>
-      <p style="margin-top:12px"><a href="/dashboard">Non, retour à ma boutique</a></p>
+      <p class="auth-alt"><a href="/dashboard">Non, retour à ma boutique</a></p>
     </div>
   </div>
 </div>`, { bodyClass: "auth-body" })

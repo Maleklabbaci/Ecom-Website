@@ -6901,7 +6901,7 @@ html[data-searchalign="droite"] .theme header .ndz-search-in { margin-left: auto
       linear-gradient(180deg,rgba(0,0,0,.94) 0%,rgba(0,0,0,.9) 46%,rgba(0,0,0,.55) 64%,rgba(0,0,0,.42) 100%),
       radial-gradient(260px 140px at 18% 16%,rgba(214,255,69,.1),transparent 72%);
   }
-  .auth-mix{grid-template-columns:1fr;padding:24px 20px 40px;gap:22px;align-content:start}
+  .auth-mix{grid-template-columns:1fr;padding:24px 20px 40px;gap:22px;align-content:center}
   /* tactile : zones à hauteur de doigt ; 16px dans les champs = pas de zoom iOS au focus */
   .auth-card input,.auth-card select{height:48px;font-size:16px;border-radius:10px;padding:0 14px}
   .auth-card .btn{height:48px;font-size:15px}
@@ -6914,24 +6914,34 @@ html[data-searchalign="droite"] .theme header .ndz-search-in { margin-left: auto
   .auth-type b{font-size:32px}
 }
 @media(max-width:640px){
-  .auth-nav{padding:14px 14px 0;gap:8px;align-items:center}
-  .auth-brand{min-width:0;gap:6px;font-size:14px}
+  /* Téléphone = écran d'application : marque centrée en haut, plus de
+     barre de navigation web (l'alternative connexion/inscription est
+     déjà le lien dans la carte), accroche et titres centrés, et le bloc
+     accroche + carte au milieu de l'écran. Si le contenu dépasse
+     (petit téléphone, formulaire ouvert), la page grandit et défile
+     normalement depuis le haut. */
+  .auth-nav{padding:22px 14px 0;justify-content:center}
+  .auth-brand{gap:8px;font-size:16px}
   .auth-brand em{display:none}
-  .auth-nav-links{gap:0}
-  .auth-nav-links a:not(.auth-pill){display:none}
-  .auth-pill{height:40px;padding:0 14px;white-space:nowrap;font-size:13px}
-  .auth-mix{padding:14px 14px calc(24px + env(safe-area-inset-bottom));gap:14px;align-items:start}
-  .auth-pitch h1{font-size:28px}
+  .auth-bolt{width:34px;height:34px}
+  .auth-nav-links{display:none}
+  .auth-mix{padding:14px 14px calc(24px + env(safe-area-inset-bottom));gap:16px;align-items:start;align-content:center;justify-items:center}
+  .auth-pitch{text-align:center;max-width:340px}
+  .auth-pitch::before{background:radial-gradient(90% 80% at 50% 42%,rgba(0,0,0,.62),rgba(0,0,0,.28) 58%,transparent 78%)}
+  .auth-pitch h1{font-size:30px}
   .auth-kicker{font-size:14px;margin-bottom:6px}
   .auth-spin{width:12.6em}
-  .auth-pitch p{margin-top:8px;font-size:15px}
-  /* téléphone : le pitch se réduit à l'accroche + le titre. Les listes
-     « Vitrine / E-commerce » et le paragraphe répètent la carte (les deux
-     choix, le « 0 DA ») et repoussaient le formulaire sous le premier
-     écran. Les pages sans liste (bienvenue, déconnexion) gardent leur phrase. */
+  .auth-pitch p:not(.auth-kicker){margin:8px auto 0;font-size:15px}
+  /* le pitch se réduit à l'accroche + le titre : listes et paragraphe
+     répètent la carte. Bienvenue/déconnexion (sans liste) gardent leur phrase. */
   .auth-kinds{display:none}
   .auth-pitch:has(.auth-kinds)>p:not(.auth-kicker){display:none}
   .auth-card .auth-pick{gap:6px;padding:0 6px}
   .auth-stage .auth-card{border-radius:22px;padding:20px 18px 18px}
+  .auth-stage .auth-card h2{text-align:center}
+  .auth-card>.muted{text-align:center}
+  /* inscription : le titre de la carte répète l'accroche juste au-dessus */
+  .auth-card:has(.auth-choice) h2{display:none}
+  .auth-mode{justify-content:center}
   .auth-alt{margin:16px 0 0;font-size:13px}
 }
