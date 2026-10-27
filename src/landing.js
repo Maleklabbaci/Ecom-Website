@@ -101,7 +101,7 @@ const landing = (stores) => {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NovaDZ — Une boutique qui a l'air faite</title>
 <meta name="description" content="Choisis une mise en page, ajoute tes produits, publie. Dinars, wilayas, paiement à la livraison.">
-<link rel="stylesheet" href="/landing.css?v=43">
+<link rel="stylesheet" href="/landing.css?v=44">
 </head>
 <body class="lp">
 <div class="grain" aria-hidden="true"></div>
@@ -382,6 +382,34 @@ ${t3d()}
     revealEls.forEach((el) => io.observe(el))
   } else {
     revealEls.forEach((el) => el.classList.add("in"))
+  }
+
+  /* Téléphone : les cartes entrent en cascade au fil du défilement.
+     Même mécanisme .reveal, ajouté ici pour ne rien changer au bureau :
+     chaque enfant d'un groupe reçoit un petit délai (70ms x rang),
+     puis les classes sont retirées pour rendre la main aux styles
+     propres de la carte (pression tactile, survol). */
+  if (window.matchMedia("(max-width:640px)").matches
+    && !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    && "IntersectionObserver" in window) {
+    const io2 = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io2.unobserve(e.target) } })
+    }, { threshold: 0.12, rootMargin: "0px 0px -6% 0px" })
+    document.querySelectorAll(".avis-phone,.tf-grid,.type-grid,.steps,.bento,.brow,.feats-grid,.prices,.faq").forEach((groupe) => {
+      [...groupe.children].forEach((el, i) => {
+        const delai = Math.min(i * 70, 350) + "ms"
+        const img = el.classList.contains("tcard") ? el.querySelector("img") : null
+        el.classList.add("reveal")
+        el.style.transitionDelay = delai
+        if (img) img.style.transitionDelay = delai
+        el.addEventListener("transitionend", () => {
+          el.classList.remove("reveal", "in")
+          el.style.transitionDelay = ""
+          if (img) img.style.transitionDelay = ""
+        }, { once: true })
+        io2.observe(el)
+      })
+    })
   }
 
   const slides = [...document.querySelectorAll("#slidebox .slide")]

@@ -466,7 +466,9 @@ body.lp{
 .reveal.in{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){
   .grain,.spin b,.track{animation:none}
+  .hero .kicker,.hero h1 .ln,.hero-row,.hero .actions,.hero .dot{animation:none}
   .reveal{transition:none;opacity:1;transform:none}
+  .tcard.reveal img{transition:none;transform:none}
   html{scroll-behavior:auto}
 }
 
@@ -648,4 +650,25 @@ body.lp{
   .themes-head p,.avis-head p{margin-top:14px}
   .sec .sub{margin:14px 0 24px}
   .faq{margin-top:22px}
+  /* — Animations téléphone —
+     Entrée du hero en cascade (kicker, lignes du titre, texte,
+     boutons), pastilles lime qui respirent, retour tactile sous le
+     doigt, léger dézoom des photos de thèmes pendant l'apparition
+     de leur carte (la cascade des cartes est pilotée par le script,
+     même mécanisme .reveal). Transform/opacity uniquement. — */
+  @keyframes heroUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes dotPulse{0%,100%{box-shadow:0 0 18px rgba(214,255,69,.32)}50%{box-shadow:0 0 28px rgba(214,255,69,.55)}}
+  .hero .kicker{animation:heroUp .7s var(--ease) .05s both}
+  .hero h1 .ln{animation:heroUp .7s var(--ease) both}
+  .hero h1 .ln:nth-of-type(1){animation-delay:.14s}
+  .hero h1 .ln:nth-of-type(2){animation-delay:.26s}
+  .hero h1 .ln:nth-of-type(3){animation-delay:.38s}
+  .hero-row{animation:heroUp .7s var(--ease) .5s both}
+  .hero .actions{animation:heroUp .7s var(--ease) .62s both}
+  .hero .dot{animation:dotPulse 3.4s ease-in-out infinite}
+  .lp .btn:active{transform:scale(.96)}
+  .type{transition:transform .18s var(--ease)}
+  .type:active,.tcard:active{transform:scale(.98)}
+  .tcard.reveal img{transform:scale(1.08);transition:transform .8s var(--ease)}
+  .tcard.reveal.in img{transform:scale(1)}
 }
