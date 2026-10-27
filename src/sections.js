@@ -792,7 +792,9 @@ const HIDE_KEYS = [
 const pageCodeKeyOk = (k) =>
   PAGE_KEYS.includes(k) || /^page:[a-z0-9-]{1,60}$/.test(String(k || ""))
 
-const sanitizeDesign = (d = {}) => {
+const sanitizeDesign = (d = {}, storeOrKind = "") => {
+  const SITES = require("./site-templates")
+  const checkKind = typeof storeOrKind === "string" ? storeOrKind !== "" : !!(storeOrKind && typeof storeOrKind === "object")
   const out = {
     button: oneOf(d.button, ["noir", "gris", "contour"], "noir"),
     radius: oneOf(d.radius, ["net", "normal", "doux"], "normal"),
@@ -861,7 +863,9 @@ const sanitizeDesign = (d = {}) => {
     htmlFooter: cleanHtml(d.htmlFooter),
     pageCss: {},
     pageCode: {},
-    siteTemplate: require("./site-templates").isSite(d.siteTemplate) ? d.siteTemplate : "",
+    siteTemplate: checkKind
+      ? (SITES.isSiteForStore(d.siteTemplate, storeOrKind) ? d.siteTemplate : "")
+      : (SITES.isSite(d.siteTemplate) ? d.siteTemplate : ""),
     hide: {},
     dict: [],
     mobileOrder: Array.isArray(d.mobileOrder) ? d.mobileOrder.filter((x) => typeof x === "string").slice(0, 40) : [],
@@ -1304,6 +1308,13 @@ const readDesign = (store) => {
     try { d = JSON.parse(store.design) || {} } catch { d = {} }
   }
   const out = { ...DESIGN_DEFAULTS, ...d, logo: (store && store.logo) || d.logo || "" }
+  /* Un ancien design publié peut contenir un template de l'autre famille :
+     il est ignoré à la lecture, jamais affiché au mauvais type de site. */
+  if (out.siteTemplate) {
+    try {
+      if (!require("./site-templates").isSiteForStore(out.siteTemplate, store)) out.siteTemplate = ""
+    } catch (_) {}
+  }
   if (store && store.theme) {
     try {
       const PT = require("./public-themes")
@@ -1323,7 +1334,15 @@ const readDraft = (store) => {
   if (!store || !store.draft) return null
   try {
     const d = JSON.parse(store.draft)
-    return d && typeof d === "object" ? d : null
+    if (!d || typeof d !== "object") return null
+    if (d.design && typeof d.design === "object" && d.design.siteTemplate) {
+      try {
+        if (!require("./site-templates").isSiteForStore(d.design.siteTemplate, store)) {
+          d.design = { ...d.design, siteTemplate: "" }
+        }
+      } catch (_) {}
+    }
+    return d
   } catch { return null }
 }
 

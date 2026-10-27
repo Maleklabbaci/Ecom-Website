@@ -19,7 +19,8 @@ const PICKS = [
 const toShow = (id) => {
   const t = SITES.LIST.find((x) => x.id === id)
   if (!t) return null
-  return { id: t.id, name: t.name, line: t.niche, href: `/templates/${t.id}.html`, shot: `/shots/${t.id}.jpg`, use: `/signup?site=${t.id}`, useLabel: "Utiliser" }
+  const kind = SITES.storeKindForSite(t.id)
+  return { id: t.id, name: t.name, line: t.niche, href: `/templates/${t.id}.html`, shot: `/shots/${t.id}.jpg`, use: `/signup?site=${t.id}&kind=${kind}`, useLabel: "Utiliser" }
 }
 const SHOW = PICKS.map((g) => ({ ...g, items: g.ids.map(toShow).filter(Boolean) }))
 
@@ -148,12 +149,12 @@ const landing = (stores) => {
     <h2>Tu choisis au départ.</h2>
   </div>
   <div class="type-grid">
-  <a class="type" id="vitrine" href="/signup">
+  <a class="type" id="vitrine" href="/signup?kind=vitrine">
     <span>Type 01</span>
     <b><i class="dot bolt">${bolt(16)}</i>Vitrine</b>
     <p>Présentation, services, portfolio, prise de contact. Pas de panier.</p>
   </a>
-  <a class="type" id="commerce" href="/signup">
+  <a class="type" id="commerce" href="/signup?kind=commerce">
     <span>Type 02</span>
     <b><i class="dot shop">${cart()}</i>E-commerce</b>
     <p>Catalogue, panier, dinars, wilayas, paiement à la livraison.</p>

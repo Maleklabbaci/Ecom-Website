@@ -231,7 +231,11 @@ const authCart = `<svg width="22" height="22" viewBox="0 0 24 24" fill="currentC
 
 const authPage = (mode, error, kind = "", site = "") => {
   const signup = mode === "signup"
-  const picked = kind === "commerce" ? "commerce" : kind === "vitrine" ? "vitrine" : ""
+  /* Un template choisi dans la galerie appartient à une seule famille :
+     il présélectionne le bon formulaire et n'est transmis que par celui-ci. */
+  const siteKind = require("./site-templates").storeKindForSite(site)
+  const picked = siteKind || (kind === "commerce" ? "commerce" : kind === "vitrine" ? "vitrine" : "")
+  const siteFor = (k) => (siteKind === k ? site : "")
   return page(signup ? "Créer un site — NovaDZ" : "Connexion — NovaDZ", `
 <div class="auth-stage">
   <div class="auth-bg" aria-hidden="true"></div>
@@ -279,7 +283,7 @@ const authPage = (mode, error, kind = "", site = "") => {
         </div>
         <form class="auth-pane pane-vitrine" method="post" action="/signup">
           <input type="hidden" name="kind" value="vitrine">
-          <input type="hidden" name="site" value="${esc(site)}">
+          <input type="hidden" name="site" value="${esc(siteFor("vitrine"))}">
           <p class="auth-mode"><i></i>Vitrine</p>
           <label>Nom de la marque<input name="store" required placeholder="Atelier Lina"></label>
           <label>Votre nom<input name="name" required placeholder="Amine Benali"></label>
@@ -290,7 +294,7 @@ const authPage = (mode, error, kind = "", site = "") => {
         </form>
         <form class="auth-pane pane-commerce" method="post" action="/signup">
           <input type="hidden" name="kind" value="commerce">
-          <input type="hidden" name="site" value="${esc(site)}">
+          <input type="hidden" name="site" value="${esc(siteFor("commerce"))}">
           <p class="auth-mode"><i></i>E-commerce</p>
           <label>Nom de la boutique<input name="store" required placeholder="Amina Mode"></label>
           <label>Votre nom<input name="name" required placeholder="Amine Benali"></label>
@@ -4478,10 +4482,14 @@ ${(() => {
     const SEC = require("./sections")
     const live = SEC.readDesign(store).siteTemplate || ""
     const trialSite = (draft.design && draft.design.siteTemplate) || ""
+    const isVitrine = store.site_kind === "vitrine"
+    const list = SITES.forStore(store)
     return `<section class="th-group">
-      <div class="th-group-head"><h2>Templates sites complets</h2>
-        <p>Des pages d'accueil entières, prêtes à l'emploi. Ton nom, tes produits, ton panier et la commande restent ceux de NovaDZ. Le choisir ouvre un brouillon : tes clients ne voient rien avant Publier.</p></div>
-      <div class="th-grid">${SITES.LIST.map((t) => `<article class="th-card${t.id === live ? " is-now" : ""}${t.id === trialSite && t.id !== live ? " is-trial" : ""}">
+      <div class="th-group-head"><h2>${isVitrine ? "Templates vitrine complets" : "Templates e-commerce complets"}</h2>
+        <p>${isVitrine
+          ? "Uniquement des pages pensées pour présenter une activité : services, réalisations et prise de contact. Ton nom et ton formulaire restent ceux de NovaDZ. Le choisir ouvre un brouillon : tes visiteurs ne voient rien avant Publier."
+          : "Uniquement des pages pensées pour vendre. Ton nom, tes produits, ton panier et la commande restent ceux de NovaDZ. Le choisir ouvre un brouillon : tes clients ne voient rien avant Publier."}</p></div>
+      <div class="th-grid">${list.map((t) => `<article class="th-card${t.id === live ? " is-now" : ""}${t.id === trialSite && t.id !== live ? " is-trial" : ""}">
         <div class="th-shot"><img src="/shots/${esc(t.id)}.jpg" alt="Aperçu ${esc(t.name)}" loading="lazy"></div>
         <div class="th-body">
           <div class="th-name"><b>${esc(t.name)}</b>

@@ -456,7 +456,7 @@ const saveDraft = (store, built) => {
   } else {
     sections = { home: built.sections }
   }
-  const design = SECTIONS.sanitizeDesign({ ...(current.design || SECTIONS.readDesign(store)), ...(built.design || {}) })
+  const design = SECTIONS.sanitizeDesign({ ...(current.design || SECTIONS.readDesign(store)), ...(built.design || {}) }, store)
   const draft = {
     design,
     sections,

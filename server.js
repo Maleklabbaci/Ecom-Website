@@ -460,14 +460,18 @@ app.get("/", (req, res) => {
 app.get("/signup", (req, res) => {
   const { user } = auth(req)
   if (user) return res.redirect("/dashboard")
-  const kind = req.query.kind === "commerce" ? "commerce" : req.query.kind === "vitrine" ? "vitrine" : ""
   const site = SITES.isSite(req.query.site) ? req.query.site : ""
+  const kind = site
+    ? SITES.storeKindForSite(site)
+    : (req.query.kind === "commerce" ? "commerce" : req.query.kind === "vitrine" ? "vitrine" : "")
   res.send(V.authPage("signup", null, kind, site))
 })
 
 app.post("/signup", (req, res) => {
   const kind = req.body.kind === "commerce" ? "commerce" : "vitrine"
-  const site = SITES.isSite(req.body.site) ? req.body.site : ""
+  /* Un template de l'autre famille est ignoré : le type choisi par
+     l'utilisateur gagne, mais aucun mélange n'entre en base. */
+  const site = SITES.isSiteForStore(req.body.site, kind) ? req.body.site : ""
   const again = (msg) => res.status(400).send(V.authPage("signup", msg, kind, site))
   const name = String(req.body.name || "").trim()
   const storeName = String(req.body.store || "").trim()
@@ -500,7 +504,7 @@ app.post("/signup", (req, res) => {
   if (site) {
     const st = db.prepare("SELECT * FROM stores WHERE slug = ?").get(slug)
     const draft = readOwnDraft(st)
-    draft.design = SECTIONS.sanitizeDesign({ ...draft.design, siteTemplate: site })
+    draft.design = SECTIONS.sanitizeDesign({ ...draft.design, siteTemplate: site }, st)
     db.prepare("UPDATE stores SET draft = ? WHERE id = ?").run(JSON.stringify(draft), st.id)
     return res.redirect("/dashboard/design?template=1")
   }
@@ -1185,7 +1189,7 @@ app.post("/dashboard/design/save", requireAuth, requireStore, (req, res) => {
   const body = req.body || {}
   const draft = readOwnDraft(req.store)
 
-  if (body.design) draft.design = SECTIONS.sanitizeDesign({ siteTemplate: (draft.design || {}).siteTemplate, ...body.design })
+  if (body.design) draft.design = SECTIONS.sanitizeDesign({ siteTemplate: (draft.design || {}).siteTemplate, ...body.design }, req.store)
   if (body.nav !== undefined) {
     const nav = SECTIONS.sanitizeNav(body.nav)
     if (!nav) return res.status(400).json({ ok: false, error: "navigation invalide" })
@@ -1302,7 +1306,7 @@ app.get("/dashboard/design/source", requireAuth, requireStore, (req, res) => {
 app.post("/dashboard/design/template", requireAuth, requireStore, (req, res) => {
   const body = req.body || {}
   const draft = readOwnDraft(req.store)
-  if (body.design) draft.design = SECTIONS.sanitizeDesign(body.design)
+  if (body.design) draft.design = SECTIONS.sanitizeDesign(body.design, req.store)
   if (body.nav !== undefined) {
     const nav = SECTIONS.sanitizeNav(body.nav)
     if (!nav) return res.status(400).json({ ok: false, error: "navigation invalide" })
@@ -1322,9 +1326,9 @@ app.post("/dashboard/design/template", requireAuth, requireStore, (req, res) => 
 /* Template « site complet » : on le charge dans le brouillon, la mise en ligne reste explicite. */
 app.post("/dashboard/design/site-template", requireAuth, requireStore, (req, res) => {
   const id = String((req.body && req.body.id) || "")
-  if (id && !SITES.isSite(id)) return res.redirect("/dashboard/design/themes")
+  if (id && !SITES.isSiteForStore(id, req.store)) return res.redirect("/dashboard/design/themes")
   const draft = readOwnDraft(req.store)
-  draft.design = SECTIONS.sanitizeDesign({ ...draft.design, siteTemplate: id })
+  draft.design = SECTIONS.sanitizeDesign({ ...draft.design, siteTemplate: id }, req.store)
   db.prepare("UPDATE stores SET draft = ? WHERE id = ?").run(JSON.stringify(draft), req.store.id)
   res.redirect(id ? "/dashboard/design?template=1" : "/dashboard/design/themes")
 })
@@ -1336,7 +1340,7 @@ app.post("/dashboard/design/template/:id/apply", requireAuth, requireStore, (req
   try { payload = JSON.parse(row.payload) } catch (_) { payload = {} }
   const draft = {
     /* le logo du marchand n'appartient pas au modèle : il survit à l'application */
-    design: SECTIONS.sanitizeDesign({ ...(payload.design || {}), logo: req.store.logo || "" }),
+    design: SECTIONS.sanitizeDesign({ ...(payload.design || {}), logo: req.store.logo || "" }, req.store),
     sections: SECTIONS.sanitize(payload.sections) || payload.sections || {},
     nav: SECTIONS.sanitizeNav(payload.nav) || payload.nav || [],
     theme: isTheme(payload.theme) ? payload.theme : req.store.theme,
@@ -1385,7 +1389,7 @@ app.post("/dashboard/design/theme/public", requireAuth, requireStore, (req, res)
     bg: row.bg,
     accent: row.accent,
     ink: row.ink,
-  })
+  }, req.store)
   draft.publicThemeId = row.id
   draft.publicThemeName = row.name
   draft.publicThemeTouched = false
@@ -2252,7 +2256,11 @@ const storefrontHandler = (req, res, next) => {
   }
   const siteId = SECTIONS.readDesign(store).siteTemplate
   if (siteId && !q && !cat) {
-    const page = SITES.render(store, products, siteId, { cartCount: count })
+    const page = SITES.render(store, products, siteId, {
+      cartCount: count,
+      contactSent: req.query.envoye === "1",
+      contactError: req.query.envoye === "0",
+    })
     if (page) return res.send(page)
   }
   let html = V.storefront(store, products, count, req.query.preview === "1", {
