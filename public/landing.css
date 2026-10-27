@@ -437,10 +437,10 @@ body.lp{
 .faq details[open] summary::after{content:"–"}
 .faq details p{margin:0 0 16px;color:rgba(255,255,255,.6);font-size:14.5px}
 
-.foot{position:relative;padding:84px 52px 30px;background:linear-gradient(180deg,transparent 0,rgba(0,0,0,.55) 34%,#000 78%)}
+.foot{position:relative;padding:72px 52px 30px;background:linear-gradient(180deg,transparent 0,rgba(0,0,0,.55) 34%,#000 78%)}
 .foot::before{content:"";position:absolute;top:0;left:52px;right:52px;height:1px;background:linear-gradient(90deg,transparent,rgba(214,255,69,.35),transparent)}
-.foot-grid{display:grid;grid-template-columns:.85fr 1.15fr;gap:44px;align-items:end;max-width:1240px;margin:0 auto}
-.form{background:#0e0e0e;border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+.foot-grid{display:grid;grid-template-columns:1fr;gap:40px;max-width:1240px;margin:0 auto}
+.form{background:linear-gradient(180deg,#121212,#0b0b0b);border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,.45);display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
 .form-k{margin:0 0 12px;color:rgba(255,255,255,.78);font:500 24px/1.15 Urbanist,sans-serif;letter-spacing:-.03em}
 .form h3{margin:0 0 16px;font:700 84px/1 Urbanist,sans-serif;letter-spacing:-.034em}
 .form-row{display:flex;gap:10px;align-items:center;color:rgba(255,255,255,.78);font:500 14px/1.35 Geist,sans-serif;margin:8px 0}
@@ -452,7 +452,7 @@ body.lp{
 .form .btn{width:100%;height:50px;border-radius:14px;background:var(--lime);color:#111;font-weight:600}
 .form-note{margin:12px 0 0;color:rgba(255,255,255,.42);font-size:12.5px}
 .foot-big{
-  font:700 84px/1 Urbanist,sans-serif;letter-spacing:-.034em;margin:0 0 34px;
+  font:700 84px/1 Urbanist,sans-serif;letter-spacing:-.034em;margin:0 auto 44px;max-width:1240px;
 }
 .foot-big span{color:var(--lime)}
 .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;color:rgba(255,255,255,.72);font-size:14px}
@@ -479,6 +479,8 @@ body.lp{
   .tf-grid,.type-grid,.steps,.bento,.brow,.prices,.about,.foot-grid,.table .tr{grid-template-columns:1fr}
   .foot{padding:56px 20px 26px}
   .foot::before{left:20px;right:20px}
+  .foot-big{margin-bottom:32px}
+  .form{grid-template-columns:1fr;gap:6px}
   .types,.themes{padding-left:20px;padding-right:20px}
   .after-head h2{font-size:44px}
   .nav nav a:not(.btn-pill){display:none}
@@ -622,7 +624,12 @@ body.lp{
   .faq summary{padding:14px 0}
   .foot{padding:40px 16px 24px}
   .foot-grid{gap:28px}
-  .foot-bar{margin-top:30px;padding-top:18px}
+  .foot-big{margin-bottom:26px}
+  .form{padding:22px}
+  .cols{grid-template-columns:1fr 1fr;gap:20px 18px;font-size:15px}
+  .cols>div:first-child{grid-column:1/-1}
+  .cols a{padding:6px 0;margin:1px 0}
+  .foot-bar{flex-direction:column;gap:8px;margin-top:30px;padding-top:18px}
   /* — Typographie unifiée sur le modèle du hero : partout le même trio.
      Au-dessus du titre : Urbanist 500 16px, blanc 78 %, casse phrase.
      Titres : Urbanist 700 44px/0,92, tracking -0,045em.

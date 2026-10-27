@@ -101,7 +101,7 @@ const landing = (stores) => {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NovaDZ — Une boutique qui a l'air faite</title>
 <meta name="description" content="Choisis une mise en page, ajoute tes produits, publie. Dinars, wilayas, paiement à la livraison.">
-<link rel="stylesheet" href="/landing.css?v=44">
+<link rel="stylesheet" href="/landing.css?v=46">
 </head>
 <body class="lp">
 <div class="grain" aria-hidden="true"></div>
@@ -345,23 +345,25 @@ ${t3d()}
 </section>
 
 <footer class="foot">
+  <p class="foot-big">Ouvre, publie,<br><span>sors du lot.</span></p>
   <div class="foot-grid">
     <form class="form" action="/signup" method="get">
-      <p class="form-k">La lettre NovaDZ</p>
+      <div>
+        <p class="form-k">La lettre NovaDZ</p>
       <h3>Les nouveautés, sans le bruit.</h3>
-      <p class="form-row"><i class="fcheck"></i> Les nouvelles mises en page</p>
+      </div>
+      <div>
+        <p class="form-row"><i class="fcheck"></i> Les nouvelles mises en page</p>
       <p class="form-row"><i class="fcheck"></i> On ne vend pas tes ventes</p>
       <input name="email" type="email" placeholder="toi@exemple.dz" aria-label="Email">
       <button class="btn" type="submit">Je m'inscris</button>
       <p class="form-note">Un e-mail de temps en temps. Zéro spam.</p>
+      </div>
     </form>
-    <div>
-      <p class="foot-big">Ouvre, publie,<br><span>sors du lot.</span></p>
-      <div class="cols">
+    <div class="cols">
         <div><b>Écrire</b><a href="mailto:contact@novadz.dz">contact@novadz.dz</a></div>
         <div><b>Pages</b><a href="#themes">Thèmes</a><a href="/themes">Catalogue</a><a href="/login">Connexion</a></div>
         <div><b>Offre</b><a href="#tarifs">Tarifs</a><a href="/signup">Créer un site</a></div>
-      </div>
     </div>
   </div>
   <div class="foot-bar">
