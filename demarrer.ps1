@@ -70,10 +70,11 @@ if (Test-NovaDZ 3000) {
 
 # ---------- 4. Demarrage dans une fenetre dediee ----------
 Info "Demarrage du serveur dans une nouvelle fenetre..."
-# En local uniquement : les boutiques de demonstration (comptes connus).
-# Sur une machine exposee publiquement, ne JAMAIS mettre NOVADZ_DEMO=1.
-if (-not $env:NOVADZ_DEMO) { $env:NOVADZ_DEMO = "1" }
-$proc = Start-Process -FilePath "node" -ArgumentList "server.js" -WorkingDirectory $PSScriptRoot -PassThru
+# En local uniquement : scripts\demo.js force les comptes de demonstration
+# et utilise une base separee (data\novadz-demo.db), meme si `npm start`
+# a deja ete lance avant. Sur une machine exposee publiquement, ne jamais
+# utiliser ce mode : ses mots de passe sont connus.
+$proc = Start-Process -FilePath "node" -ArgumentList "scripts\demo.js" -WorkingDirectory $PSScriptRoot -PassThru
 
 $ready = $false
 for ($i = 0; $i -lt 30; $i++) {
@@ -85,19 +86,20 @@ for ($i = 0; $i -lt 30; $i++) {
 if ($ready) {
     Ok "`nServeur pret : http://localhost:3000"
     Write-Host "  Marchand : demo@novadz.dz / demo1234"
+    Write-Host "  Vitrine  : vitrine@novadz.dz / demo1234"
     Write-Host "  Admin    : admin@novadz.dz / admin1234"
     Start-Process "http://localhost:3000"
-    Write-Host "`nIMPORTANT : la fenetre 'node server.js' doit rester ouverte."
+    Write-Host "`nIMPORTANT : la fenetre 'node scripts\demo.js' doit rester ouverte."
     Write-Host "Pour arreter : ferme cette fenetre, ou tape :  Get-Process node | Stop-Process"
 } else {
     Bad "`nLe serveur n'a pas repondu."
     if ($proc.HasExited) {
         Bad "Le processus s'est arrete (code $($proc.ExitCode))."
-        Write-Host "Relance a la main pour voir l'erreur complete :  node server.js"
+        Write-Host "Relance a la main pour voir l'erreur complete :  npm run demo"
     } else {
         Write-Host "Le processus tourne mais le port 3000 ne repond pas."
         Write-Host "1) Le pare-feu Windows a peut-etre bloque Node.js : autorise-le."
-        Write-Host "2) Un autre logiciel occupe le port : essaie  `$env:PORT=3001; node server.js"
+        Write-Host "2) Un autre logiciel occupe le port : essaie  `$env:PORT=3001; npm run demo"
     }
 }
 

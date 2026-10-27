@@ -62,18 +62,21 @@ Toujours dans `C:\novadz` :
 npm install
 ```
 
-**Ce que tu dois voir :** une barre de progression, puis `NovaDZ pret. Lance: npm start`.
+**Ce que tu dois voir :** une barre de progression, puis un message qui propose `npm run demo`.
 
 Ça télécharge deux bibliothèques (Express et le moteur SQLite). Ça prend 1 à 3 minutes.
 Un avertissement jaune `npm warn` est normal, **une erreur rouge ne l'est pas**.
 
 ---
 
-## Étape 4 — Démarrer la plateforme
+## Étape 4 — Démarrer la plateforme de démonstration
 
 ```powershell
-npm start
+npm run demo
 ```
+
+> Utilise bien `npm run demo` pour avoir les comptes ci-dessous. `npm start` lance le mode
+> normal, sans les comptes de démonstration.
 
 **Ce que tu dois voir :**
 
@@ -81,14 +84,16 @@ npm start
 NovaDZ — plateforme multi-boutiques
    http://localhost:3000
    Marchand : demo@novadz.dz / demo1234
+   Vitrine  : vitrine@novadz.dz / demo1234
    Admin    : admin@novadz.dz / admin1234
 ```
 
 **Laisse cette fenêtre ouverte.** Tant qu'elle est ouverte, la plateforme tourne.
 Si tu la fermes ou fais Ctrl+C, le site s'arrête (normal, rien n'est perdu).
 
-Au premier démarrage, le fichier `C:\novadz\data\novadz.db` est créé avec des données de
-démonstration : 2 boutiques, des produits, des commandes.
+Au premier démarrage, le fichier `C:\novadz\data\novadz-demo.db` est créé avec les données
+de démonstration : 2 boutiques, 1 vitrine, des produits et des commandes. Cette base est
+séparée de `novadz.db` : si `npm start` a déjà été lancé avant, il n'y a rien à supprimer.
 
 ---
 
@@ -151,7 +156,7 @@ Sur le téléphone, ouvre `http://192.168.1.24:3000`.
 ## Étape 8 — Arrêter et redémarrer
 
 - **Arrêter** : dans la fenêtre PowerShell, `Ctrl + C`.
-- **Redémarrer** : `cd C:\novadz` puis `npm start`.
+- **Redémarrer la démo** : `cd C:\novadz` puis `npm run demo`.
 
 Tu n'as pas à refaire `npm install` : les dépendances restent dans `node_modules`.
 
@@ -161,13 +166,14 @@ Tu n'as pas à refaire `npm install` : les dépendances restent dans `node_modul
 
 | Quoi | Où |
 |---|---|
-| Base de données (boutiques, produits, commandes) | `C:\novadz\data\novadz.db` |
+| Base de démonstration (`npm run demo`) | `C:\novadz\data\novadz-demo.db` |
+| Base normale (`npm start`) | `C:\novadz\data\novadz.db` |
 | Photos envoyées | `C:\novadz\public\uploads\` |
 | Bordereaux PDF téléchargés | `C:\novadz\data\labels\` |
 
 **Sauvegarde** : copie le fichier `novadz.db` quelque part. C'est tout.
-**Repartir de zéro** : arrête (`Ctrl+C`), supprime le dossier `data`, relance `npm start`.
-Tu retrouves les données de démonstration neuves.
+**Repartir de zéro en démo** : arrête (`Ctrl+C`), supprime `data\novadz-demo.db`, relance
+`npm run demo`. Tu retrouves les données de démonstration neuves, sans toucher à `novadz.db`.
 
 ---
 
@@ -176,16 +182,16 @@ Tu retrouves les données de démonstration neuves.
 | Message | Cause | Solution |
 |---|---|---|
 | `node : n'est pas reconnu` | Node.js absent ou PowerShell pas rouvert | installe avec `winget install OpenJS.NodeJS.LTS`, **ferme et rouvre** PowerShell |
-| `EADDRINUSE : port 3000 déjà utilisé` | un autre programme occupe le port | `$env:PORT=3001; npm start` puis ouvre `http://localhost:3001` |
+| `EADDRINUSE : port 3000 déjà utilisé` | un autre programme occupe le port | `$env:PORT=3001; npm run demo` puis ouvre `http://localhost:3001` |
 | `Cannot find module 'express'` | `npm install` pas fait, ou lancé ailleurs | vérifie que tu es dans `C:\novadz` (`dir` doit montrer `server.js`), refais `npm install` |
 | Erreur rouge `node-gyp` / `find VS` / `Could not find any Visual Studio installation` | ancienne version du paquet SQLite, ou `node_modules` à moitié installé | voir la section **Node 24 / erreur node-gyp** juste en dessous |
 | `EPERM: operation not permitted, rmdir …node_modules\…` | un programme tient un fichier ouvert (VS Code, antivirus, OneDrive) | ferme VS Code, supprime `node_modules`, réinstalle |
-| Page blanche ou « site inaccessible » | la fenêtre `npm start` a été fermée | relance `npm start`, vérifie le port affiché |
+| Page blanche ou « site inaccessible » | la fenêtre du serveur a été fermée | relance `npm run demo`, vérifie le port affiché |
 | Le pare-feu demande une autorisation | normal | clique **Autoriser l'accès** |
-| `npm start` s'arrête tout seul avec une erreur | bug ou fichier manquant | recopie le message d'erreur complet et envoie-le moi |
+| Le serveur s'arrête tout seul avec une erreur | bug ou fichier manquant | recopie le message d'erreur complet et envoie-le moi |
 | La fenêtre **rend la main tout de suite** et le navigateur dit `localhost n'autorise pas la connexion` / `ERR_CONNECTION_REFUSED` | le serveur n'a pas démarré (port occupé, antivirus, ou fenêtre fermée) | lance `powershell -ExecutionPolicy Bypass -File .\demarrer.ps1` : il démarre, **vérifie que le serveur répond vraiment**, puis ouvre le navigateur |
 | Tu veux savoir si le serveur tourne | — | dans un autre PowerShell : `Get-Process node` (une ligne = il tourne). Pour l'arrêter : `Get-Process node \| Stop-Process` |
-| Le port 3000 est déjà pris | une autre fenêtre fait déjà tourner NovaDZ | ferme l'autre fenêtre, ou lance `$env:PORT=3001; npm start` puis ouvre `http://localhost:3001` |
+| Le port 3000 est déjà pris | une autre fenêtre fait déjà tourner NovaDZ | ferme l'autre fenêtre, ou lance `$env:PORT=3001; npm run demo` puis ouvre `http://localhost:3001` |
 
 ---
 
@@ -249,7 +255,7 @@ npm install
 **Ce que tu dois voir à la fin :**
 
 ```
-NovaDZ pret. SQLite: native - Lance: npm start
+NovaDZ pret. SQLite: native - Lance: npm run demo (comptes demo) ou npm start
 added 104 packages in 3s
 ```
 
@@ -257,10 +263,10 @@ added 104 packages in 3s
 - `SQLite: node` → le module natif a été sauté, Node utilise son SQLite interne : **c'est bon
   aussi**, l'app fonctionne exactement pareil.
 
-Ensuite :
+Ensuite, pour la démonstration avec les comptes d'exemple :
 
 ```powershell
-npm start
+npm run demo
 ```
 
 Puis ouvre `http://localhost:3000`.

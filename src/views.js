@@ -313,6 +313,7 @@ const authPage = (mode, error, kind = "", site = "") => {
       ${process.env.NOVADZ_DEMO === "1" ? `<div class="auth-demo">
         <b>Comptes de démo</b>
         <span>Marchand · demo@novadz.dz / demo1234</span>
+        <span>Vitrine · vitrine@novadz.dz / demo1234</span>
         <span>Admin · admin@novadz.dz / admin1234</span>
       </div>` : ""}
     </div>

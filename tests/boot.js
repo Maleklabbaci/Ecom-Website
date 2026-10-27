@@ -14,8 +14,8 @@ function listen0(server, host = "127.0.0.1") {
   })
 }
 
-function startServer({ db, env = {}, cwd, timeout = 30000 } = {}) {
-  const child = spawn(process.execPath, ["server.js"], {
+function startServer({ db, env = {}, cwd, timeout = 30000, script = "server.js" } = {}) {
+  const child = spawn(process.execPath, [script], {
     cwd: cwd || path.join(__dirname, ".."),
     /* les tests travaillent sur les boutiques de démonstration (NOVADZ_DEMO=1) */
     env: { ...process.env, PORT: "0", NOVADZ_DB: db, NOVADZ_DEMO: "1", ...env },

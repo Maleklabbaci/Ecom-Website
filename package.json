@@ -6,9 +6,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "demo": "node scripts/demo.js",
     "dev": "node server.js",
     "test": "node --test tests/*.test.js",
-    "postinstall": "node -e \"const s=require('./src/sqlite');console.log('NovaDZ pret. SQLite:', s.which(), '- Lance: npm start')\"",
+    "postinstall": "node -e \"const s=require('./src/sqlite');console.log('NovaDZ pret. SQLite:', s.which(), '- Lance: npm run demo (comptes demo) ou npm start')\"",
     "fonts": "node scripts/get-fonts.js"
   },
   "dependencies": {

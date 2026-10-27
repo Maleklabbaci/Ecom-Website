@@ -3388,6 +3388,7 @@ const startAt = (port) => {
     console.log(`  Base         : ${process.env.NOVADZ_DB || "data/novadz.db"}`)
     if (process.env.NOVADZ_DEMO === "1") {
       console.log("  Marchand     : demo@novadz.dz / demo1234")
+      console.log("  Vitrine      : vitrine@novadz.dz / demo1234")
       console.log("  Admin        : admin@novadz.dz / admin1234")
     } else {
       console.log("  Admin        : admin@novadz.dz (mot de passe affiche au premier demarrage)")

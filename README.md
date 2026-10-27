@@ -13,6 +13,11 @@ Dinars (DZD), wilayas, paiement à la livraison, interface en français.
 ```bash
 npm install     # installe les dépendances
 npm run fonts   # optionnel : retélécharge la police arabe Estedad si public/fonts est vide
+
+# Démonstration locale (comptes et boutiques d'exemple)
+npm run demo
+
+# Mode normal / production locale (sans comptes de démonstration)
 npm start
 ```
 
@@ -20,7 +25,8 @@ npm start
 
 - Aucun Docker, aucun PostgreSQL, aucune variable obligatoire en local
   (optionnelles : voir `.env.example` — `PORT`, `NOVADZ_DEMO`, `NOVADZ_TRUST_PROXY`…).
-- Base **SQLite** dans `data/novadz.db`, créée automatiquement au premier lancement.
+- Base **SQLite** créée automatiquement au premier lancement : `data/novadz.db` en mode
+  normal, `data/novadz-demo.db` avec `npm run demo`.
 - **Node.js 22 ou 24** (testé sur 22 et 24). Node 20 n'est plus supporté.
 - SQLite : `better-sqlite3` (binaire précompilé) **ou**, s'il n'a pas pu s'installer, le
   SQLite intégré à Node (`node:sqlite`, présent depuis Node 22.5). Rien à configurer :
@@ -28,13 +34,17 @@ npm start
 
 ### Comptes de démonstration
 
-Créés au premier démarrage **uniquement si `NOVADZ_DEMO=1`** (local seulement :
-ces mots de passe sont publics). Sans cette variable, seul un admin est créé,
-avec un mot de passe aléatoire affiché **une fois** dans la console.
+Créés au premier démarrage **uniquement en mode démo** (local seulement :
+ces mots de passe sont publics). Le plus simple est **`npm run demo`** : il force
+`NOVADZ_DEMO=1` et utilise `data/novadz-demo.db`. Donc même si `npm start` a déjà
+été lancé auparavant, il n'y a rien à supprimer pour obtenir les comptes ci-dessous.
+Sans mode démo, seul un admin est créé, avec un mot de passe aléatoire affiché
+**une fois** dans la console.
 
 | Rôle | Email | Mot de passe | Où |
 |---|---|---|---|
 | Marchand | `demo@novadz.dz` | `demo1234` | `/dashboard` — boutiques `amina-mode` et `tech-dz` |
+| Vitrine | `vitrine@novadz.dz` | `demo1234` | `/dashboard` — site `atelier-lina` |
 | Admin plateforme | `admin@novadz.dz` | `admin1234` | `/admin` |
 
 ### Tests
