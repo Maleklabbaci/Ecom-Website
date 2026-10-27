@@ -455,16 +455,14 @@ app.get("/signup", (req, res) => {
   const { user } = auth(req)
   if (user) return res.redirect("/dashboard")
   const kind = req.query.kind === "commerce" ? "commerce" : req.query.kind === "vitrine" ? "vitrine" : ""
-  const theme = isTheme(req.query.theme) ? req.query.theme : ""
   const site = SITES.isSite(req.query.site) ? req.query.site : ""
-  res.send(V.authPage("signup", null, kind, theme, site))
+  res.send(V.authPage("signup", null, kind, site))
 })
 
 app.post("/signup", (req, res) => {
   const kind = req.body.kind === "commerce" ? "commerce" : "vitrine"
-  const theme = isTheme(req.body.theme) ? req.body.theme : ""
   const site = SITES.isSite(req.body.site) ? req.body.site : ""
-  const again = (msg) => res.status(400).send(V.authPage("signup", msg, kind, theme, site))
+  const again = (msg) => res.status(400).send(V.authPage("signup", msg, kind, site))
   const name = String(req.body.name || "").trim()
   const storeName = String(req.body.store || "").trim()
   const email = String(req.body.email || "").trim().toLowerCase()
@@ -485,7 +483,7 @@ app.post("/signup", (req, res) => {
 
   const slug = uniqueSlug(slugify(storeName))
   const firstTheme = THEMES[0] && THEMES[0].id
-  const chosen = theme || (isTheme(firstTheme) ? firstTheme : DEFAULT_THEME)
+  const chosen = isTheme(firstTheme) ? firstTheme : DEFAULT_THEME
   db.prepare(`INSERT INTO stores (owner_id, slug, name, tagline, theme, site_kind) VALUES (?, ?, ?, ?, ?, ?)`)
     .run(info.lastInsertRowid, slug, storeName, "", chosen, kind)
 

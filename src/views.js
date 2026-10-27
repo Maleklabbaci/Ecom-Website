@@ -229,17 +229,7 @@ const orderDone = (store, order, opts = {}) => {
 const authBolt = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 10-14h-7l1-6z"/></svg>`
 const authCart = `<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8.1 6.1h.55l.35 1.35h10.7a1.05 1.05 0 0 1 1.02 1.3l-1.25 4.7a1.7 1.7 0 0 1-1.64 1.25H9.55a1.7 1.7 0 0 1-1.64-1.25L6.85 6.1H4.35a1.05 1.05 0 1 1 0-2.1h2.85c.46 0 .86.3.99.74l.2 1.36z"/><circle cx="10.15" cy="18.55" r="1.55"/><circle cx="16.35" cy="18.55" r="1.55"/></svg>`
 
-const authPage = (mode, error, kind = "", theme = "", site = "") => {
-  const order = ["noir", "editorial", "galerie", "bureau", "mode", "audio", "atelier", "electro", "soin", "minimal", "bento", "mono"]
-  const all = require("./themes").THEMES
-  const pickedTheme = require("./themes").isTheme(theme) ? theme : ""
-  const themeList = order.map((id) => all.find((t) => t.id === id)).filter(Boolean)
-  if (pickedTheme) {
-    const i = themeList.findIndex((t) => t.id === pickedTheme)
-    if (i > 0) themeList.unshift(themeList.splice(i, 1)[0])
-  }
-  const themeName = pickedTheme ? ((all.find((t) => t.id === pickedTheme) || {}).name || "") : ""
-  const themeBtns = themeList.map((t) => `<button type="button" class="auth-theme${t.id === pickedTheme ? " on" : ""}" data-theme="${esc(t.id)}">${esc(t.name)}</button>`).join("")
+const authPage = (mode, error, kind = "", site = "") => {
   const signup = mode === "signup"
   const picked = kind === "commerce" ? "commerce" : kind === "vitrine" ? "vitrine" : ""
   return page(signup ? "Créer un site — NovaDZ" : "Connexion — NovaDZ", `
@@ -287,13 +277,8 @@ const authPage = (mode, error, kind = "", theme = "", site = "") => {
           <label class="auth-pick"><input type="radio" name="show" value="vitrine" ${picked === "vitrine" ? "checked" : ""}><i>${authBolt}</i>Vitrine</label>
           <label class="auth-pick"><input type="radio" name="show" value="commerce" ${picked === "commerce" ? "checked" : ""}><i>${authCart}</i>E-commerce</label>
         </div>
-        <div class="auth-themes">
-          <p>Thème${themeName ? ` · <b>${esc(themeName)}</b>` : ""}</p>
-          <div class="auth-theme-row">${themeBtns}</div>
-        </div>
         <form class="auth-pane pane-vitrine" method="post" action="/signup">
           <input type="hidden" name="kind" value="vitrine">
-          <input type="hidden" name="theme" value="${esc(pickedTheme)}">
           <input type="hidden" name="site" value="${esc(site)}">
           <p class="auth-mode"><i></i>Vitrine</p>
           <label>Nom de la marque<input name="store" required placeholder="Atelier Lina"></label>
@@ -305,7 +290,6 @@ const authPage = (mode, error, kind = "", theme = "", site = "") => {
         </form>
         <form class="auth-pane pane-commerce" method="post" action="/signup">
           <input type="hidden" name="kind" value="commerce">
-          <input type="hidden" name="theme" value="${esc(pickedTheme)}">
           <input type="hidden" name="site" value="${esc(site)}">
           <p class="auth-mode"><i></i>E-commerce</p>
           <label>Nom de la boutique<input name="store" required placeholder="Amina Mode"></label>
@@ -330,16 +314,7 @@ const authPage = (mode, error, kind = "", theme = "", site = "") => {
     </div>
   </div>
 </div>
-<script>
-document.querySelectorAll(".auth-theme").forEach(function (btn) {
-  btn.addEventListener("click", function () {
-    document.querySelectorAll(".auth-theme").forEach(function (b) { b.classList.toggle("on", b === btn) })
-    document.querySelectorAll('input[name="theme"]').forEach(function (i) { i.value = btn.getAttribute("data-theme") })
-    var label = document.querySelector(".auth-themes p")
-    if (label) label.innerHTML = "Thème · <b>" + btn.textContent + "</b>"
-  })
-})
-</script>`, { bodyClass: "auth-body" })
+`, { bodyClass: "auth-body" })
 }
 
 const welcomePage = (user, store, error) => {

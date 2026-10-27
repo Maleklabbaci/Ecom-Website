@@ -39,7 +39,7 @@ const card = (t) => `<article class="tcard">
       <b>${esc(t.name)}<sup>®</sup></b>
       <small>${esc(t.line)}</small>
     </span>
-    <a class="tuse" href="${esc(t.use || "/signup?theme=" + t.id)}">${esc(t.useLabel || "Utiliser")}</a>
+    <a class="tuse" href="${esc(t.use || "/signup")}">${esc(t.useLabel || "Utiliser")}</a>
   </span>
 </article>`
 
