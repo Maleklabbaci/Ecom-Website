@@ -69,15 +69,21 @@ app.disable("x-powered-by")
 /* En-têtes de sécurité. CSP volontairement compatible avec l'existant
    (scripts/styles en ligne, pixels et CAPTCHA externes) : elle bloque
    l'encadrement par un autre site, les objets et les bases détournées. */
+/* Qui peut encadrer le site dans une iframe. Par défaut : uniquement le
+   site lui-même (anti-clickjacking, et l'aperçu du tableau de bord en a
+   besoin). Un hébergeur qui affiche le site dans son propre panneau
+   d'aperçu peut élargir via NOVADZ_FRAME_ANCESTORS, par exemple :
+   NOVADZ_FRAME_ANCESTORS="'self' https://*.exemple.com" */
+const FRAME_ANCESTORS = String(process.env.NOVADZ_FRAME_ANCESTORS || "'self'").trim() || "'self'"
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff")
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin")
-  res.setHeader("X-Frame-Options", "SAMEORIGIN")
+  if (FRAME_ANCESTORS === "'self'") res.setHeader("X-Frame-Options", "SAMEORIGIN")
   res.setHeader("Content-Security-Policy",
     "default-src 'self'; img-src 'self' data: blob: https:; media-src 'self' https: data:;" +
     " font-src 'self' data: https:; style-src 'self' 'unsafe-inline' https:;" +
     " script-src 'self' 'unsafe-inline' https:; connect-src 'self' https:;" +
-    " frame-src 'self' https:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'")
+    " frame-src 'self' https:; frame-ancestors " + FRAME_ANCESTORS + "; base-uri 'self'; form-action 'self'; object-src 'none'")
   next()
 })
 
