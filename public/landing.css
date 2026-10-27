@@ -187,8 +187,8 @@ body.lp{
 
 .types{position:relative;z-index:2;padding:8px 52px 12px;background:transparent}
 .after-head{max-width:720px;margin:0 0 36px}
-.after-head p{margin:0 0 10px;color:rgba(255,255,255,.62);font:500 15px/1 Geist,sans-serif;letter-spacing:.08em;text-transform:uppercase}
-.after-head h2{margin:0;font:700 64px/1 Urbanist,sans-serif;letter-spacing:-.034em}
+.after-head p{margin:0 0 12px;color:rgba(255,255,255,.78);font:500 24px/1.15 Urbanist,sans-serif;letter-spacing:-.03em}
+.after-head h2{margin:0;font:700 84px/1 Urbanist,sans-serif;letter-spacing:-.034em}
 .type-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
 .type{
   display:block;background:rgba(8,8,8,.46);border:1px solid rgba(255,255,255,.14);
@@ -205,8 +205,8 @@ body.lp{
 .themes{position:relative;z-index:4;padding:96px 52px 80px;background:transparent}
 .themes::after{content:none}
 .themes-head{max-width:680px;margin:0 0 28px}
-.themes-head h2{margin:0;font:700 64px/1 Urbanist,sans-serif;letter-spacing:-.04em}
-.themes-head p{margin:12px 0 0;max-width:34em;color:rgba(255,255,255,.62);font:500 16px/1.45 Geist,sans-serif}
+.themes-head h2{margin:0;font:700 84px/1 Urbanist,sans-serif;letter-spacing:-.034em}
+.themes-head p{margin:28px 0 0;max-width:34em;color:rgba(255,255,255,.62);font:500 16px/1.45 Geist,sans-serif;letter-spacing:-.02em}
 .themes-head p b{color:#d6ff45;font-weight:500}
 .themes-sub{margin:34px 0 14px;font:700 24px/1.1 Urbanist,sans-serif;letter-spacing:-.02em;color:#fff}
 .themes-sub:first-of-type{margin-top:4px}
@@ -262,10 +262,9 @@ body.lp{
 .avis-head{position:relative;z-index:2;max-width:860px;margin:0 52px 16px}
 .avis-head h2{
   margin:0;font:700 84px/1 Urbanist,sans-serif;letter-spacing:-.034em;
-  text-shadow:0 0 42px rgba(214,255,69,.28);
 }
 .avis-head p{
-  margin:18px 0 0;max-width:460px;
+  margin:28px 0 0;max-width:460px;
   color:rgba(255,255,255,.62);font:500 16px/1.45 Geist,sans-serif;letter-spacing:-.02em;
 }
 .avis-head p b{color:#d6ff45;font-weight:500}
@@ -322,14 +321,18 @@ body.lp{
 @keyframes slide{to{transform:translateX(-50%)}}
 
 .sec{padding:88px 28px}
+/* Titres de sections unifiés sur le hero : Urbanist 700 84px/1,
+   alignés à gauche (tarifs et FAQ suivent la colonne de leur contenu). */
 .sec h2{
-  margin:0 auto 14px;max-width:920px;text-align:center;
-  font:700 clamp(42px,5.4vw,78px)/1 Urbanist,sans-serif;letter-spacing:-.03em;
+  margin:0;max-width:none;text-align:left;
+  font:700 84px/1 Urbanist,sans-serif;letter-spacing:-.034em;
 }
+#tarifs h2{max-width:980px;margin-inline:auto}
+#faq h2{max-width:760px;margin-inline:auto}
 .sec h2.lime-title{color:var(--lime)}
 .sec .sub{
-  margin:0 auto 36px;max-width:520px;text-align:center;
-  color:rgba(255,255,255,.62);font:400 16px/1.5 Geist,sans-serif;
+  margin:28px 0 36px;max-width:520px;text-align:left;
+  color:rgba(255,255,255,.62);font:500 16px/1.45 Geist,sans-serif;letter-spacing:-.02em;
 }
 .steps{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:22px;overflow:hidden}
 .steps article{padding:22px 22px 18px;border-right:1px solid var(--line);min-height:420px;display:flex;flex-direction:column}
@@ -391,9 +394,9 @@ body.lp{
 .shotcard{border-radius:22px;overflow:hidden;min-height:240px;border:1px solid var(--line);background:#111;display:flex}
 .shotcard img{width:100%;height:100%;min-height:240px;object-fit:cover;object-position:top;flex:1}
 
-.feats{max-width:980px;margin:10px auto 0;text-align:center}
-.feats-k{margin:0;color:var(--lime);font:600 12px/1 Geist,sans-serif;letter-spacing:.14em;text-transform:uppercase}
-.feats h3{margin:14px 0 0;font:700 clamp(30px,4vw,44px)/1.05 Urbanist,sans-serif;letter-spacing:-.03em}
+.feats{max-width:980px;margin:10px auto 0;text-align:left}
+.feats-k{margin:0 0 12px;color:rgba(255,255,255,.78);font:500 24px/1.15 Urbanist,sans-serif;letter-spacing:-.03em}
+.feats h3{margin:0;font:700 84px/1 Urbanist,sans-serif;letter-spacing:-.034em}
 .feats-grid{list-style:none;margin:36px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:left}
 .feats-grid li{display:flex;gap:12px;align-items:flex-start;background:#0c0c0c;border:1px solid var(--line);border-radius:18px;padding:18px;color:rgba(255,255,255,.85);font:500 15px/1.45 Geist,sans-serif}
 .fcheck{width:22px;height:22px;flex:0 0 auto;margin-top:1px;display:grid;place-items:center;border-radius:50%;background:rgba(214,255,69,.12);border:1.5px solid rgba(214,255,69,.45);color:var(--lime);font:700 11px/1 Geist,sans-serif;font-style:normal}
@@ -421,11 +424,12 @@ body.lp{
 .about{display:grid;grid-template-columns:.8fr 1.2fr;gap:40px;align-items:center;max-width:1100px;margin:0 auto}
 .about .frame{border-radius:22px;overflow:hidden;min-height:420px;border:1px solid var(--line)}
 .about .frame img{width:100%;height:460px;object-fit:cover;object-position:top}
-.about h2{text-align:left;margin:8px 0 16px;max-width:none}
-.about p{color:rgba(255,255,255,.7);max-width:520px;font-size:16px}
+.about h2{text-align:left;margin:0 0 28px;max-width:none}
+.about p{color:rgba(255,255,255,.62);max-width:520px;font:500 16px/1.45 Geist,sans-serif;letter-spacing:-.02em}
 .k{color:rgba(255,255,255,.45);font-size:13px;letter-spacing:.04em}
+.about .k{font:500 24px/1.15 Urbanist,sans-serif;letter-spacing:-.03em;color:rgba(255,255,255,.78);margin:0 0 12px}
 
-.faq{max-width:760px;margin:0 auto}
+.faq{max-width:760px;margin:28px auto 0}
 .faq details{border:1px solid var(--line);border-radius:16px;margin-bottom:8px;padding:0 16px;background:#0c0c0c}
 .faq summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:16px;align-items:center;padding:16px 0;font:500 16px/1.3 Geist,sans-serif}
 .faq summary::-webkit-details-marker{display:none}
@@ -437,8 +441,8 @@ body.lp{
 .foot::before{content:"";position:absolute;top:0;left:52px;right:52px;height:1px;background:linear-gradient(90deg,transparent,rgba(214,255,69,.35),transparent)}
 .foot-grid{display:grid;grid-template-columns:.85fr 1.15fr;gap:44px;align-items:end;max-width:1240px;margin:0 auto}
 .form{background:#0e0e0e;border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,.45)}
-.form-k{margin:0;color:var(--lime);font:600 11px/1 Geist,sans-serif;letter-spacing:.14em;text-transform:uppercase}
-.form h3{margin:12px 0 16px;font:700 30px/1.08 Urbanist,sans-serif;letter-spacing:-.03em}
+.form-k{margin:0 0 12px;color:rgba(255,255,255,.78);font:500 24px/1.15 Urbanist,sans-serif;letter-spacing:-.03em}
+.form h3{margin:0 0 16px;font:700 84px/1 Urbanist,sans-serif;letter-spacing:-.034em}
 .form-row{display:flex;gap:10px;align-items:center;color:rgba(255,255,255,.78);font:500 14px/1.35 Geist,sans-serif;margin:8px 0}
 .form input{
   width:100%;height:50px;border-radius:14px;border:1px solid var(--line);background:#111;color:#fff;
@@ -448,7 +452,7 @@ body.lp{
 .form .btn{width:100%;height:50px;border-radius:14px;background:var(--lime);color:#111;font-weight:600}
 .form-note{margin:12px 0 0;color:rgba(255,255,255,.42);font-size:12.5px}
 .foot-big{
-  font:700 clamp(48px,6vw,84px)/.95 Urbanist,sans-serif;letter-spacing:-.035em;margin:0 0 34px;
+  font:700 84px/1 Urbanist,sans-serif;letter-spacing:-.034em;margin:0 0 34px;
 }
 .foot-big span{color:var(--lime)}
 .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;color:rgba(255,255,255,.72);font-size:14px}
@@ -480,6 +484,8 @@ body.lp{
   .hero-row{flex-direction:column;align-items:flex-start}
   .tinfo{left:16px}
   .steps article{border-right:0;border-bottom:1px solid var(--line)}
+  .after-head h2,.themes-head h2,.avis-head h2,.sec h2,.feats h3,.form h3,.foot-big{font-size:clamp(34px,8.2vw,64px)}
+  .after-head p,.feats-k,.about .k,.form-k{font-size:20px}
 }
 @media (max-width:640px){
   .nav{height:64px;padding:0 18px;gap:8px;background:linear-gradient(180deg,rgba(0,0,0,.4),transparent)}
