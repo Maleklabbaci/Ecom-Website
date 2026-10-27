@@ -101,7 +101,7 @@ const landing = (stores) => {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NovaDZ — Une boutique qui a l'air faite</title>
 <meta name="description" content="Choisis une mise en page, ajoute tes produits, publie. Dinars, wilayas, paiement à la livraison.">
-<link rel="stylesheet" href="/landing.css?v=41">
+<link rel="stylesheet" href="/landing.css?v=42">
 </head>
 <body class="lp">
 <div class="grain" aria-hidden="true"></div>

@@ -615,4 +615,31 @@ body.lp{
   .foot{padding:40px 16px 24px}
   .foot-grid{gap:28px}
   .foot-bar{margin-top:30px;padding-top:18px}
+  /* — Typographie unifiée sur le modèle du hero : partout le même trio.
+     Au-dessus du titre : Urbanist 500 16px, blanc 78 %, casse phrase.
+     Titres : Urbanist 700 44px/0,92, tracking -0,045em.
+     Sous-titres : Geist 500 16px/1,4, blanc 62 %.
+     Tout est aligné à gauche comme le hero (les en-têtes .sec et
+     .feats étaient centrés, avec des titres de 30 à 40px selon la
+     section). Seule exception couleur : le titre « premium », lime. — */
+  .after-head p,.feats-k,.about .k,.form-k{
+    font:500 16px/1.15 Urbanist,sans-serif;letter-spacing:-.03em;
+    color:rgba(255,255,255,.78);text-transform:none;text-align:left;margin:0 0 10px;
+  }
+  .after-head h2,.themes-head h2,.avis-head h2,.sec h2,.feats h3,.form h3,.foot-big{
+    font-size:44px;line-height:.92;letter-spacing:-.045em;font-weight:700;
+    text-align:left;margin-left:0;margin-right:0;
+  }
+  .avis-head h2{text-shadow:none}
+  .sec h2{margin-bottom:0}
+  .about h2{margin:0 0 14px}
+  .feats{text-align:left}
+  .feats h3,.form h3{margin-top:0}
+  .themes-head p,.avis-head p,.sec .sub,.about p{
+    font:500 16px/1.4 Geist,sans-serif;letter-spacing:-.02em;
+    color:rgba(255,255,255,.62);text-align:left;
+  }
+  .themes-head p,.avis-head p{margin-top:14px}
+  .sec .sub{margin:14px 0 24px}
+  .faq{margin-top:22px}
 }
