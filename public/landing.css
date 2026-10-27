@@ -498,7 +498,7 @@ body.lp{
   }
   .nav-open .nav nav a{display:flex;height:42px;align-items:center;padding:0 12px;border-radius:10px}
   .nav-open .lp a.btn-pill{display:flex;height:42px;border-radius:10px;justify-content:center;margin-top:4px}
-  .hero{padding:128px 18px 22px;min-height:100svh;height:100svh;align-items:flex-start;overflow:hidden}
+  .hero{padding:112px 18px 34px;min-height:0;height:auto;align-items:flex-start;overflow:hidden}
   .hero::before{content:none}
   .hero::after{
     opacity:1;
@@ -526,7 +526,7 @@ body.lp{
       linear-gradient(90deg,#000 0%,rgba(0,0,0,.92) 18%,rgba(0,0,0,.78) 36%,rgba(0,0,0,.42) 64%,rgba(0,0,0,.5) 100%);
   }
   .grain{opacity:.16}
-  .hero-in{min-height:100%;width:100%;display:flex;flex-direction:column}
+  .hero-in{min-height:0;width:100%;display:flex;flex-direction:column}
   .hero-in::before{content:none}
   .hi::after{display:block;filter:blur(7px);top:16%;height:66%;left:.3em}
   .kicker{font-size:16px;margin:0 0 10px;color:rgba(255,255,255,.78);font-weight:500}
@@ -547,7 +547,7 @@ body.lp{
   .faces i:nth-child(2){background-image:url(/shots/face-2.jpg);background-position:70% 30%}
   .faces i:nth-child(3){background-image:url(/shots/face-3.jpg);background-position:center 18%}
   .rate{font-size:13px;line-height:1.35;color:rgba(255,255,255,.72)}
-  .actions{flex-direction:row;align-items:center;width:auto;margin-top:auto;padding-top:24px;gap:8px}
+  .actions{flex-direction:row;align-items:center;width:auto;margin-top:26px;padding-top:0;gap:8px}
   .hero .btn{width:auto;height:48px;padding:0 16px;border-radius:12px;font-size:14px;font-weight:500}
   .lp a.btn-w{background:#fff;color:#111}
   .lp a.btn-d{background:rgba(22,22,22,.62);border:1px solid rgba(255,255,255,.16);color:#fff}
