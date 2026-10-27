@@ -547,7 +547,7 @@ body.lp{
   .faces i:nth-child(2){background-image:url(/shots/face-2.jpg);background-position:70% 30%}
   .faces i:nth-child(3){background-image:url(/shots/face-3.jpg);background-position:center 18%}
   .rate{font-size:13px;line-height:1.35;color:rgba(255,255,255,.72)}
-  .actions{flex-direction:row;align-items:center;width:auto;margin-top:22px;padding-top:0;gap:8px}
+  .actions{flex-direction:row;align-items:center;width:auto;margin-top:auto;padding-top:24px;gap:8px}
   .hero .btn{width:auto;height:48px;padding:0 16px;border-radius:12px;font-size:14px;font-weight:500}
   .lp a.btn-w{background:#fff;color:#111}
   .lp a.btn-d{background:rgba(22,22,22,.62);border:1px solid rgba(255,255,255,.16);color:#fff}
@@ -572,4 +572,47 @@ body.lp{
   .tcard img,.tshot img{transform:none;width:100%;height:200px}
   .after-head h2{font-size:36px}
   .type b{font-size:32px}
+  /* — Espacements téléphone : l'échelle bureau (sections à 88/96px,
+     cartes à hauteur minimale forcée) laissait ~1 400px de vide cumulé
+     sur la page. Rythme resserré : sections à ~40px, marges internes
+     réduites, hauteurs minimales des cartes neutralisées (le contenu
+     suit le texte au lieu de flotter dans une boîte trop grande). — */
+  .themes{padding-top:40px;padding-bottom:36px}
+  .themes-head{margin-bottom:18px}
+  .themes-head p{margin-top:10px}
+  .themes-sub{margin:24px 0 10px;font-size:21px}
+  .themes-sub:first-of-type{margin-top:2px}
+  .tf-grid{gap:14px}
+  .after-head{margin-bottom:20px}
+  .type-grid{gap:14px}
+  .type{padding:22px 20px 20px;border-radius:22px}
+  .avis{padding-top:40px}
+  .avis-phone{padding-bottom:26px}
+  .marquee{padding:22px 0 2px}
+  .marquee p{margin-bottom:12px}
+  .sec{padding-top:42px;padding-bottom:42px}
+  .sec h2{font-size:34px;margin-bottom:10px}
+  .sec .sub{margin-bottom:24px;font-size:15px}
+  .steps article{min-height:0;padding:20px 18px 18px}
+  .steps h3{margin:18px 0 8px;font-size:25px}
+  .step-vis{margin-top:18px;height:170px}
+  .bento{gap:12px}
+  .brow{margin-top:12px;gap:12px}
+  .bcard{padding:20px;min-height:0}
+  .bcard h3{margin:12px 0 8px;font-size:24px}
+  .bars{padding-top:18px}
+  .feats h3{margin-top:10px}
+  .feats-grid{margin-top:22px;gap:10px}
+  .feats-grid li{padding:15px 16px}
+  .prices{margin-top:20px;gap:12px}
+  .pcard{min-height:0;padding:20px 18px 18px}
+  .pcard h3{margin-top:16px}
+  .pcard ul{margin:14px 0 16px}
+  .about{gap:22px}
+  .about .frame{min-height:0}
+  .about .frame img{height:340px}
+  .faq summary{padding:14px 0}
+  .foot{padding:40px 16px 24px}
+  .foot-grid{gap:28px}
+  .foot-bar{margin-top:30px;padding-top:18px}
 }
