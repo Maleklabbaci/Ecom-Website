@@ -11,7 +11,7 @@ const express = require("express")
 const db = require("./src/db")
 /* une référence ne doit jamais désigner deux commandes de la même boutique */
 try { db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_store_ref ON orders(store_id, ref)") } catch (e) { /* doublons historiques : on ne bloque pas le démarrage */ }
-const { hash, verify, getSession, saveSession, cookiesParser } = require("./src/auth")
+const { hash, verify, getSession, saveSession, regenerateSession, cookiesParser } = require("./src/auth")
 const hashPassword = hash
 const verifyPassword = verify
 const seed = require("./src/seed")
@@ -57,6 +57,51 @@ seed()
 const app = express()
 const PORT = process.env.PORT || 3000
 const RESERVED = new Set(["dashboard", "admin", "login", "signup", "logout", "rejoindre", "themes", "styles.css", "api", "favicon.ico"])
+
+/* Derrière Cloudflare (ou tout reverse-proxy) : faire confiance à
+   X-Forwarded-* pour req.ip / req.protocol. Activé par NOVADZ_TRUST_PROXY=1
+   ou automatiquement si l'adresse publique est en https. */
+if (process.env.NOVADZ_TRUST_PROXY === "1" || /^https:/i.test(process.env.PUBLIC_URL || "")) {
+  app.set("trust proxy", 1)
+}
+app.disable("x-powered-by")
+
+/* En-têtes de sécurité. CSP volontairement compatible avec l'existant
+   (scripts/styles en ligne, pixels et CAPTCHA externes) : elle bloque
+   l'encadrement par un autre site, les objets et les bases détournées. */
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff")
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin")
+  res.setHeader("X-Frame-Options", "SAMEORIGIN")
+  res.setHeader("Content-Security-Policy",
+    "default-src 'self'; img-src 'self' data: blob: https:; media-src 'self' https: data:;" +
+    " font-src 'self' data: https:; style-src 'self' 'unsafe-inline' https:;" +
+    " script-src 'self' 'unsafe-inline' https:; connect-src 'self' https:;" +
+    " frame-src 'self' https:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'")
+  next()
+})
+
+/* Anti-CSRF par vérification d'origine : les navigateurs envoient toujours
+   Origin sur un POST. Un POST dont l'origine ne correspond pas à l'hôte
+   (ni à PUBLIC_URL) est refusé. Sans Origin (clients non-navigateurs,
+   webhooks serveur à serveur), on laisse passer : la protection vise le
+   navigateur d'un marchand connecté. Le cookie de session SameSite=Lax
+   reste la première barrière. */
+app.use((req, res, next) => {
+  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return next()
+  const origin = req.headers.origin
+  if (!origin) return next()
+  let originHost = ""
+  try { originHost = new URL(origin).host } catch (_) { return res.status(403).send("Origine invalide.") }
+  const allowed = new Set([req.headers.host])
+  try { if (process.env.PUBLIC_URL) allowed.add(new URL(process.env.PUBLIC_URL).host) } catch (_) {}
+  if (!allowed.has(originHost)) {
+    logRowSafe("warn", "POST refusé : origine étrangère", { path: req.path, origin })
+    return res.status(403).send("Requête refusée (origine). Rechargez la page puis réessayez.")
+  }
+  next()
+})
+const logRowSafe = (...a) => { try { JOURNAL.write(...a) } catch (_) {} }
 
 app.use(express.urlencoded({ extended: true, limit: "2mb" }))
 
@@ -108,28 +153,46 @@ app.use((req, res, next) => {
   next()
 })
 
+/* gzip : styles.css fait ~430 Ko à froid, ~60 Ko compressé */
+app.use(require("compression")())
+
 /* une photo de téléphone peut peser lourd : 8 Mo, et un message clair au-delà */
 app.use(express.json({ limit: "8mb" }))
-app.use("/styles.css", express.static(path.join(__dirname, "public", "styles.css")))
-app.use("/editor.js", express.static(path.join(__dirname, "public", "editor.js")))
-app.use("/formulaire.js", express.static(path.join(__dirname, "public", "formulaire.js")))
-app.use("/upimg.js", express.static(path.join(__dirname, "public", "upimg.js")))
-app.use("/uploads", express.static(path.join(__dirname, "public", "uploads"), { maxAge: "30d" }))
-app.use("/demo", express.static(path.join(__dirname, "public", "demo"), { maxAge: "30d" })) /* photos de démo livrées avec le code */
-app.use("/themes-pro.css", express.static(path.join(__dirname, "public", "themes-pro.css"))) /* six thèmes prêts à l'emploi */
-app.use("/ndz-merchant.css", express.static(path.join(__dirname, "public", "ndz-merchant.css")))
-app.use("/ndz-store.js", express.static(path.join(__dirname, "public", "ndz-store.js")))
-app.use("/horizon-panel.css", express.static(path.join(__dirname, "public", "horizon-panel.css")))
-app.use("/horizon-panel.js", express.static(path.join(__dirname, "public", "horizon-panel.js")))
-app.use("/theme-fonts.css", express.static(path.join(__dirname, "public", "theme-fonts.css"))) /* polices des six thèmes */
-app.use("/landing.css", express.static(path.join(__dirname, "public", "landing.css")))
-app.use("/shots", express.static(path.join(__dirname, "public", "shots")))
-app.use("/templates", express.static(path.join(__dirname, "public", "templates")))
-app.use("/inter-font.css", express.static(path.join(__dirname, "public", "inter-font.css")))
-app.use("/estedad.css", express.static(path.join(__dirname, "public", "estedad.css")))
-app.use("/fonts", express.static(path.join(__dirname, "public", "fonts"), { maxAge: "30d" }))
-app.use("/sons", express.static(path.join(__dirname, "public", "sons")))
-app.use("/favicon.ico", express.static(path.join(__dirname, "public", "favicon.ico")))
+/* un envoi trop lourd reçoit un message clair (413), pas un « Erreur serveur » */
+app.use((err, req, res, next) => {
+  if (err && (err.type === "entity.too.large" || err.status === 413)) {
+    const msg = "Photo trop lourde : 2,5 Mo maximum après compression. Réduis la photo puis réessaie."
+    if (req.headers["content-type"] && req.headers["content-type"].includes("application/json")) {
+      return res.status(413).json({ ok: false, error: msg })
+    }
+    return res.status(413).send(msg)
+  }
+  return next(err)
+})
+/* cache : les CSS/JS changent à chaque déploiement (1 h + ETag), les images,
+   polices et sons sont stables (30 j). Économie de bande passante réelle. */
+const CACHE_CODE = { maxAge: "1h" }
+const CACHE_MEDIA = { maxAge: "30d" }
+app.use("/styles.css", express.static(path.join(__dirname, "public", "styles.css"), CACHE_CODE))
+app.use("/editor.js", express.static(path.join(__dirname, "public", "editor.js"), CACHE_CODE))
+app.use("/formulaire.js", express.static(path.join(__dirname, "public", "formulaire.js"), CACHE_CODE))
+app.use("/upimg.js", express.static(path.join(__dirname, "public", "upimg.js"), CACHE_CODE))
+app.use("/uploads", express.static(path.join(__dirname, "public", "uploads"), CACHE_MEDIA))
+app.use("/demo", express.static(path.join(__dirname, "public", "demo"), CACHE_MEDIA)) /* photos de démo livrées avec le code */
+app.use("/themes-pro.css", express.static(path.join(__dirname, "public", "themes-pro.css"), CACHE_CODE)) /* six thèmes prêts à l'emploi */
+app.use("/ndz-merchant.css", express.static(path.join(__dirname, "public", "ndz-merchant.css"), CACHE_CODE))
+app.use("/ndz-store.js", express.static(path.join(__dirname, "public", "ndz-store.js"), CACHE_CODE))
+app.use("/horizon-panel.css", express.static(path.join(__dirname, "public", "horizon-panel.css"), CACHE_CODE))
+app.use("/horizon-panel.js", express.static(path.join(__dirname, "public", "horizon-panel.js"), CACHE_CODE))
+app.use("/theme-fonts.css", express.static(path.join(__dirname, "public", "theme-fonts.css"), CACHE_CODE)) /* polices des six thèmes */
+app.use("/landing.css", express.static(path.join(__dirname, "public", "landing.css"), CACHE_CODE))
+app.use("/shots", express.static(path.join(__dirname, "public", "shots"), CACHE_MEDIA))
+app.use("/templates", express.static(path.join(__dirname, "public", "templates"), CACHE_MEDIA))
+app.use("/inter-font.css", express.static(path.join(__dirname, "public", "inter-font.css"), CACHE_MEDIA))
+app.use("/estedad.css", express.static(path.join(__dirname, "public", "estedad.css"), CACHE_MEDIA))
+app.use("/fonts", express.static(path.join(__dirname, "public", "fonts"), CACHE_MEDIA))
+app.use("/sons", express.static(path.join(__dirname, "public", "sons"), CACHE_MEDIA))
+app.use("/favicon.ico", express.static(path.join(__dirname, "public", "favicon.ico"), CACHE_MEDIA))
 /* temps de chaque page : mémoire pour le passage, base seulement si erreur ou lenteur */
 app.use(JOURNAL.observe)
 
@@ -258,6 +321,34 @@ const withDraft = (store, req) => {
   })
 }
 
+/**
+ * Prix saisi par un humain → centimes. Tolère « 1 200,50 », « 1200.5 », « 1200 ».
+ * Renvoie null si vide, illisible, négatif ou absurde (jamais de NaN en base,
+ * jamais un produit à −900 DZD).
+ */
+const parseDzdCents = (v) => {
+  const raw = String(v == null ? "" : v).trim().replace(/[\s\u202f\u00a0]/g, "").replace(",", ".")
+  if (!raw || !/^\d+(\.\d{1,2})?$/.test(raw)) return null
+  const n = Math.round(parseFloat(raw) * 100)
+  return Number.isFinite(n) && n <= 10000000000 ? n : null // plafond : 100 000 000 DZD
+}
+
+/** Cellule CSV sûre : guillemets doublés + anti-formule Excel/Sheets
+ *  (une cellule qui commence par =, +, -, @ est préfixée d'une apostrophe). */
+const csvCell = (v) => {
+  let s = String(v == null ? "" : v)
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s
+  return '"' + s.replace(/"/g, '""') + '"'
+}
+
+/** Quantité / stock : entier positif. Vide → 0 ; texte illisible → null (erreur). */
+const parseQty = (v) => {
+  const raw = String(v == null ? "" : v).trim()
+  if (!raw) return 0
+  if (!/^\d+$/.test(raw)) return null
+  return Math.min(parseInt(raw, 10), 1000000)
+}
+
 /** Galerie + variantes envoyées en JSON par le formulaire produit. */
 const bundleIds = (v) => {
   const arr = Array.isArray(v) ? v : String(v || "").split(",")
@@ -303,7 +394,7 @@ const saveExtras = (productId, body) => {
     variants.filter((v) => v && String(v.label || "").trim())
       .slice(0, 20).forEach((v, i) =>
         ins.run(productId, String(v.label).trim().slice(0, 40),
-          Math.round(parseFloat(v.price || "0") * 100) || null,
+          parseDzdCents(v.price) || null,
           Math.max(0, parseInt(v.stock, 10) || 0), i))
   }
 }
@@ -398,7 +489,7 @@ app.post("/signup", (req, res) => {
   db.prepare(`INSERT INTO stores (owner_id, slug, name, tagline, theme, site_kind) VALUES (?, ?, ?, ?, ?, ?)`)
     .run(info.lastInsertRowid, slug, storeName, "", chosen, kind)
 
-  const { session } = auth(req)
+  const session = regenerateSession(req, res)
   session.userId = info.lastInsertRowid
   saveSession(session.sid, session)
 
@@ -412,24 +503,80 @@ app.post("/signup", (req, res) => {
   res.redirect("/dashboard/design/themes")
 })
 
+/* Après connexion : l'écran d'accueil seulement si la boutique n'a pas encore
+   ses coordonnées (téléphone + wilaya) ; sinon, droit au tableau de bord. */
+const afterLogin = (user) => {
+  const store = db.prepare("SELECT phone, wilaya FROM stores WHERE owner_id = ? ORDER BY id LIMIT 1").get(user.id)
+  if (!store) return user.role === "admin" ? "/admin" : "/dashboard"
+  const digits = String(store.phone || "").replace(/\D/g, "")
+  return digits.length >= 9 && store.wilaya ? "/dashboard" : "/welcome"
+}
+
 app.get("/login", (req, res) => {
   const { user } = auth(req)
-  if (user) return res.redirect("/welcome")
+  if (user) return res.redirect(afterLogin(user))
   res.send(V.authPage("login"))
 })
+
+/* Bourrage d'identifiants : 10 échecs (IP + identifiant) → 15 minutes de pause.
+   Un succès remet le compteur à zéro. En mémoire, purgé quand il grandit. */
+const loginFails = new Map()
+const loginKey = (req, who) => `${req.ip || "?"}|${who}`
+const loginWaitSec = (req, who) => {
+  const row = loginFails.get(loginKey(req, who))
+  if (!row || !row.until) return 0
+  if (Date.now() > row.until) { loginFails.delete(loginKey(req, who)); return 0 }
+  return Math.ceil((row.until - Date.now()) / 1000)
+}
+const loginFailed = (req, who) => {
+  if (loginFails.size > 5000) {
+    for (const [k, r] of loginFails) if (!r.until || Date.now() > r.until) loginFails.delete(k)
+  }
+  const key = loginKey(req, who)
+  const row = loginFails.get(key) || { n: 0, until: 0 }
+  row.n++
+  if (row.n >= 10) { row.until = Date.now() + 15 * 60e3; row.n = 0 }
+  loginFails.set(key, row)
+}
+const loginSucceeded = (req, who) => loginFails.delete(loginKey(req, who))
+
+/** Limite souple par IP (commandes, avis) : protège du spam sans gêner un client normal. */
+const rateHits = new Map()
+const rateLimit = (prefix, max, windowMs) => (req, res, next) => {
+  const key = `${prefix}|${req.ip || "?"}`
+  const now = Date.now()
+  const row = rateHits.get(key)
+  if (!row || now > row.until) {
+    rateHits.set(key, { n: 1, until: now + windowMs })
+    if (rateHits.size > 10000) rateHits.clear()
+    return next()
+  }
+  row.n++
+  if (row.n > max) {
+    return res.status(429).send("Trop de demandes en peu de temps. Patiente quelques minutes, puis réessaie.")
+  }
+  return next()
+}
 
 app.post("/login", (req, res) => {
   const email = String(req.body.email || "").trim().toLowerCase()
   const password = String(req.body.password || "")
+  const wait = loginWaitSec(req, email)
+  if (wait > 0) {
+    return res.status(429).send(V.authPage("login",
+      `Trop d'essais de connexion. Réessaie dans ${Math.max(1, Math.ceil(wait / 60))} minute(s).`))
+  }
   const user = db.prepare("SELECT * FROM users WHERE email = ? OR login_name = ?").get(email, email)
 
   if (!user) {
+    loginFailed(req, email)
     logRow("warn", "connexion refusée", { email })
     return res.status(401).send(V.authPage("login", email.includes("@")
       ? "Cet e-mail n'existe pas. Vérifie l'orthographe, ou crée un compte."
       : `L'identifiant « ${email} » n'existe pas. Vérifie-le, ou ouvre le lien d'invitation.`))
   }
   if (!verify(password, user.password_hash)) {
+    loginFailed(req, email)
     logRow("warn", "mot de passe refusé", { email })
     return res.status(401).send(V.authPage("login", "Mot de passe incorrect. Réessaie."))
   }
@@ -437,11 +584,12 @@ app.post("/login", (req, res) => {
     logRow("warn", "connexion refusée, compte bloqué", { email })
     return res.status(403).send(V.authPage("login", "Ce compte est bloqué. La boutique, si elle existe, reste en ligne. Écris à l'équipe NovaDZ."))
   }
-  const { session } = auth(req)
+  loginSucceeded(req, email)
+  const session = regenerateSession(req, res)
   session.userId = user.id
   session.supportStoreId = null
   saveSession(session.sid, session)
-  res.redirect("/welcome")
+  res.redirect(afterLogin(user))
 })
 
 app.get("/welcome", (req, res) => {
@@ -477,7 +625,15 @@ app.post("/welcome", (req, res) => {
   res.redirect("/dashboard")
 })
 
+/* Déconnexion en POST : un simple lien (ou une image piégée sur un autre site)
+   ne doit pas pouvoir déconnecter le marchand. Le GET affiche une confirmation. */
 app.get("/logout", (req, res) => {
+  const { user } = auth(req)
+  if (!user) return res.redirect("/")
+  res.send(V.logoutPage(user))
+})
+
+app.post("/logout", (req, res) => {
   const { session } = auth(req)
   session.userId = null
   session.supportStoreId = null
@@ -509,9 +665,10 @@ app.post("/rejoindre/:token", (req, res) => {
   }
   const out = TEAM.accept(req.params.token, { name: req.body.name, password: req.body.password, login: req.body.login })
   if (out.error) return res.status(400).send(V.joinPage(out.row || row, out.error, out.fields))
-  session.userId = out.userId
-  session.storeId = out.storeId
-  saveSession(session.sid, session)
+  const fresh = regenerateSession(req, res)
+  fresh.userId = out.userId
+  fresh.storeId = out.storeId
+  saveSession(fresh.sid, fresh)
   res.send(V.joinReady(row.store_name, out.loginName))
 })
 
@@ -589,19 +746,17 @@ app.get("/dashboard/products/new", requireAuth, requireStore, (req, res) =>
 
 app.post("/dashboard/products", requireAuth, requireStore, (req, res) => {
   const { title, description } = req.body
-  if (!String(title || "").trim()) {
-    return res.redirect("/dashboard/products/new?error=" + encodeURIComponent("Le nom du produit est obligatoire."))
-  }
-  const price = Math.round(parseFloat(String(req.body.price || "0").replace(",", ".")) * 100)
-  if (!Number.isFinite(price) || price < 0) {
-    return res.redirect("/dashboard/products/new?error=" + encodeURIComponent("Le prix est invalide. Écris un nombre, par exemple 2500."))
-  }
-  const stock = parseInt(req.body.stock || "0", 10)
-
-  const compare = Math.max(0, Math.round(parseFloat(req.body.compare || "0") * 100) || 0)
+  const fail = (msg) => res.redirect("/dashboard/products/new?error=" + encodeURIComponent(msg))
+  if (!String(title || "").trim()) return fail("Le nom du produit est obligatoire.")
+  const price = parseDzdCents(req.body.price)
+  if (price === null) return fail("Le prix est invalide. Écris un nombre, par exemple 2 500 ou 2500,50.")
+  const stock = parseQty(req.body.stock)
+  if (stock === null) return fail("Le stock est invalide. Écris un nombre entier, par exemple 12.")
+  const compare = String(req.body.compare || "").trim() ? parseDzdCents(req.body.compare) : 0
+  if (compare === null) return fail("Le prix barré est invalide. Écris un nombre, ou laisse le champ vide.")
   const info = db.prepare(`INSERT INTO products (store_id, title, description, price_cents, image, category_id, focal, stock, active, compare_cents, bundle_ids)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(req.store.id, String(title).trim(), description || "", price, req.body.image || null,
+    .run(req.store.id, String(title).trim().slice(0, 140), String(description || "").slice(0, 5000), price, req.body.image || null,
       parseInt(req.body.category_id, 10) || null, req.body.focal || "center", stock, req.body.active ? 1 : 0,
       compare, bundleIds(req.body.bundle_ids))
   saveExtras(info.lastInsertRowid, req.body)
@@ -623,23 +778,36 @@ app.get("/dashboard/products/:id", requireAuth, requireStore, (req, res) => {
 })
 
 app.post("/dashboard/products/:id", requireAuth, requireStore, (req, res) => {
+  const fail = (msg) => res.redirect(`/dashboard/products/${req.params.id}?error=` + encodeURIComponent(msg))
+  if (!String(req.body.title || "").trim()) return fail("Le nom du produit est obligatoire.")
+  const price = parseDzdCents(req.body.price)
+  if (price === null) return fail("Le prix est invalide. Écris un nombre, par exemple 2 500 ou 2500,50.")
+  const newStock = parseQty(req.body.stock)
+  if (newStock === null) return fail("Le stock est invalide. Écris un nombre entier, par exemple 12.")
+  const compare = String(req.body.compare || "").trim() ? parseDzdCents(req.body.compare) : 0
+  if (compare === null) return fail("Le prix barré est invalide. Écris un nombre, ou laisse le champ vide.")
   const prev = db.prepare("SELECT image, stock FROM products WHERE id = ? AND store_id = ?").get(req.params.id, req.store.id)
-  const newStock = parseInt(req.body.stock || "0", 10)
   db.prepare(`UPDATE products SET title = ?, description = ?, price_cents = ?, image = ?, category_id = ?,
               focal = ?, stock = ?, active = ?, compare_cents = ?, bundle_ids = ? WHERE id = ? AND store_id = ?`)
-    .run(String(req.body.title).trim(), req.body.description || "", Math.round(parseFloat(req.body.price || "0") * 100),
+    .run(String(req.body.title).trim().slice(0, 140), String(req.body.description || "").slice(0, 5000), price,
       req.body.image || null, parseInt(req.body.category_id, 10) || null, req.body.focal || "center",
       newStock, req.body.active ? 1 : 0,
-      Math.max(0, Math.round(parseFloat(req.body.compare || "0") * 100) || 0),
+      compare,
       bundleIds(req.body.bundle_ids), req.params.id, req.store.id)
   saveExtras(req.params.id, req.body)
   if (prev && prev.stock !== newStock) INV.record(req.store.id, Number(req.params.id), null, newStock - prev.stock, newStock, "inventaire", null, "Modifié depuis la fiche produit")
-  if (prev && prev.image && prev.image !== req.body.image) UPLOADS.removeUrl(prev.image)
+  if (prev && prev.image && prev.image !== req.body.image) UPLOADS.removeUrl(prev.image, db)
   res.redirect("/dashboard/products")
 })
 
 app.post("/dashboard/products/:id/delete", requireAuth, requireStore, (req, res) => {
+  const prev = db.prepare("SELECT image FROM products WHERE id = ? AND store_id = ?").get(req.params.id, req.store.id)
+  const gallery = db.prepare("SELECT url FROM product_images WHERE product_id = ?").all(req.params.id)
   db.prepare("DELETE FROM products WHERE id = ? AND store_id = ?").run(req.params.id, req.store.id)
+  db.prepare("DELETE FROM product_images WHERE product_id = ?").run(req.params.id)
+  /* les fichiers partagés avec un autre produit sont conservés (removeUrl vérifie) */
+  if (prev && prev.image) UPLOADS.removeUrl(prev.image, db)
+  for (const g of gallery) UPLOADS.removeUrl(g.url, db)
   res.redirect("/dashboard/products")
 })
 
@@ -818,14 +986,14 @@ app.post("/dashboard/orders/:id/edit", requireAuth, requireStore, (req, res) => 
     product_id: parseInt(r.product_id, 10) || null,
     variant_id: parseInt(r.variant_id, 10) || null,
     title: String(r.title || "").trim().slice(0, 160),
-    price_cents: Math.max(0, Math.round(parseFloat(r.price || "0") * 100) || 0),
+    price_cents: parseDzdCents(r.price) || 0,
     qty: Math.max(1, parseInt(r.qty, 10) || 1),
   })).filter((r) => r.title)
   if (!items.length) return res.redirect(`/dashboard/orders/${order.id}?edit=vide`)
 
   const subtotal = items.reduce((a, b) => a + b.price_cents * b.qty, 0)
-  const shipping = Math.max(0, Math.round(parseFloat(req.body.shipping || "0") * 100) || 0)
-  const discount = Math.max(0, Math.round(parseFloat(req.body.discount || "0") * 100) || 0)
+  const shipping = parseDzdCents(req.body.shipping) || 0
+  const discount = parseDzdCents(req.body.discount) || 0
   const total = Math.max(0, subtotal - discount) + shipping
   const delivery = req.body.delivery_type === "desk" ? "desk" : "home"
 
@@ -1160,7 +1328,8 @@ app.post("/dashboard/design/template/:id/apply", requireAuth, requireStore, (req
   let payload = {}
   try { payload = JSON.parse(row.payload) } catch (_) { payload = {} }
   const draft = {
-    design: SECTIONS.sanitizeDesign(payload.design || {}),
+    /* le logo du marchand n'appartient pas au modèle : il survit à l'application */
+    design: SECTIONS.sanitizeDesign({ ...(payload.design || {}), logo: req.store.logo || "" }),
     sections: SECTIONS.sanitize(payload.sections) || payload.sections || {},
     nav: SECTIONS.sanitizeNav(payload.nav) || payload.nav || [],
     theme: isTheme(payload.theme) ? payload.theme : req.store.theme,
@@ -1303,7 +1472,7 @@ app.post("/dashboard/discounts", requireAuth, requireStore, (req, res) => {
   const code = String(req.body.code || "").trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 24)
   const kind = req.body.kind === "amount" ? "amount" : "percent"
   const value = Math.max(1, Math.min(kind === "percent" ? 100 : 1000000, parseInt(req.body.value, 10) || 0))
-  const min = Math.max(0, Math.round(parseFloat(req.body.min || "0") * 100))
+  const min = parseDzdCents(req.body.min) || 0
   const max = Math.max(0, parseInt(req.body.max, 10) || 0)
   if (!code) return res.redirect("/dashboard/discounts?error=" + encodeURIComponent("Le code promo est obligatoire. Lettres et chiffres seulement."))
   {
@@ -1336,7 +1505,7 @@ app.get("/dashboard/orders/export.csv", requireAuth, requireStore, (req, res) =>
     "sous_total", "remise", "code_promo", "livraison", "total", "statut",
     "plateforme", "campagne", "contenu_annonce", "identifiant_clic", "page_arrivee", "appareil",
     "appels_sans_reponse", "commande_test"]
-  const esc = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'
+  const esc = csvCell
   const lines = [head.join(",")].concat(
     rows.map((o) => [o.ref, o.created_at, o.customer_name, o.phone, o.wilaya, o.commune,
       o.address, o.geo_lat != null ? `${o.geo_lat},${o.geo_lng}` : "",
@@ -1840,7 +2009,7 @@ app.get("/dashboard/stock/export.csv", requireAuth, requireStore, (req, res) => 
       lines.push([p.title, p.sku || "", r.label || "", r.stock, (price / 100).toFixed(2), ((price * r.stock) / 100).toFixed(2)])
     }
   }
-  const csv = lines.map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\r\n")
+  const csv = lines.map((l) => l.map(csvCell).join(",")).join("\r\n")
   res.setHeader("Content-Type", "text/csv; charset=utf-8")
   res.setHeader("Content-Disposition", `attachment; filename="stock-${req.store.slug}.csv"`)
   res.send("\uFEFF" + csv)
@@ -1888,7 +2057,7 @@ app.get("/dashboard/orders/:id/invoice", requireAuth, requireStore, (req, res) =
   res.send(V.invoice(req.store, order, items, { mode: "merchant", doc: req.query.type === "bl" ? "bl" : "facture" }))
 })
 
-app.get("/:slug/order/:ref/invoice", (req, res, next) => {
+app.get("/:slug/order/:ref/invoice", rateLimit("track", 60, 10 * 60e3), (req, res, next) => {
   const store = getStore(req.params.slug)
   if (!store) return next()
   const order = db.prepare("SELECT * FROM orders WHERE store_id = ? AND ref = ?").get(store.id, req.params.ref)
@@ -2440,7 +2609,7 @@ app.get("/:slug/checkout", (req, res) => {
   }))
 })
 
-app.post("/:slug/checkout", async (req, res) => {
+app.post("/:slug/checkout", rateLimit("checkout", 30, 10 * 60e3), async (req, res) => {
   const store = getStore(req.params.slug)
   if (!store) return res.redirect("/")
   const { session } = auth(req)
@@ -2464,6 +2633,7 @@ app.post("/:slug/checkout", async (req, res) => {
   }
 
   let { customer_name, phone, note } = req.body
+  note = String(note || "").slice(0, 500)
   /* bureau de retrait choisi (bureaux importés depuis l'API du transporteur).
      Le champ vaut « identifiant|nom|commune » : l'API du transporteur a besoin
      de son propre identifiant de bureau, pas seulement du nom affiché. */
@@ -2648,7 +2818,7 @@ app.post("/:slug/checkout", async (req, res) => {
 
 
 /* ---------------------------- AVIS CLIENT ---------------------------- */
-app.post("/:slug/p/:id/review", (req, res) => {
+app.post("/:slug/p/:id/review", rateLimit("review", 10, 3600e3), (req, res) => {
   const store = getStore(req.params.slug)
   if (!store) return res.redirect("/")
   const p = db.prepare("SELECT id FROM products WHERE id = ? AND store_id = ?").get(req.params.id, store.id)
@@ -2689,11 +2859,15 @@ app.post("/:slug/account/login", (req, res) => {
   if (!store) return res.redirect("/")
   const email = String(req.body.email || "").trim().toLowerCase()
   const password = String(req.body.password || "")
+  const who = `${store.slug}|${email}`
+  if (loginWaitSec(req, who) > 0) return res.status(429).send("Trop d'essais de connexion. Patiente quelques minutes, puis réessaie.")
   const row = db.prepare("SELECT * FROM customers WHERE store_id = ? AND email = ?").get(store.id, email)
   if (!row || !verifyPassword(password, row.password_hash)) {
+    loginFailed(req, who)
     return res.redirect(`/${store.slug}/account?error=1`)
   }
-  const { session } = auth(req)
+  loginSucceeded(req, who)
+  const session = regenerateSession(req, res)
   if (!session.customer) session.customer = new Map()
   session.customer.set(store.slug, row.id)
   saveSession(session.sid, session)
@@ -2712,7 +2886,7 @@ app.post("/:slug/account/register", (req, res) => {
   if (exists) return res.redirect(`/${store.slug}/account?error=3`)
   const info = db.prepare("INSERT INTO customers (store_id, email, password_hash, name, phone) VALUES (?, ?, ?, ?, ?)")
     .run(store.id, email, hashPassword(password), name, phone)
-  const { session } = auth(req)
+  const session = regenerateSession(req, res)
   if (!session.customer) session.customer = new Map()
   session.customer.set(store.slug, info.lastInsertRowid)
   saveSession(session.sid, session)
@@ -2728,7 +2902,7 @@ app.post("/:slug/account/logout", (req, res) => {
 })
 
 /* ---------------------------- SUIVI DE COMMANDE ---------------------------- */
-app.get("/:slug/order/:ref", async (req, res, next) => {
+app.get("/:slug/order/:ref", rateLimit("track", 60, 10 * 60e3), async (req, res, next) => {
   if (RESERVED.has(req.params.slug)) return next()
   const store = getStore(req.params.slug)
   if (!store) return next()
@@ -2750,6 +2924,10 @@ app.get("/:slug/order/:ref", async (req, res, next) => {
 })
 
 /* ---------------------------- SEO : sitemap & robots ---------------------------- */
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain").send(
+    "User-agent: *\nAllow: /\nDisallow: /dashboard\nDisallow: /login\nDisallow: /signup\n")
+})
 app.get("/:slug/sitemap.xml", (req, res, next) => {
   const store = getStore(req.params.slug)
   if (!store) return next()
@@ -3123,12 +3301,7 @@ app.get("/dashboard/orders/:id/bordereau", requireAuth, requireStore, (req, res)
 /* ---------------------------- 404 ---------------------------- */
 app.use((req, res) => res.status(404).send(landing(db.prepare("SELECT * FROM stores WHERE status='active'").all())))
 
-app.use((err, req, res, next) => {
-  if (err && (err.type === "entity.too.large" || err.status === 413)) {
-    return res.status(413).json({ ok: false, error: "Image trop lourde. Maximum 2,5 Mo — la compression automatique réduit déjà la photo." })
-  }
-  next(err)
-})
+/* (le 413 « envoi trop lourd » est traité juste après les parseurs, en haut) */
 
 app.use((err, req, res, next) => {
   const msg = messageOf(err)
@@ -3198,8 +3371,12 @@ const startAt = (port) => {
     console.log(`  Adresse      : ${url}`)
     console.log(`  SQLite       : ${SQLITE.which()}`)
     console.log(`  Base         : ${process.env.NOVADZ_DB || "data/novadz.db"}`)
-    console.log("  Marchand     : demo@novadz.dz / demo1234")
-    console.log("  Admin        : admin@novadz.dz / admin1234")
+    if (process.env.NOVADZ_DEMO === "1") {
+      console.log("  Marchand     : demo@novadz.dz / demo1234")
+      console.log("  Admin        : admin@novadz.dz / admin1234")
+    } else {
+      console.log("  Admin        : admin@novadz.dz (mot de passe affiche au premier demarrage)")
+    }
     console.log("  ------------------------------------------------")
     console.log("  Garde cette fenetre OUVERTE. Ctrl+C pour arreter.")
     console.log("")

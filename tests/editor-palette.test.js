@@ -28,9 +28,11 @@ test("éditeur : les vignettes sont des SVG autonomes (pas d'image externe)", ()
 })
 
 test("éditeur : la palette affiche vignette + nom + description", () => {
-  assert.match(EDITOR, /class="ed-pal-thumb"/)
-  assert.match(EDITOR, /class="ed-pal-txt"/)
-  assert.match(EDITOR, /Ajouter : /)
+  /* picker actuel : liste des blocs (nom) + aperçu à droite qui montre la
+     vignette du bloc survolé. Le marchand voit ce qu'il ajoute avant de cliquer. */
+  assert.match(EDITOR, /hz-preview/)
+  assert.match(EDITOR, /data-wire=/)
+  assert.match(EDITOR, /prev\.innerHTML = wire\(/)
 })
 
 test("éditeur : la fenêtre « Ajouter une section » explique l'usage", () => {

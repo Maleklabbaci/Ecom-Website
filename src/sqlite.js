@@ -99,18 +99,18 @@ const openNode = (file) => {
 /**
  * Ouvre la base. Renvoie un objet identique à une base better-sqlite3.
  */
-const open = (file) => {
+const open = (file, opts = {}) => {
   const dbPath = path.resolve(file)
   const impl = which()
-  if (impl === "node") return (ACTUAL = "node"), openNode(dbPath)
+  if (impl === "node") return (ACTUAL = "node"), openNode(dbPath, opts)
   try {
-    const db = openNative(dbPath)
+    const db = openNative(dbPath, opts)
     ACTUAL = "native"
     return db
   } catch (e) {
     /* module présent mais binaire incompatible (ABI différente) : on bascule */
     try {
-      const db = openNode(dbPath)
+      const db = openNode(dbPath, opts)
       ACTUAL = "node"
       console.warn(`[sqlite] module natif inutilisable (${e.message}) — bascule sur node:sqlite`)
       return db

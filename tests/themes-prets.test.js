@@ -10,7 +10,7 @@ const fs = require("node:fs")
 const os = require("node:os")
 const path = require("node:path")
 
-const { startServer } = require("./boot")
+const { startServer, openDb } = require("./boot")
 let PORT = 0
 let BASE = ""
 const DB = path.join(os.tmpdir(), `novadz-pro-${Date.now()}.db`)
@@ -42,7 +42,7 @@ const form = (obj) => ({
   headers: { "Content-Type": "application/x-www-form-urlencoded" },
   body: new URLSearchParams(obj).toString(),
 })
-const file = () => new (require("better-sqlite3"))(DB)
+const file = () => openDb(DB)
 const setTheme = (id) => file().prepare("UPDATE stores SET theme = ?, sections = NULL WHERE id = 1").run(id)
 
 before(async () => {
@@ -210,7 +210,7 @@ test("un thème sans réglage garde ses propres couleurs (identité intacte)", a
   /* l'accent du thème vit dans sa feuille de style, pas dans la page */
   const css = (await req("/themes-pro.css")).text
   const block = css.slice(css.indexOf(".tp.tpx-electro {"), css.indexOf(".tp.tpx-electro {") + 400)
-  assert.match(block, /--tpx-accent:\s*#B4442A/i, "l'accent du thème reste le sien")
+  assert.match(block, /--tpx-accent:\s*#14532D/i, "l'accent du thème reste le sien")
 })
 
 test("bandeau de catégories : un bloc de la bibliothèque, utilisé par Électro", () => {

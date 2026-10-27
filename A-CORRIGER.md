@@ -1,126 +1,112 @@
-# NovaDZ — ce qu'il faut corriger (revue du code, 20/10/2026)
+# NovaDZ — suivi des corrections
 
-Méthode : relecture des 10 500 lignes + **tests réels sur un serveur lancé exprès** (base neuve, port 3100).
-Chaque point ci-dessous a été **reproduit**, pas deviné. La ligne et le fichier sont indiqués.
+Revue de code initiale du **20/10/2026** (chaque point avait été reproduit sur un serveur de test).
+Corrections appliquées en vagues A et B, état vérifié le **27/10/2026** :
+`npm test` = **233 tests, 231 verts, 0 échec, 2 ignorés** (navigateur absent).
 
-État de base : `npm install` OK, **45/45 tests verts**, serveur qui démarre, vitrine + dashboard + checkout OK.
-
----
-
-## P0 — bloquants (le marchand ne peut pas travailler)
-
-### 1. Toute photo de plus de ~190 Ko est refusée avec « Erreur serveur »
-- `server.js:43` — `express.json({ limit: "256kb" })`, alors que la fiche produit annonce « 2,5 Mo max » (`src/uploads.js` `MAX`).
-- Reproduit : image de 400 Ko → **HTTP 500 « Erreur serveur »** ; image de 100 Ko → 200.
-- Aucune photo d'un téléphone (1–4 Mo) ne passe donc aujourd'hui.
-- Correctif : `limit: "8mb"` + intercepteur qui renvoie un **413 avec message clair** (« photo trop lourde, 2,5 Mo max ») au lieu d'un 500, + compression côté navigateur avant envoi (`public/upimg.js`).
-
-### 2. Prix et stock acceptent n'importe quoi
-`server.js:288` — `Math.round(parseFloat(req.body.price) * 100)`, aucune validation.
-- `price=abc` → **HTTP 500**
-- `price=-900` → accepté → produit à **−900,00 DZD** (et une commande peut sortir à 0 DZD : vérifié, `subtotal_cents = -90000`)
-- `price=1 200,50` → enregistré **1,00 DZD** (parseFloat s'arrête à l'espace)
-- `stock=abc` → **HTTP 500**
-- Correctif : un seul utilitaire `parseDzd()` (tolère « 1 200,50 », « 1200.5 », refuse vide/négatif/non numérique) + `parseQty()` ; message d'erreur dans le formulaire au lieu d'un 500.
-
-### 3. Le chiffre d'affaires compte les commandes annulées
-Incohérence d'accent sur le statut :
-- les statuts écrits par l'app sont **sans accent** : `annulee`, `livree`, `expediee`… (`server.js:341`, `src/carriers.js`)
-- mais `server.js:260` et `server.js:633` filtrent `!= 'annulée'` (avec accent)
-- Reproduit : commande de 1 400 DZD passée en `annulee` → le KPI « Chiffre d'affaires » affiche toujours **1 400,00 DZD**.
-- Correctif : constantes `ORDER_STATUS` (une seule source), migration des valeurs existantes, et calculs basés dessus.
-
-### 4. Le statut de commande accepte n'importe quel texte
-`server.js:337-341` — `req.body.status` va directement en base.
-- Reproduit : statut `<b>pirate</b>` enregistré tel quel (affiché échappé, donc pas de faille XSS, mais les filtres, badges et KPI ne le reconnaissent plus).
-- Correctif : liste blanche stricte + bouton « annuler » séparé.
-
-### 5. Changer de thème efface le logo du marchand
-- `server.js:422` remettait `design = NULL`, et le logo est stocké dans `design.logo` pour les thèmes de l'éditeur → logo perdu à la publication suivante.
-- **Déjà corrigé** dans cette passe (le logo est conservé), à revérifier visuellement.
+Légende : ✅ corrigé · ⚠️ partiel (choix documenté) · ⏸️ reporté volontairement.
 
 ---
 
-## P1 — sécurité (avant toute mise en ligne publique)
+## P0 — bloquants
 
-### 6. Compte administrateur créé d'office avec un mot de passe public
-`src/seed.js:7-14` — au premier démarrage, `admin@novadz.dz / admin1234` est créé, et le README l'affiche.
-Sur un tunnel Cloudflare public, **n'importe qui lit le dépôt et devient admin**. C'est le risque le plus grave du projet.
-- Correctif : seed de démo uniquement si `NOVADZ_DEMO=1` ; en prod, mot de passe admin généré aléatoirement et affiché **une seule fois** dans la console, avec changement obligatoire.
+### 1. Photo > ~190 Ko refusée en « Erreur serveur » ✅
+Limites relevées (8 Mo), rejet anticipé avec un **413 au message clair** (« Photo trop lourde… »)
+au lieu d'un 500, et compression côté navigateur avant envoi (`public/upimg.js`).
 
-### 7. Aucune protection CSRF
-Tous les `POST` (produits, prix, statut, paiement, design, transporteur, suppression) n'ont **aucun jeton**. Un simple lien piégé peut supprimer des produits ou changer les tarifs d'un marchand connecté.
-- Correctif : jeton par session injecté dans tous les formulaires + vérification en middleware.
+### 2. Prix et stock acceptaient n'importe quoi ✅
+Un seul parseur argent `parseDzdCents()` (tolère « 1 200,50 », refuse vide/négatif/non numérique)
+et `parseQty()` ; les formulaires produit affichent l'erreur au lieu d'un 500. Montants stockés en centimes.
 
-### 8. Aucune limitation de débit
-- Reproduit : 10 tentatives de mot de passe en 6 secondes → 10 réponses `401` normales. Rien ne bloque le bourrage d'identifiants.
-- Même chose pour le checkout (le scoring de risque n'empêche pas le spam) et pour les avis.
-- Correctif : compteur en mémoire (IP + e-mail) : 10 essais / 15 min sur `/login`, 5 commandes / 10 min par IP, 3 avis / heure.
+### 3. Le CA comptait les commandes annulées ✅
+Vérifié : les calculs de chiffre d'affaires excluent les statuts `annulee` et `fake`
+(statuts internes sans accent, une seule source de vérité).
 
-### 9. Sessions en mémoire, jamais nettoyées
-`src/auth.js:5` — `SESSIONS = new Map()` :
-- **un cookie et une entrée mémoire pour chaque visiteur** (vérifié : `Set-Cookie: sid=…` sur la simple visite d'une vitrine) ;
-- jamais expirées, jamais purgées → la mémoire du processus gonfle jusqu'au crash ;
-- **tous les marchands sont déconnectés à chaque redémarrage** (`deploy/novadz.service` redémarre la nuit).
-- Correctif : sessions en table SQLite (`sessions(sid, user_id, cart, expires_at)`), purge toutes les heures, régénération du `sid` à la connexion (anti-fixation).
+### 4. Le statut de commande acceptait n'importe quel texte ✅
+Vérifié : liste blanche stricte des statuts à l'écriture.
 
-### 10. Cookies et en-têtes
-- cookie `sid` sans `Secure`, aucun `app.set("trust proxy", 1)` → derrière Cloudflare le cookie peut fuir en clair.
-- Aucun en-tête de sécurité (vérifié sur `GET /`) : pas de `X-Content-Type-Options`, pas de `Content-Security-Policy`, pas de `Referrer-Policy`, et `X-Powered-By: Express` est exposé.
-- Correctif : `trust proxy`, cookie `Secure` en prod, 4 en-têtes + `app.disable("x-powered-by")`.
+### 5. Changer de thème effaçait le logo ✅
+À la publication, le logo du brouillon est conservé (`design.logo` repris, plus de `design = NULL` destructeur).
 
-### 11. Pages publiques trop bavardes
-- `/:slug/order/:ref` (`server.js:1386`) affiche nom, téléphone, adresse complète à quiconque connaît la référence ; aucune limite de débit → énumération possible.
-- `GET /logout` (`server.js:248`) déconnecte sur simple image distante.
-- Export CSV (`server.js:530`) : pas d'anti-formule Excel (`=`, `+`, `-`, `@`).
-- Correctif : page de suivi qui masque le téléphone (`0555 ** ** 33`), `POST /logout`, préfixe `'` sur les cellules commençant par `=+-@`.
+## P1 — sécurité
 
-### 12. Envoi d'images sans contrôle réel
-`src/uploads.js` — le type vient du préfixe `data:` du client (aucune vérification des octets), pas de quota par boutique (remplissage du disque), et dédoublonnage par SHA-1 : **supprimer une image d'un produit supprime le fichier partagé par un autre produit**. Supprimer un produit ne supprime d'ailleurs jamais son image (`server.js:320` seulement en modification).
-- Correctif : vérifier la signature binaire (PNG/JPEG/WebP), quota 100 Mo par boutique, suppression du produit → `removeUrl`, et ne supprimer un fichier que s'il n'est plus référencé.
+### 6. Compte admin créé d'office avec mot de passe public ✅
+Le seed de démonstration ne tourne que si **`NOVADZ_DEMO=1`**. Sans cette variable, le premier
+démarrage crée uniquement `admin@novadz.dz` avec un **mot de passe aléatoire affiché une seule fois**
+dans la console. Les bases existantes ne sont pas touchées.
 
----
+### 7. Protection CSRF ⚠️ (choix documenté)
+Pas de jetons par formulaire. À la place : **vérification de l'en-tête `Origin`** (l'hôte doit
+correspondre) sur toutes les requêtes non-GET + cookies `SameSite=lax`. Les requêtes **sans**
+`Origin` passent (webhooks transporteurs). Suffisant contre les attaques navigateur classiques ;
+à durcir en jetons si un jour des clients non-navigateur doivent être distingués des navigateurs.
+
+### 8. Aucune limitation de débit ✅
+Verrouillage connexion : 10 échecs → 15 min de blocage (par IP + identité).
+Quotas : checkout 30/10 min, avis 10/h, suivi de commande 60/10 min.
+
+### 9. Sessions en mémoire, jamais nettoyées ⚠️
+Toujours en mémoire (un redémarrage déconnecte tout le monde — noté dans le README),
+mais **purge après 30 jours d'inactivité** et **régénération du `sid` à la connexion**
+(anti-fixation). Le passage en table SQLite reste à faire le jour où plusieurs
+processus devront partager les sessions.
+
+### 10. Cookies et en-têtes ✅
+`trust proxy` conditionnel (ou `NOVADZ_TRUST_PROXY=1`), `Content-Security-Policy`,
+`X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `X-Powered-By` retiré,
+cookies durcis. La CSP autorise le style/script **inline** (nécessaire au HTML libre des
+thèmes marchands) mais pas `unsafe-eval`.
+
+### 11. Pages publiques trop bavardes ✅
+Suivi de commande : téléphone masqué. Déconnexion en **POST uniquement**
+(le GET affiche une page de confirmation, les anciens liens continuent de marcher).
+Export CSV : anti-injection de formules (`=`, `+`, `-`, `@` préfixés).
+
+### 12. Envoi d'images sans contrôle réel ⚠️
+Signature binaire vérifiée (`sniffExt` : PNG/JPEG/WebP réels), nom de fichier = empreinte
+du contenu, suppression seulement si le fichier n'est plus référencé (`removeUrl(url, db)`),
+image nettoyée à la suppression du produit. **Reste à faire** : quota de stockage par boutique.
 
 ## P2 — données et robustesse
 
-### 13. Tarifs de livraison : une faute de frappe rend la livraison gratuite
-`server.js:699-720` — testé : `all=abc` → **0 DZD partout**, sans message ; `all=-500` → 0 aussi, et le tarif bureau reste à 400 DZD (bureau plus cher que domicile).
-- Correctif : validation (« chiffres uniquement, 0 à 100 000 »), message d'erreur, et le tarif bureau suit (`desk = max(0, home − remise)`).
+### 13. Tarifs de livraison : une faute de frappe = livraison gratuite ✅
+Validation complète **avant toute écriture** : tarif négatif ou non numérique → rien n'est
+enregistré, message clair. Le tarif bureau reste cohérent avec le tarif domicile.
 
-### 14. Champs sans limite de longueur
-Nom client, adresse, note de commande, description produit, noms de catégories : aucune troncature côté serveur → base qui gonfle (`note` de 100 Ko acceptée).
-- Correctif : `slice()` systématique (nom 80, adresse 200, note 500, description 5 000).
+### 14. Champs sans limite de longueur ✅
+Troncatures systématiques (nom 80, adresse 200, titre 140, description 5 000…).
 
-### 15. Téléphone non normalisé à l'enregistrement
-`normalizePhone` sert au blocage/au risque mais la valeur brute est stockée → la même personne apparaît plusieurs fois dans les clients.
-- Correctif : stocker la version normalisée + le format saisi à part.
+### 15. Téléphone non normalisé à l'enregistrement ⏸️
+Reporté volontairement : la normalisation sert au scoring de risque et à la liste noire,
+mais le numéro affiché au marchand reste celui saisi par le client. À reprendre si les
+doublons clients deviennent un vrai problème (stocker normalisé + brut séparément).
 
-### 16. Relances et paniers abandonnés
-`src/relance.js` tourne toutes les 10 min : à vérifier de bout en bout (aucun test), notamment qu'aucune relance n'est envoyée deux fois après redémarrage.
-
----
+### 16. Relances envoyées deux fois après redémarrage ✅
+Dédoublonnage adossé à la base de données : il survit aux redémarrages.
 
 ## P3 — performance et qualité
 
-### 17. Rien n'est compressé, rien n'est mis en cache
-- `styles.css` = **146 Ko** servis sans gzip (vérifié : `Content-Encoding` absent) et avec `Cache-Control: public, max-age=0` → re-téléchargés à chaque page.
-- Ajouter `compression`, `maxAge: "7d"` + empreinte (`?v=`) sur le CSS, et purger les 2 400 lignes de CSS devenues doublons (blocs 9, 10, 11 se recouvrent déjà).
+### 17. Rien compressé, rien en cache ✅
+`compression` (gzip) activée, cache statique : code 1 h, médias 30 j, empreintes `?v=`.
+Reste un chantier cosmétique : dédupliquer les anciens blocs de `styles.css`.
 
-### 18. Tests : ce qui n'est pas couvert
-45 tests couvrent commandes, stock, transporteurs, relances. **Rien** sur : upload d'images, validation produit, statuts de commande, tarifs de livraison, éditeur/thèmes, permissions (un marchand ne peut pas ouvrir la boutique d'un autre).
-- Correctif : 12 tests ciblés (un par bug P0/P1 corrigé).
+### 18. Tests : zones non couvertes ✅
+De 45 à **233 tests** : upload, validation produit, statuts, tarifs, éditeur/thèmes,
+permissions entre marchands, landing, preuve visuelle (ignorés si Chrome absent).
 
-### 19. Divers
-- Pas de `favicon.ico` (404 à chaque visite), pas de `robots.txt`, pas de page 500 personnalisée.
-- `package.json` : `express ^4.21.1` — passer en `express 4.21.x` figé pour éviter une surprise de majeure.
-- `deploy/novadz.service` : pas de `Restart=always` vérifié, pas de sauvegarde automatique de `data/novadz.db` (un `rm` = toutes les boutiques perdues).
+### 19. Divers ⚠️
+Fait : `favicon.ico`, `robots.txt` + sitemap, page 500 personnalisée, `Restart=always`
+déjà présent dans `deploy/novadz.service`. Reste : **sauvegarde automatique de
+`data/novadz.db`** côté déploiement, et `express` est en `^4.22.3` (pas figé au patch près).
 
 ---
 
-## Ordre de travail proposé (3 vagues)
+## Ce qui reste à faire (par ordre)
 
-1. **Vague A — débloquer le marchand** : points 1, 2, 3, 4, 5 (+ tests). C'est court et ça règle les bugs qu'il rencontre vraiment.
-2. **Vague B — sécurité minimum viable** : points 6, 7, 8, 9, 10, 11. Obligatoire avant de publier le tunnel.
-3. **Vague C — finitions** : 12 à 19 (images, limites, livraison, compression, tests, sauvegarde).
-
-Dis-moi par quoi tu veux commencer (ou envoie tes captures : je les traite dans la même vague).
+1. **Sauvegarde automatique** de `data/novadz.db` (cron + copie horodatée) — le seul point
+   qui peut coûter des données.
+2. **Sessions en SQLite** si les redémarrages nocturnes déconnectent trop de marchands.
+3. **Quota d'images par boutique** (point 12) avant d'ouvrir à beaucoup de marchands.
+4. Jetons **CSRF** si le modèle « Origin + SameSite » ne suffit plus (point 7).
+5. Cosmétique : avatars `face-1/2/3.jpg` et `faces.png` référencés dans le CSS de la landing
+   mais absents (bloc masqué, aucune erreur console constatée) ; déduplication de `styles.css`.

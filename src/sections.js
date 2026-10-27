@@ -400,7 +400,9 @@ const PRO_RECIPES = {
     ] },
   ],
   electro: [
+    { type: "banner", settings: { text: "Paiement à la livraison · garantie sur le matériel.", ctaLabel: "Voir" } },
     { type: "hero", settings: { image: "auto", kicker: "", heading: "", sub: "", ctaLabel: "Voir les articles", align: "gauche", height: "normale" } },
+    { type: "cats", settings: { heading: "", style: "tiles", count: 4 } },
     { type: "grid", settings: { heading: "Les articles", columns: 4, count: 8, showPrice: true, showAdd: true, showDesc: true } },
     { type: "benefits", settings: { heading: "" }, blocks: [
       { icon: "camion", title: "Livraison 48 h", text: "Sur les wilayas couvertes." },
@@ -1504,10 +1506,10 @@ const RENDER = {
     const logo = design && design.logo && design.heroLogo !== false && design.showLogo !== false
     const heading = String(st.heading || "").trim()
     const sub = String(st.sub || "").trim()
-    /* Champ vide = nom de la boutique, sur-titre ou sous-titre compris.
-       Le placeholder du champ promet exactement ça. */
-    /* vide = la phrase du marchand. Atelier garde le nom : c'est le choix déjà validé. */
-    const title = heading || (store.theme === "atelier" ? (store.name || "") : (store.tagline || store.name || ""))
+    /* Champ vide = nom de la boutique. C'est ce que promet le placeholder
+       du champ (« Laissez vide pour le nom de la boutique ») : le slogan
+       reste affiché ailleurs (en-tête, métadonnées), pas en titre principal. */
+    const title = heading || store.name || ""
     return `
 <section class="sec sec-hero h-${height} a-${align}${st.image ? " has-img" : ""}" data-section="${s.id}" data-label="Bannière d'accueil">
   ${st.image ? `<div class="sec-hero-bg" style="background-image:url('${esc(st.image)}')"></div>` : ""}

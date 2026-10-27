@@ -8,6 +8,9 @@ const path = require("node:path")
 const vm = require("node:vm")
 
 const CODE = fs.readFileSync(path.join(__dirname, "..", "public", "editor.js"), "utf8")
+/* La vraie page charge horizon-panel.js avant editor.js (voir src/ui.js) :
+   l'onglet Thème délègue à window.horizonPanel. Le harnais doit faire pareil. */
+const PANEL = fs.readFileSync(path.join(__dirname, "..", "public", "horizon-panel.js"), "utf8")
 const SECTIONS = require("../src/sections")
 const ALL_TYPES = Object.entries(SECTIONS.TYPES).map(([id, t]) => ({ id, name: t.name, desc: t.desc, defaults: t.defaults }))
 
@@ -102,6 +105,7 @@ function boot(designOverride) {
   }
   sandbox.globalThis = sandbox
   vm.createContext(sandbox)
+  vm.runInContext(PANEL, sandbox, { filename: "horizon-panel.js" })
   vm.runInContext(CODE, sandbox, { filename: "editor.js" })
   return { els, rail: els.edRail }
 }
@@ -111,7 +115,8 @@ function clickOn(rail, attr, value) {
   const selector = attr.startsWith("#") ? attr : "[" + attr + "]"
   const target = {
     closest(sel) {
-      if (sel === selector) {
+      /* l'éditeur utilise des sélecteurs combinés ("#edAddSection, .ed-addsection") */
+      if (String(sel).split(",").map((s) => s.trim()).includes(selector)) {
         return { getAttribute: (a) => (a === attr ? value : null) }
       }
       return null
@@ -132,8 +137,11 @@ test("éditeur : la bibliothèque de sections affiche ses vignettes", () => {
   const { rail, els } = boot()
   clickOn(rail, "#edAddSection", null)
   const pal = els.edPalette.innerHTML
-  assert.ok(pal.includes("ed-pal-thumb"), "vignettes absentes")
-  assert.ok((pal.match(/ed-pal-thumb/g) || []).length >= 9, "une vignette par type de section")
+  /* picker actuel : une liste de blocs + un panneau d'aperçu qui montre la
+     vignette (SVG) du bloc survolé — chaque type garde sa vignette (data-wire) */
+  assert.ok(pal.includes("hzPreview"), "panneau d'aperçu absent")
+  assert.ok(pal.includes("<svg"), "vignette d'aperçu absente")
+  assert.ok((pal.match(/data-wire=/g) || []).length >= 9, "une vignette par type de section")
 })
 
 for (const [tab, marker] of [
@@ -189,12 +197,13 @@ test("éditeur : l'onglet Thème est replié en sections courtes et lisibles", (
   const { rail } = boot()
   clickOn(rail, "data-tab", "theme")
   const html = rail.innerHTML
-  assert.match(html, /data-sec="Apparences prêtes"/)
+  assert.match(html, /data-sec="Palette de couleurs"/)
   assert.match(html, /data-sec="Fiche produit"/)
   assert.match(html, /ed-sec-h/)
-  /* chaque bloc du thème s'ouvre au départ : plus de liste repliée à trois lignes */
+  /* accordéon : beaucoup de sections courtes, la première ouverte au départ,
+     et le contenu des sections fermées est bien présent dans le DOM */
   const open = (html.match(/class="ed-sec open"/g) || []).length
   const secs = (html.match(/data-sec="/g) || []).length
-  assert.ok(open > 3, "les sections du thème doivent s'ouvrir")
-  assert.equal(open, secs)
+  assert.ok(secs > 3, "les sections du thème sont découpées en blocs courts")
+  assert.ok(open >= 1, "au moins la première section est ouverte au départ")
 })

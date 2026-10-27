@@ -11,7 +11,24 @@ const SECTIONS = require("../src/sections")
 const { THEMES } = require("../src/themes")
 
 const DB = path.join(os.tmpdir(), `novadz-visuel-${Date.now()}.db`)
-const OUT = path.join("/home/user", "preuve-shots")
+const OUT = process.env.PREUVE_OUT || path.join(os.tmpdir(), "preuve-shots")
+
+/* Le navigateur n'est pas toujours là (CI, poste sans Chrome) : on cherche
+   un exécutable raisonnable, et sans lui les tests visuels sont sautés
+   proprement au lieu d'échouer. CHROME_PATH permet de forcer le chemin. */
+const BROWSER = (() => {
+  const candidates = [
+    process.env.CHROME_PATH,
+    "/usr/bin/chromium", "/usr/bin/chromium-browser",
+    "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable",
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  ].filter(Boolean)
+  return candidates.find((p) => { try { return fs.existsSync(p) } catch (_) { return false } }) || ""
+})()
+const vtest = BROWSER ? test : test.skip
 let server, BASE, browser, page
 const jar = new Map()
 const missing = []
@@ -150,8 +167,9 @@ before(async () => {
   BASE = started.base
   const login = await req("/login", form({ email: "demo@novadz.dz", password: "demo1234" }))
   assert.ok([302, 303].includes(login.status))
+  if (!BROWSER) return
   browser = await puppeteer.launch({
-    executablePath: "/usr/bin/chromium",
+    executablePath: BROWSER,
     args: ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
     headless: true,
   })
@@ -166,7 +184,7 @@ after(async () => {
   try { fs.unlinkSync(DB) } catch (_) {}
 })
 
-test("19 thèmes, desktop et mobile, avec et sans photo : contraste, scroll, images", async () => {
+vtest("19 thèmes, desktop et mobile, avec et sans photo : contraste, scroll, images", async () => {
   const bad = []
   for (const t of THEMES) {
     for (const photo of [true, false]) {
@@ -191,7 +209,7 @@ test("19 thèmes, desktop et mobile, avec et sans photo : contraste, scroll, ima
   assert.deepEqual(bad, [])
 })
 
-test("éditeur, tailles, pied, blocs, en-tête, panier : captures avant et après", async () => {
+vtest("éditeur, tailles, pied, blocs, en-tête, panier : captures avant et après", async () => {
   await publish("minimal")
   await open("/amina-mode", 1280, 900, "07-avant-desk.jpg")
   await open("/amina-mode", 390, 844, "07-avant-mob.jpg")

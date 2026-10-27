@@ -113,8 +113,13 @@ const buyButtons = (store, p, cls, label) => {
   return cartBtn + directBtn + payDirectButtons(store, p)
 }
 
+/* Mode « sans panier » : le bouton panier est masqué par CSS, mais Entrée
+   dans un champ du formulaire soumet le PREMIER bouton (masqué) — l'action
+   du formulaire doit donc déjà pointer au bon endroit côté serveur. */
+const buyAction = (store) => (cartModeOf(store) === "direct" ? "direct" : "cart")
+
 const addForm = (store, p, cls, label) => `
-<form method="post" action="${slug(store)}/cart" class="ndz-buy">
+<form method="post" action="${slug(store)}/${buyAction(store)}" class="ndz-buy">
   <input type="hidden" name="product_id" value="${p.id}">
   ${buyButtons(store, p, cls, label)}
 </form>`
@@ -640,7 +645,7 @@ const addFormV = (store, p, cls, label, variants) => {
   if (!list.length && groups.length) {
     /* produit à options : le client choisit, puis ajoute au panier */
     return `
-<form class="varform ndz-buy optform" method="post" action="/${esc(store.slug)}/cart">
+<form class="varform ndz-buy optform" method="post" action="/${esc(store.slug)}/${buyAction(store)}">
   <input type="hidden" name="product_id" value="${p.id}">
   ${optionPicker(store, p, groups)}
   ${buyButtons(store, p, cls, label)}
@@ -673,7 +678,7 @@ const addFormV = (store, p, cls, label, variants) => {
     </label>`).join("")}
   </fieldset>`
   return `
-<form class="varform ndz-buy" method="post" action="/${esc(store.slug)}/cart">
+<form class="varform ndz-buy" method="post" action="/${esc(store.slug)}/${buyAction(store)}">
   <input type="hidden" name="product_id" value="${p.id}">
   ${picker}
   ${cartBtn}${directBtn}
@@ -3228,6 +3233,10 @@ Object.keys(LAYOUTS).forEach((key) => {
         html = html.replace("</header>", `</header>\n<div class="ndz-searchbar">${searchBox(store, D, "dessous")}</div>`)
       }
     }
+    /* le mot-clé cherché reste dans le champ (tous les champs de recherche
+       de la page : barre générique, champ du thème, superposition) */
+    const qNow = String((req.query && req.query.q) || "").trim().slice(0, 60)
+    if (qNow) html = html.replace(/<input name="q"(?![^>]*\bvalue=)/g, `<input name="q" value="${esc(qNow)}"`)
     /* nom de la boutique retiré : on l'enlève du HTML, pas seulement à l'écran */
     if (D.showName === false) {
       html = html.replace(/<(span|b) class="brand-name">[\s\S]*?<\/\1>/g, "")

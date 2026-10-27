@@ -9,7 +9,7 @@ const fs = require("node:fs")
 const os = require("node:os")
 const path = require("node:path")
 
-const { startServer } = require("./boot")
+const { startServer, openDb } = require("./boot")
 let PORT = 0
 let BASE = ""
 const DB = path.join(os.tmpdir(), `novadz-badges-${Date.now()}.db`)
@@ -37,7 +37,7 @@ const form = (obj) => ({
   body: new URLSearchParams(obj).toString(),
 })
 const login = () => req("/login", form({ email: "demo@novadz.dz", password: "demo1234" }))
-const dbFile = () => new (require("better-sqlite3"))(DB)
+const dbFile = () => openDb(DB)
 
 /** Extrait le contenu du lien du menu pour une page donnée. */
 const navLink = (html, href) => {

@@ -3,6 +3,12 @@
  * Récupère la police arabe Estedad (licence OFL) depuis Google Fonts
  * et la range dans public/fonts/ — auto-hébergée, aucun appel à Google à l'exécution.
  * À relancer si les fichiers .woff2 manquent : npm run fonts
+ *
+ * Les autres polices (Jost, Space Grotesk, Playfair Display, Archivo,
+ * Cormorant Garamond, Bodoni Moda — voir public/theme-fonts.css) sont déjà
+ * livrées dans public/fonts/ (Fontsource 5.3.0, sous-ensemble latin, licence
+ * OFL à côté de chaque fichier). Si ce script dit « hors ligne », les polices
+ * livrées suffisent au fonctionnement.
  */
 const fs = require("fs")
 const path = require("path")

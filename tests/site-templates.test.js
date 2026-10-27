@@ -94,10 +94,11 @@ test("marchand : choisir un template = brouillon, puis Publier = vitrine", async
   assert.ok(!(await req("/amina-mode")).text.includes("ndz-boutique"))
 })
 
-test("galerie : 16 cartes avec « Utiliser » ; l'inscription garde le template", async () => {
+test("galerie : 6 cartes « Utiliser » sur l'accueil (3 vitrine + 3 e-commerce) ; l'inscription garde le template", async () => {
   jar.clear()
   const home = await req("/")
-  assert.equal((home.text.match(/\/signup\?site=site\d+/g) || []).length >= 16, true)
+  assert.equal((home.text.match(/\/signup\?site=site\d+/g) || []).length, 6)
+  assert.equal((await req("/themes")).status, 200)
   const su = await req("/signup?site=site5")
   assert.match(su.text, /name="site" value="site5"/)
   const out = await req("/signup", form({ kind: "commerce", theme: "", site: "site5", store: "Ma Boutique Test", name: "Test", email: "t@t.dz", password: "secret1", password2: "secret1" }))

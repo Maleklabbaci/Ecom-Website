@@ -10,7 +10,7 @@ const fs = require("node:fs")
 const os = require("node:os")
 const path = require("node:path")
 
-const { startServer, listen0 } = require("./boot")
+const { startServer, listen0, openDb } = require("./boot")
 let PORT = 0
 let MOCK_PORT = 0
 let BASE = ""
@@ -69,10 +69,7 @@ after(() => {
   try { fs.unlinkSync(DB) } catch (_) {}
 })
 
-const dbFile = () => {
-  const Database = require("better-sqlite3")
-  return new Database(DB, { readonly: true })
-}
+const dbFile = () => openDb(DB, { readonly: true })
 
 /* ------------------------- 1. les presets ------------------------- */
 

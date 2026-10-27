@@ -58,9 +58,16 @@ const parcelCard = (shipment, order) => {
 const storefront = (store, products, cartCount = 0, preview = false, meta = {}) => {
   const L = layoutFor(store.theme)
   const D = require("./sections").readDesign(store)
-  const home = store.site_kind === "vitrine"
+  /* recherche : dire ce qu'on a trouvé (et permettre d'effacer le filtre),
+     sinon le client ne sait pas si la page a compris son mot-clé */
+  const searchNote = meta.q
+    ? `<div class="wrap"><p class="ndz-search-count">${products.length
+      ? `${products.length} résultat${products.length > 1 ? "s" : ""} pour « ${esc(meta.q)} »`
+      : `Aucun résultat pour cette recherche.`} · <a href="/${esc(store.slug)}">Tout afficher</a></p></div>`
+    : ""
+  const home = searchNote + (store.site_kind === "vitrine"
     ? `${L.home(store, products, meta)}${leadForm(store, { sent: meta.sent })}`
-    : L.home(store, products, meta)
+    : L.home(store, products, meta))
   const page = meta.q || meta.cat ? { html: home, ownCode: false } : SECTIONS.renderPage(store, "home", home)
   return L.shell(store, page.html, {
     cartCount, preview, ownCode: page.ownCode,
@@ -362,6 +369,7 @@ const welcomePage = (user, store, error) => {
       <p class="muted">${admin && !store ? "Tu ouvres l'admin." : "Ce qu'il faut pour te joindre."}</p>
       ${error ? `<div class="alert">${esc(error)}</div>` : ""}
       ${store ? `<form method="post" action="/welcome">
+
         <label>Téléphone<input name="phone" required value="${esc(store.phone || "")}" placeholder="0555 12 34 56" inputmode="tel" autocomplete="tel"></label>
         <label>WhatsApp<input name="whatsapp" value="${esc(store.whatsapp || "")}" placeholder="0555 12 34 56" inputmode="tel" autocomplete="tel"></label>
         <label>Wilaya
@@ -377,6 +385,29 @@ const welcomePage = (user, store, error) => {
   </div>
 </div>`, { bodyClass: "auth-body" })
 }
+
+/* Confirmation de déconnexion : la vraie déconnexion est en POST,
+   pour qu'un lien ou une image d'un autre site ne puisse pas la déclencher. */
+const logoutPage = (user) => page("Déconnexion — NovaDZ", `
+<div class="auth-stage">
+  <div class="auth-bg" aria-hidden="true"></div>
+  <div class="auth-veil" aria-hidden="true"></div>
+  <div class="auth-mix">
+    <section class="auth-pitch">
+      <p class="auth-kicker">À bientôt.</p>
+      <h1>Se déconnecter ?</h1>
+      <p>${esc(user.name || user.email || "")} — ta boutique reste en ligne, évidemment.</p>
+    </section>
+    <div class="auth-card">
+      <h2>Déconnexion</h2>
+      <p class="muted">Tu pourras te reconnecter à tout moment.</p>
+      <form method="post" action="/logout">
+        <button class="btn btn-primary btn-block" type="submit">Oui, me déconnecter</button>
+      </form>
+      <p style="margin-top:12px"><a href="/dashboard">Non, retour à ma boutique</a></p>
+    </div>
+  </div>
+</div>`, { bodyClass: "auth-body" })
 
 /* ======================================================================
    ÉDITEUR DE BOUTIQUE — sections déplaçables (drag & drop)
@@ -1081,6 +1112,14 @@ const customerAccount = (store, customer, orders, error, preview = false) => {
 }
 
 /* ============================== SUIVI DE COMMANDE ============================== */
+/* Page publique (lien par référence) : jamais le numéro complet ni l'adresse
+   exacte — 0555 ** ** 33 et la commune suffisent à reconnaître sa commande. */
+const maskPhone = (p) => {
+  const d = String(p || "").replace(/\D/g, "")
+  if (d.length < 7) return "•••"
+  return `${d.slice(0, 4)} ** ** ${d.slice(-2)}`
+}
+
 const orderTrack = (store, order, items, parcel = null) => {
   const L = layoutFor(store.theme)
   const steps = [
@@ -1112,7 +1151,7 @@ const orderTrack = (store, order, items, parcel = null) => {
     </div>
     <div>
       <h2>Livraison</h2>
-      <p class="track-addr">${esc(order.customer_name)}<br>${esc(order.phone)}<br>${esc(order.address)}<br>${esc(order.wilaya)}</p>
+      <p class="track-addr">${esc(order.customer_name)}<br>${esc(maskPhone(order.phone))}<br>${esc([order.commune, order.wilaya].filter(Boolean).join(", ") || order.wilaya || "")}</p>
       <div class="track-tot">
         <div><span>Sous-total</span><span>${money(order.subtotal_cents, store.currency)}</span></div>
         ${order.discount_cents ? `<div><span>Remise ${esc(order.promo_code || "")}</span><span>−${money(order.discount_cents, store.currency)}</span></div>` : ""}
@@ -4782,7 +4821,7 @@ const publicThemesPage = (rows, user) => {
 }
 
 module.exports = {
-  esc, money, dashPayments, dashSocial, dashThemes, authPage, welcomePage, storefront, productPage, cartPage,
+  esc, money, dashPayments, dashSocial, dashThemes, authPage, welcomePage, logoutPage, storefront, productPage, cartPage,
   checkoutPage, orderDone, contentPage, favPage, dashHome, dashProducts, productForm, dashOrders,
   dashSettings, dashDesign, dashPages, pageForm, dashDiscounts, dashOrderDetail, adminPage,
   legalPage, customerAccount, orderTrack, invoice, dashStats, dashForm, dashCategories, dashShipping, dashReviews, dashCustomers, adminHealth, adminLogs, dashStock,

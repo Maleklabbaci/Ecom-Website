@@ -13,7 +13,7 @@ const fs = require("node:fs")
 const os = require("node:os")
 const path = require("node:path")
 
-const { startServer, listen0 } = require("./boot")
+const { startServer, listen0, openDb } = require("./boot")
 let PORT = 0
 let MOCK_PORT = 0
 let BASE = ""
@@ -44,7 +44,7 @@ const form = (obj) => ({
   body: new URLSearchParams(obj).toString(),
 })
 const login = () => req("/login", form({ email: "demo@novadz.dz", password: "demo1234" }))
-const dbFile = () => new (require("better-sqlite3"))(DB, { readonly: true })
+const dbFile = () => openDb(DB, { readonly: true })
 
 /** Commande client fraîche, renvoie son identifiant. */
 async function newOrder(name = "Client Test", phone = "0555123456") {

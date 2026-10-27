@@ -70,6 +70,9 @@ if (Test-NovaDZ 3000) {
 
 # ---------- 4. Demarrage dans une fenetre dediee ----------
 Info "Demarrage du serveur dans une nouvelle fenetre..."
+# En local uniquement : les boutiques de demonstration (comptes connus).
+# Sur une machine exposee publiquement, ne JAMAIS mettre NOVADZ_DEMO=1.
+if (-not $env:NOVADZ_DEMO) { $env:NOVADZ_DEMO = "1" }
 $proc = Start-Process -FilePath "node" -ArgumentList "server.js" -WorkingDirectory $PSScriptRoot -PassThru
 
 $ready = $false

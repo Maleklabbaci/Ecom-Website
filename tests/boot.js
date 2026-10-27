@@ -17,7 +17,8 @@ function listen0(server, host = "127.0.0.1") {
 function startServer({ db, env = {}, cwd, timeout = 30000 } = {}) {
   const child = spawn(process.execPath, ["server.js"], {
     cwd: cwd || path.join(__dirname, ".."),
-    env: { ...process.env, PORT: "0", NOVADZ_DB: db, ...env },
+    /* les tests travaillent sur les boutiques de démonstration (NOVADZ_DEMO=1) */
+    env: { ...process.env, PORT: "0", NOVADZ_DB: db, NOVADZ_DEMO: "1", ...env },
     stdio: ["ignore", "pipe", "pipe"],
   })
   let buf = ""
@@ -53,4 +54,12 @@ function startServer({ db, env = {}, cwd, timeout = 30000 } = {}) {
   })
 }
 
-module.exports = { listen0, startServer }
+/**
+ * Ouvre la base de test avec LA MÊME couche que l'application (src/sqlite).
+ * Ne jamais require("better-sqlite3") directement dans les tests : c'est une
+ * dépendance optionnelle, absente quand le binaire natif n'existe pas pour la
+ * version de Node (le serveur bascule alors sur node:sqlite, les tests aussi).
+ */
+const openDb = (file, opts) => require("../src/sqlite").open(file, opts)
+
+module.exports = { listen0, startServer, openDb }

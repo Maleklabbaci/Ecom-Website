@@ -9,7 +9,7 @@ const fs = require("node:fs")
 const os = require("node:os")
 const path = require("node:path")
 
-const { startServer, listen0 } = require("./boot")
+const { startServer, listen0, openDb } = require("./boot")
 let PORT = 0
 let MOCK_PORT = 0
 let BASE = ""
@@ -40,7 +40,7 @@ const form = (obj) => ({
   body: new URLSearchParams(obj).toString(),
 })
 const login = () => req("/login", form({ email: "demo@novadz.dz", password: "demo1234" }))
-const dbFile = () => new (require("better-sqlite3"))(DB, { readonly: true })
+const dbFile = () => openDb(DB, { readonly: true })
 
 before(async () => {
   try { fs.unlinkSync(DB) } catch (_) {}
@@ -220,7 +220,7 @@ test("fiche colis : un champ obligatoire manquant empêche l'envoi (rien ne part
   assert.ok(!ready.text.includes("Complète les champs"))
 
   /* le blocage tient toujours : un mobile illisible empêche l'envoi, sans appel. */
-  const write = new (require("better-sqlite3"))(DB)
+  const write = openDb(DB)
   write.prepare("UPDATE orders SET phone = ? WHERE id = ?").run("123", order.id)
   write.close()
   const page = await req(`/dashboard/orders/${order.id}`)

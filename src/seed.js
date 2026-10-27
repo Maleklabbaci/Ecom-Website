@@ -1,11 +1,39 @@
 "use strict"
-/** Petit jeu de données de démonstration (2 boutiques + produits). */
+/**
+ * Premier démarrage (base vide) :
+ *  - NOVADZ_DEMO=1 → jeu de démonstration complet (2 boutiques + produits),
+ *    avec les comptes connus demo@novadz.dz / admin@novadz.dz. À réserver
+ *    au développement local : ces mots de passe sont publics (dépôt Git).
+ *  - sinon → seul un compte administrateur est créé, avec un mot de passe
+ *    aléatoire affiché UNE SEULE FOIS dans la console. Aucune boutique de
+ *    démonstration, aucun mot de passe devinable sur une instance publique.
+ */
+const crypto = require("crypto")
 const db = require("./db")
 const { hash } = require("./auth")
 
 const seed = () => {
   const count = db.prepare("SELECT COUNT(*) AS n FROM users").get().n
   if (count > 0) return
+
+  const mkUser0 = db.prepare(
+    "INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)"
+  )
+  if (process.env.NOVADZ_DEMO !== "1") {
+    const password = crypto.randomBytes(12).toString("base64").replace(/[^a-zA-Z0-9]/g, "").slice(0, 14)
+    mkUser0.run("admin@novadz.dz", hash(password), "Équipe NovaDZ", "admin")
+    console.log("")
+    console.log("  ============================================================")
+    console.log("  PREMIER DÉMARRAGE — compte administrateur créé :")
+    console.log("    E-mail       : admin@novadz.dz")
+    console.log(`    Mot de passe : ${password}`)
+    console.log("  Note-le maintenant : il ne sera plus jamais affiché.")
+    console.log("  (Pour la démo locale complète : relancer avec NOVADZ_DEMO=1")
+    console.log("   sur une base vide.)")
+    console.log("  ============================================================")
+    console.log("")
+    return
+  }
 
   const mkUser = db.prepare(
     "INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)"

@@ -6,10 +6,22 @@
  */
 
 const SITES = require("./site-templates")
-const SHOW = [
-  { id: "sonnenbloom", name: "SonnenBloom", line: "Jeunes pousses", href: "/templates/sonnenbloom.html", shot: "/shots/sonnenbloom.jpg", use: "/templates/sonnenbloom.html", useLabel: "Voir" },
-  ...SITES.LIST.map((t) => ({ id: t.id, name: t.name, line: t.niche, href: `/templates/${t.id}.html`, shot: `/shots/${t.id}.jpg`, use: `/signup?site=${t.id}`, useLabel: "Utiliser" })),
+
+/* La landing ne montre que six thèmes : trois vitrines, trois e-commerce.
+   Le catalogue complet reste sur /themes. Sélection par identifiant, pour
+   garder noms et niches synchronisés avec src/site-templates.js.
+   Vitrine : Prozi (agence), C. Reyes (conseil), Newcomer (produit digital).
+   E-commerce : Adeline (mode), Essentia (soin), Furnexa (mobilier). */
+const PICKS = [
+  { label: "Vitrine", hint: "Pour présenter.", ids: ["site5", "site3", "site16"] },
+  { label: "E-commerce", hint: "Pour vendre.", ids: ["site1", "site11", "site10"] },
 ]
+const toShow = (id) => {
+  const t = SITES.LIST.find((x) => x.id === id)
+  if (!t) return null
+  return { id: t.id, name: t.name, line: t.niche, href: `/templates/${t.id}.html`, shot: `/shots/${t.id}.jpg`, use: `/signup?site=${t.id}`, useLabel: "Utiliser" }
+}
+const SHOW = PICKS.map((g) => ({ ...g, items: g.ids.map(toShow).filter(Boolean) }))
 
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]))
@@ -89,7 +101,7 @@ const landing = (stores) => {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NovaDZ — Une boutique qui a l'air faite</title>
 <meta name="description" content="Choisis une mise en page, ajoute tes produits, publie. Dinars, wilayas, paiement à la livraison.">
-<link rel="stylesheet" href="/landing.css?v=29">
+<link rel="stylesheet" href="/landing.css?v=37">
 </head>
 <body class="lp">
 <div class="grain" aria-hidden="true"></div>
@@ -105,9 +117,9 @@ const landing = (stores) => {
   <button class="nav-burger" type="button" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
 </header>
 
-<div class="stage">
 <div class="hero-bg" aria-hidden="true"></div>
 <div class="veil"></div>
+<div class="stage">
 <section class="hero">
   <div class="hero-in">
     <p class="kicker">Pas besoin d'<span class="spin"><b>un freelance.</b><b>un designer.</b><b>une équipe.</b><b>un développeur.</b><b>un freelance.</b></span></p>
@@ -152,11 +164,12 @@ const landing = (stores) => {
 <section class="themes" id="themes">
   <header class="themes-head">
     <h2>Les thèmes.</h2>
-    <p>Le premier template. <b>SonnenBloom</b>. Les suivants se posent pareil : une page, une capture, une carte.</p>
+    <p>Six pour commencer : <b>trois vitrines</b> pour présenter, <b>trois e-commerce</b> pour vendre. Le reste du catalogue t'attend après l'inscription.</p>
   </header>
+  ${SHOW.map((g) => `<h3 class="themes-sub">${esc(g.label)} <span>${esc(g.hint)}</span></h3>
   <div class="tf-grid">
-    ${SHOW.map(card).join("")}
-  </div>
+    ${g.items.map(card).join("")}
+  </div>`).join("")}
 </section>
 </div>
 
@@ -176,42 +189,42 @@ ${t3d()}
     <article>
       <span class="tag">Étape 01</span>
       <h3>Choisir</h3>
-      <p>Douze mises en page. La même pour la mode, la tech, le soin, ou ce que tu vends.</p>
-      <div class="step-vis"><img src="/shots/editorial.jpg" alt=""><div class="toast"><i>N</i><span>Le thème est prêt<br>dans ton espace</span></div></div>
+      <p>Six mises en page pour commencer. Mode, tech, soin, ou ce que tu vends.</p>
+      <div class="step-vis"><img src="/shots/etape-choisir.jpg" alt="Choisir un thème dans NovaDZ"><div class="toast"><i>N</i><span>Le thème est prêt<br>dans ton espace</span></div></div>
     </article>
     <article>
       <span class="tag">Étape 02</span>
       <h3>Remplir</h3>
       <p>Produits, prix, wilayas. Sans photo, le nom et le prix tiennent la place.</p>
-      <div class="step-vis"><img src="/shots/mode.jpg" alt=""></div>
+      <div class="step-vis"><img src="/shots/etape-remplir.jpg" alt="Ajouter ses produits et ses prix en dinars"></div>
     </article>
     <article>
       <span class="tag">Étape 03</span>
       <h3>Publier</h3>
       <p>Le lien change quand tu publies. Avant ça, c'est encore le brouillon.</p>
-      <div class="step-vis"><div class="pub"><span>${bolt(14)} Publier</span></div></div>
+      <div class="step-vis"><img src="/shots/etape-publier.jpg?v=2" alt="Publier sa boutique depuis l'éditeur"></div>
     </article>
   </div>
 </section>
 
 <section class="sec" style="padding-top:20px">
-  <h2 class="reveal">La façon simple<br>d'ouvrir une boutique.</h2>
-  <p class="sub reveal">Quand le site arrête d'être un problème.</p>
+  <h2 class="reveal lime-title">Crée un site<br>premium.</h2>
+  <p class="sub reveal">Le rendu d'une agence, la simplicité d'un outil fait pour toi.</p>
   <div class="bento reveal">
     <article class="bcard" id="slidebox">
       <span class="num">01</span>
       <div class="arrows"><button type="button" id="prev" aria-label="Précédent">‹</button><button type="button" id="next" aria-label="Suivant">›</button></div>
       <div class="slide on">
-        <h3>Moins cher qu'une agence,<br>sans baisser le niveau.</h3>
-        <p>Une agence facture chaque aller-retour. Ici, le prix est fixe.</p>
+        <h3>Le niveau agence,<br>sans le prix agence.</h3>
+        <p>Une agence facture chaque aller-retour. Ici, un prix fixe, connu d'avance.</p>
         <div class="bars">
           <div class="row"><span>Agence</span><span class="meter" style="--w:88%">jusqu'à 1 000 000 DA</span></div>
-          <div class="row"><span>NovaDZ</span><span class="meter hot" style="--w:28%">1 900 DA</span></div>
+          <div class="row"><span>NovaDZ</span><span class="meter hot" style="--w:28%">1 900 DA / mois</span></div>
         </div>
       </div>
       <div class="slide" hidden>
-        <h3>En ligne en jours,<br>pas en semaines.</h3>
-        <p>Le temps d'une agence se perd en réunions. Ici, tu publies quand c'est prêt.</p>
+        <h3>En ligne en quelques jours,<br>pas en semaines.</h3>
+        <p>Pas de réunions qui s'éternisent : tu publies quand c'est prêt.</p>
         <div class="bars">
           <div class="row"><span>Agence</span><span class="meter" style="--w:80%">4 à 6 semaines</span></div>
           <div class="row"><span>NovaDZ</span><span class="meter hot" style="--w:34%">1 à 2 jours</span></div>
@@ -219,26 +232,28 @@ ${t3d()}
       </div>
     </article>
     <article class="bcard">
+      <span class="num">02</span>
       <h3>3 gestes,<br>et c'est en ligne.</h3>
-      <ul class="checks"><li><i class="dot"></i> Choisir</li><li><i class="dot"></i> Remplir</li><li><i class="dot"></i> Publier</li></ul>
+      <ul class="checks"><li><i class="dot"></i> Choisir ton thème</li><li><i class="dot"></i> Ajouter tes produits</li><li><i class="dot"></i> Publier en un clic</li></ul>
     </article>
     <article class="bcard">
-      <h3>Tout au même endroit.</h3>
-      <p>Catalogue, panier, wilayas, paiement à la livraison. Pas un outil de plus à coller.</p>
+      <span class="num">03</span>
+      <h3>Tout est déjà branché.</h3>
+      <p>Catalogue, panier, livraison dans les 58 wilayas et paiement à la livraison. Zéro outil à ajouter, zéro code à écrire.</p>
     </article>
   </div>
   <div class="brow reveal">
-    <div class="shotcard"><img src="/shots/noir.jpg" alt=""></div>
+    <div class="shotcard"><img src="/shots/carte-dashboard.jpg" alt="Le tableau de bord NovaDZ : chiffre d'affaires et commandes"></div>
     <div class="bcard">
       <h3>Réponse le jour même.</h3>
-      <p>Une question sur ta boutique, tu écris. On répond pendant la journée.</p>
+      <p>Une question sur ta boutique ? Écris-nous : on te répond dans la journée, en français ou en arabe.</p>
     </div>
     <div class="lime">
-      <h3>Occupe-toi de vendre, pas du site.</h3>
+      <h3>Occupe-toi de vendre,<br>pas du site.</h3>
       <ul>
-        <li>Pas de code</li>
-        <li>Tu changes les couleurs</li>
-        <li>Tu ajoutes tes produits toi-même</li>
+        <li>Pas de code à toucher</li>
+        <li>Couleurs et textes en un clic</li>
+        <li>Tes produits, ajoutés par toi-même</li>
       </ul>
     </div>
   </div>
@@ -246,14 +261,15 @@ ${t3d()}
 
 <section class="sec" style="padding-top:10px">
   <div class="feats reveal">
+    <p class="feats-k">Inclus d'office</p>
     <h3>Ce que la mise en page couvre</h3>
-    <ul>
-      <li>Tu modifies sans toucher au code</li>
-      <li>Lisible sur téléphone</li>
-      <li>Dinars, wilayas, livraison</li>
-      <li>Le thème change, les produits restent</li>
-      <li>Sans photo, la fiche reste propre</li>
-      <li>Le lien public ne bouge qu'à la publication</li>
+    <ul class="feats-grid">
+      <li><i class="fcheck"></i><span>Tu modifies sans toucher au code</span></li>
+      <li><i class="fcheck"></i><span>Lisible sur téléphone</span></li>
+      <li><i class="fcheck"></i><span>Dinars, wilayas, livraison</span></li>
+      <li><i class="fcheck"></i><span>Le thème change, les produits restent</span></li>
+      <li><i class="fcheck"></i><span>Sans photo, la fiche reste propre</span></li>
+      <li><i class="fcheck"></i><span>Le lien public ne bouge qu'à la publication</span></li>
     </ul>
   </div>
 </section>
@@ -296,11 +312,11 @@ ${t3d()}
 
 <section class="sec">
   <div class="about">
-    <div class="frame"><img src="/shots/audio.jpg" alt=""></div>
+    <div class="frame"><img src="/shots/about-theme.jpg" alt="Adeline, un thème boutique NovaDZ"></div>
     <div>
-      <p class="k">Fait pour les boutiques d'ici</p>
+      <p class="k">Fait pour les vitrines et les boutiques d'ici</p>
       <h2>NovaDZ,<br>pas une agence.</h2>
-      <p>Le catalogue, le panier, les wilayas et le paiement à la livraison sont déjà là. Tu choisis comment ça se montre. Le reste, c'est tes produits.</p>
+      <p>Une vitrine pour présenter ton travail, une boutique pour vendre : services, catalogue, panier, wilayas et paiement à la livraison sont déjà là. Tu choisis comment ça se montre. Le reste, c'est ton contenu.</p>
       <p>Une question, elle arrive ici. <a href="mailto:contact@novadz.dz">contact@novadz.dz</a></p>
     </div>
   </div>
@@ -329,29 +345,44 @@ ${t3d()}
 </section>
 
 <footer class="foot">
-  <form class="form" action="/signup" method="get">
-    <h3>Les nouveautés, sans le bruit.</h3>
-    <label>✓ Les nouvelles mises en page</label>
-    <label>✓ On ne vend pas tes ventes</label>
-    <input name="email" type="email" placeholder="toi@exemple.dz" aria-label="Email">
-    <button class="btn" type="submit">Je m'inscris</button>
-  </form>
-  <div>
-    <p class="foot-big">Ouvre, publie,<br>sors du lot.</p>
-    <div class="cols">
-      <div><b>Écrire</b><a href="mailto:contact@novadz.dz">contact@novadz.dz</a></div>
-      <div><b>Pages</b><a href="#themes">Thèmes</a><a href="/themes">Catalogue</a><a href="/login">Connexion</a></div>
-      <div><b>Offre</b><a href="#tarifs">Tarifs</a><a href="/signup">Créer</a></div>
+  <div class="foot-grid">
+    <form class="form" action="/signup" method="get">
+      <p class="form-k">La lettre NovaDZ</p>
+      <h3>Les nouveautés, sans le bruit.</h3>
+      <p class="form-row"><i class="fcheck"></i> Les nouvelles mises en page</p>
+      <p class="form-row"><i class="fcheck"></i> On ne vend pas tes ventes</p>
+      <input name="email" type="email" placeholder="toi@exemple.dz" aria-label="Email">
+      <button class="btn" type="submit">Je m'inscris</button>
+      <p class="form-note">Un e-mail de temps en temps. Zéro spam.</p>
+    </form>
+    <div>
+      <p class="foot-big">Ouvre, publie,<br><span>sors du lot.</span></p>
+      <div class="cols">
+        <div><b>Écrire</b><a href="mailto:contact@novadz.dz">contact@novadz.dz</a></div>
+        <div><b>Pages</b><a href="#themes">Thèmes</a><a href="/themes">Catalogue</a><a href="/login">Connexion</a></div>
+        <div><b>Offre</b><a href="#tarifs">Tarifs</a><a href="/signup">Créer un site</a></div>
+      </div>
     </div>
+  </div>
+  <div class="foot-bar">
+    <span>© 2026 NovaDZ — Vitrines et boutiques, faites en Algérie.</span>
+    <span class="foot-tags">Dinars · 58 wilayas · Paiement à la livraison</span>
   </div>
 </footer>
 
 <script>
 (function () {
-  const io = new IntersectionObserver((entries) => {
-    entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add("in") })
-  }, { threshold: 0.16 })
-  document.querySelectorAll(".reveal").forEach((el) => io.observe(el))
+  /* Apparition en douceur : transition CSS déclenchée une seule fois,
+     dès que l'élément entre dans l'écran (plus d'animation figée). */
+  const revealEls = document.querySelectorAll(".reveal")
+  if ("IntersectionObserver" in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target) } })
+    }, { threshold: 0.12, rootMargin: "0px 0px -6% 0px" })
+    revealEls.forEach((el) => io.observe(el))
+  } else {
+    revealEls.forEach((el) => el.classList.add("in"))
+  }
 
   const slides = [...document.querySelectorAll("#slidebox .slide")]
   let i = 0
@@ -368,12 +399,35 @@ ${t3d()}
     burger.setAttribute("aria-expanded", open ? "true" : "false")
   })
 
+  /* Témoignages : les colonnes ne tournent que quand la section est visible */
+  const t3d = document.querySelector(".t3d")
+  if (t3d && "IntersectionObserver" in window) {
+    t3d.classList.add("off")
+    new IntersectionObserver((entries) => {
+      entries.forEach((e) => t3d.classList.toggle("off", !e.isIntersecting))
+    }, { threshold: 0.05 }).observe(t3d)
+  }
+
+  /* Parallaxe du fond : lissée par requestAnimationFrame (plus de saccades
+     à chaque mouvement de souris), et seulement près du haut de page. */
   const bg = document.querySelector(".hero-bg")
-  if (bg && window.matchMedia("(min-width: 641px)").matches) window.addEventListener("mousemove", (e) => {
-    const x = (e.clientX / innerWidth - 0.5) * 14
-    const y = (e.clientY / innerHeight - 0.5) * 10
-    bg.style.transform = "scale(1.08) rotate(-1deg) translate(" + x + "px," + y + "px)"
-  }, { passive: true })
+  const fine = window.matchMedia("(min-width: 641px)").matches
+    && !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  if (bg && fine) {
+    let tx = 0, ty = 0, cx = 0, cy = 0, raf = 0
+    const tick = () => {
+      cx += (tx - cx) * 0.07
+      cy += (ty - cy) * 0.07
+      bg.style.transform = "scale(1.08) rotate(-1deg) translate(" + cx.toFixed(2) + "px," + cy.toFixed(2) + "px)"
+      raf = (Math.abs(tx - cx) > 0.05 || Math.abs(ty - cy) > 0.05) ? requestAnimationFrame(tick) : 0
+    }
+    window.addEventListener("mousemove", (e) => {
+      if (window.scrollY > window.innerHeight * 1.2) return
+      tx = (e.clientX / innerWidth - 0.5) * 14
+      ty = (e.clientY / innerHeight - 0.5) * 10
+      if (!raf) raf = requestAnimationFrame(tick)
+    }, { passive: true })
+  }
 })()
 </script>
 </body>

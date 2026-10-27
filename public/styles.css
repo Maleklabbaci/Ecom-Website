@@ -3445,6 +3445,8 @@ body:has(.theme) { overflow-x: clip; }
 .ndz-search-bar { max-width: 420px; margin: 0 auto; }
 .ndz-searchbar { padding: 12px 20px; border-bottom: 1px solid rgba(0, 0, 0, 0.07);
   background: color-mix(in srgb, var(--s-bg, #fff) 92%, transparent); }
+.ndz-search-count { margin: 18px 0 6px; font-size: 14px; opacity: .85; }
+.ndz-search-count a { text-decoration: underline; }
 .ndz-search-btn { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px;
   border: 1px solid rgba(0, 0, 0, 0.12); background: transparent; color: inherit; cursor: pointer; flex: 0 0 auto; }
 .ndz-search-btn:hover { background: rgba(0, 0, 0, 0.06); }

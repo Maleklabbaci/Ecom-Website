@@ -18,7 +18,8 @@ npm start
 
 ➡️ http://localhost:3000
 
-- Aucun Docker, aucun PostgreSQL, aucune variable d'environnement.
+- Aucun Docker, aucun PostgreSQL, aucune variable obligatoire en local
+  (optionnelles : voir `.env.example` — `PORT`, `NOVADZ_DEMO`, `NOVADZ_TRUST_PROXY`…).
 - Base **SQLite** dans `data/novadz.db`, créée automatiquement au premier lancement.
 - **Node.js 22 ou 24** (testé sur 22 et 24). Node 20 n'est plus supporté.
 - SQLite : `better-sqlite3` (binaire précompilé) **ou**, s'il n'a pas pu s'installer, le
@@ -26,6 +27,10 @@ npm start
   voir `src/sqlite.js`. Forcer une implémentation : `NOVADZ_SQLITE=native` ou `NOVADZ_SQLITE=node`.
 
 ### Comptes de démonstration
+
+Créés au premier démarrage **uniquement si `NOVADZ_DEMO=1`** (local seulement :
+ces mots de passe sont publics). Sans cette variable, seul un admin est créé,
+avec un mot de passe aléatoire affiché **une fois** dans la console.
 
 | Rôle | Email | Mot de passe | Où |
 |---|---|---|---|
@@ -35,7 +40,7 @@ npm start
 ### Tests
 
 ```bash
-npm test        # 146 tests : parcours, stock, transporteurs, relances, checkout bilingue, photos,
+npm test        # 233 tests : parcours, stock, transporteurs, relances, checkout bilingue, photos,
                 #           vitrine libre (thèmes, CSS/HTML, pages, achat direct), interface de l'éditeur
 ```
 
@@ -43,8 +48,9 @@ npm test        # 146 tests : parcours, stock, transporteurs, relances, checkout
 
 ## À lire avant de publier
 
-Le fichier **`A-CORRIGER.md`** liste les points relevés lors de la revue de code du 20/10
-(bugs reproduits, sécurité, ordre de correction conseillé). À traiter avant une mise en ligne publique.
+Le fichier **`A-CORRIGER.md`** suit, point par point, les correctifs de la revue de code du 20/10
+(la plupart corrigés et couverts par les tests). Avant une mise en ligne publique, lisez sa
+section « Ce qui reste à faire » — en particulier la **sauvegarde de `data/novadz.db`**
 
 ---
 
@@ -185,7 +191,7 @@ public/
   fonts/             Estedad (police arabe, OFL) auto-hébergée
   upimg.js           redimensionnement + WebP avant envoi
 assets/              images de démonstration
-tests/             146 tests de bout en bout (dont vitrine-libre et interface de l'éditeur)
+tests/             233 tests de bout en bout (dont vitrine-libre et interface de l'éditeur)
 ```
 
 ## Marketing : reCAPTCHA et pixels

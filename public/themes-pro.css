@@ -1336,7 +1336,14 @@
   color: #1C1A17 !important;
 }
 .tp.tpx-atelier .sec-hero.has-img .sec-hero-text :is(h1, .sec-sub, .sec-kicker) {
+  /* encre foncée du thème, mais jamais à nu sur la photo du marchand :
+     pastille claire ligne par ligne (miroir clair de la pastille générique) */
   color: #1C1A17 !important;
+  background-color: rgba(251, 250, 247, .88) !important;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 0.05em 0.16em;
+  border-radius: 2px;
   text-shadow: none !important;
 }
 .tp.tpx-atelier .sec-hero.has-img .sec-hero-in {

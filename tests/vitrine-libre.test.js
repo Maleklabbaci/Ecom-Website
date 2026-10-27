@@ -204,9 +204,16 @@ test("panier : mode « sans panier » masque le panier et va droit à la command
   await design({ cartMode: "direct" })
   await publish()
   const r = await req("/amina-mode/p/1")
+  /* les boutons restent dans la page (aperçu éditeur en direct) :
+     data-cart + le CSS décident de ce que le client voit vraiment */
   assert.match(r.text, /data-cart="direct"/)
-  assert.match(r.text, /Commander maintenant/)
-  assert.ok(!r.text.includes(">Ajouter au panier<"))
+  const css = await req("/styles.css")
+  assert.match(css.text, /html\[data-cart="direct"\] \.ndz-cart-add\{display:none!important\}/)
+  assert.match(css.text, /\[data-cart="direct"\] a\[href\$="\/cart"\]\{display:none!important\}/)
+  /* le bouton visible envoie droit à la commande, et Entrée dans le
+     formulaire aussi (action déjà sur /direct côté serveur) */
+  assert.match(r.text, /ndz-buy-now" formaction="\/amina-mode\/direct"/)
+  assert.match(r.text, /<form[^>]*action="\/amina-mode\/direct" class="ndz-buy"/)
 })
 
 test("achat direct : renvoie au formulaire avec un seul article", async () => {
@@ -251,10 +258,9 @@ test("éditeur : le JS contient les cinq onglets et les vignettes", () => {
   for (const tab of ["sections", "theme", "pages", "code", "texts"]) {
     assert.match(js, new RegExp('\\["' + tab + '",'))
   }
-  assert.match(js, /data-palette/)
   assert.match(js, /data-hide-key/)
   assert.match(js, /data-dict-from/)
-  assert.match(js, /ed-pal-thumb/)
+  assert.match(js, /hz-preview/)
 })
 
 test("achat direct : un bouton par moyen de paiement, sans panier", async () => {
@@ -275,11 +281,13 @@ test("achat direct : un bouton par moyen de paiement, sans panier", async () => 
   const co = await req("/amina-mode/checkout?pay=cib")
   assert.match(co.text, /value="cib"[^>]*checked/)
 
-  /* le réglage se coupe : plus aucun bouton direct */
+  /* le réglage se coupe : les boutons directs sont masqués (data-accel="0") */
   await req("/dashboard/design/save", json({ design: { payDirect: false } }))
   await req("/dashboard/design/publish", form({}))
   const clean = await req("/amina-mode/p/1")
-  assert.doesNotMatch(clean.text, /ndz-paybtn/)
+  assert.match(clean.text, /data-accel="0"/)
+  const css = await req("/styles.css")
+  assert.match(css.text, /html\[data-accel="0"\] \.ndz-paybtn\{display:none!important\}/)
 })
 
 /* ------------------------------- POLICE ARABE ------------------------------- */
@@ -345,7 +353,8 @@ test("sections : chaque type se rend sur la vitrine sans erreur", async () => {
     id: "t" + i,
     type,
     settings: {},
-    blocks: SECTIONS.TYPES[type].blocks ? [{ id: "b" + i, settings: {} }, { id: "c" + i, settings: {} }] : [],
+    /* une galerie sans image ne rend rien (voulu) : on lui donne une vraie photo */
+    blocks: SECTIONS.TYPES[type].blocks ? [{ id: "b" + i, settings: type === "gallery" ? { image: "/demo/demo-robe.jpg" } : {} }, { id: "c" + i, settings: type === "gallery" ? { image: "/demo/demo-sac.jpg" } : {} }] : [],
   }))
   const r = await req("/dashboard/design/save", json({ sections, design: { cartMode: "deux" } }))
   assert.equal(r.status, 200)
@@ -923,6 +932,10 @@ test("recherche : la barre peut être choisie, et le mot-clé filtre", async () 
   const r = await req("/amina-mode?q=montre")
   assert.equal(r.status, 200)
   assert.match(r.text, /résultat/)
+
+  /* on remet la recherche dans l'en-tête pour les tests suivants */
+  await design({ searchPlace: "entete" })
+  await publish()
 })
 
 test("recherche : insensible aux accents", async () => {

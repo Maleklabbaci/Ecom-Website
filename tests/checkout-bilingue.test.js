@@ -162,7 +162,7 @@ test("livraison : le délai par wilaya remonte jusqu'au checkout", async () => {
 test("arabe : la vitrine passe en RTL avec la police Estedad", async () => {
   const r = await req("/amina-mode?lang=ar")
   assert.equal(r.status, 200)
-  assert.match(r.text, /<html lang="ar" dir="rtl"/)
+  assert.match(r.text, /<html[^>]*lang="ar" dir="rtl"/)
   assert.match(r.text, /\/estedad\.css/)
   assert.match(r.text, /أضف إلى السلة/)
 })
@@ -172,7 +172,7 @@ test("arabe : le choix de langue est mémorisé (cookie)", async () => {
   const r = await req("/amina-mode")
   assert.match(r.text, /dir="rtl"/)
   const back = await req("/amina-mode?lang=fr")
-  assert.match(back.text, /<html lang="fr" dir="ltr"/)
+  assert.match(back.text, /<html[^>]*lang="fr" dir="ltr"/)
 })
 
 test("arabe : le formulaire de commande est traduit", async () => {
