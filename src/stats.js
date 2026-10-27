@@ -106,7 +106,7 @@ const verdict = (rows) => {
 const business = (storeId) => {
   const one = (where = "", ...args) =>
     db.prepare(`SELECT COUNT(*) AS n, COALESCE(SUM(total_cents), 0) AS cents
-                FROM orders WHERE store_id = ? AND status != 'annulee' AND fake = 0 ${where}`).get(storeId, ...args)
+                FROM orders WHERE store_id = ? AND status NOT IN ('annulee', 'perdue') AND fake = 0 ${where}`).get(storeId, ...args)
 
   const today = one("AND date(created_at) = date('now')")
   const week = one("AND date(created_at) >= date('now', '-6 days')")
@@ -117,6 +117,7 @@ const business = (storeId) => {
     WHERE store_id = ? AND fake = 0 AND status IN ('confirmee', 'expediee', 'livree')`).get(storeId).n
   const total = db.prepare("SELECT COUNT(*) AS n FROM orders WHERE store_id = ? AND fake = 0").get(storeId).n
   const cancelled = db.prepare("SELECT COUNT(*) AS n FROM orders WHERE store_id = ? AND fake = 0 AND status = 'annulee'").get(storeId).n
+  const lost = db.prepare("SELECT COUNT(*) AS n FROM orders WHERE store_id = ? AND fake = 0 AND status = 'perdue'").get(storeId).n
   const shipped = db.prepare("SELECT COUNT(*) AS n FROM orders WHERE store_id = ? AND fake = 0 AND status = 'livree'").get(storeId).n
 
   const visits = db.prepare(`SELECT COALESCE(SUM(hits), 0) AS n FROM visits
@@ -125,7 +126,7 @@ const business = (storeId) => {
   /* 14 derniers jours : une barre par jour */
   const daily = []
   const rowsDay = db.prepare(`SELECT date(created_at) AS d, COUNT(*) AS n, COALESCE(SUM(total_cents), 0) AS cents
-    FROM orders WHERE store_id = ? AND status != 'annulee' AND fake = 0 AND date(created_at) >= date('now', '-13 days')
+    FROM orders WHERE store_id = ? AND status NOT IN ('annulee', 'perdue') AND fake = 0 AND date(created_at) >= date('now', '-13 days')
     GROUP BY date(created_at)`).all(storeId)
   const byDay = new Map(rowsDay.map((r) => [r.d, r]))
   for (let i = 13; i >= 0; i--) {
@@ -136,16 +137,16 @@ const business = (storeId) => {
 
   const topProducts = db.prepare(`SELECT i.title, SUM(i.qty) AS qty, SUM(i.qty * i.price_cents) AS cents
     FROM order_items i JOIN orders o ON o.id = i.order_id
-    WHERE o.store_id = ? AND o.status != 'annulee' AND o.fake = 0
+    WHERE o.store_id = ? AND o.status NOT IN ('annulee', 'perdue') AND o.fake = 0
     GROUP BY i.title ORDER BY qty DESC LIMIT 6`).all(storeId)
 
   const topWilayas = db.prepare(`SELECT wilaya, COUNT(*) AS n, COALESCE(SUM(total_cents), 0) AS cents
-    FROM orders WHERE store_id = ? AND status != 'annulee' AND fake = 0 AND wilaya != ''
+    FROM orders WHERE store_id = ? AND status NOT IN ('annulee', 'perdue') AND fake = 0 AND wilaya != ''
     GROUP BY wilaya ORDER BY n DESC LIMIT 6`).all(storeId)
 
   return {
     today, week, month, all,
-    counts: { total, confirmed, cancelled, shipped },
+    counts: { total, confirmed, cancelled, shipped, lost },
     visits,
     daily,
     topProducts,
@@ -166,7 +167,7 @@ const bySource = (storeId) => {
            SUM(CASE WHEN status = 'livree' THEN 1 ELSE 0 END) AS delivered,
            SUM(CASE WHEN status = 'annulee' THEN 1 ELSE 0 END) AS cancelled,
            SUM(CASE WHEN status = 'injoignable' THEN 1 ELSE 0 END) AS unreachable,
-           COALESCE(SUM(CASE WHEN status != 'annulee' THEN total_cents ELSE 0 END), 0) AS cents
+           COALESCE(SUM(CASE WHEN status NOT IN ('annulee', 'perdue') THEN total_cents ELSE 0 END), 0) AS cents
       FROM orders WHERE store_id = ? AND fake = 0
      GROUP BY CASE WHEN source IS NULL OR source IN ('','direct','referral') THEN 'organic' ELSE source END
      ORDER BY orders DESC`).all(storeId)

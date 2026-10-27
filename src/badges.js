@@ -33,11 +33,13 @@ const counts = (store) => {
   let toTreat = 0
   let toConfirm = 0
   let shipped = 0
+  let lost = 0
   for (const o of orders) {
     const st = ORD.norm(o.status)
     if (st === "nouvelle" || st === "a_verifier") toTreat++
-    if (st !== "confirmee" && st !== "expediee" && st !== "livree" && st !== "annulee" && st !== "remboursee") toConfirm++
+    if (st !== "confirmee" && st !== "expediee" && st !== "livree" && st !== "annulee" && st !== "remboursee" && st !== "perdue") toConfirm++
     if (st === "expediee") shipped++
+    if (st === "perdue") lost++
   }
 
   /* paniers abandonnés : même calcul que la page Paniers */
@@ -53,6 +55,7 @@ const counts = (store) => {
     toTreat,
     toConfirm,
     shipped,
+    lost,
     carts,
     lowStock,
     reviews: one("SELECT COUNT(*) n FROM reviews WHERE store_id = ? AND approved = 0", id),

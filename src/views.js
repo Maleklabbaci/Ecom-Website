@@ -2277,6 +2277,42 @@ const dashLeads = (user, store, rows) => dashLayout(user, store, `
   <p>Quand quelqu'un écrit depuis le site, le message s'affiche ici.</p></div>`}
 </section>`, "leads")
 
+/** Aperçu du site dans le tableau de bord : ce que voit le visiteur,
+    en ordinateur ou en téléphone, sans quitter l'interface.
+    L'adresse ?preview=1 ne compte pas dans les visites. */
+const sitePreview = (store) => `
+<section class="panel prev-panel">
+  <div class="panel-head">
+    <h2>Aperçu du site</h2>
+    <div class="prev-tools">
+      <span class="prev-devices" role="group" aria-label="Taille de l'aperçu">
+        <button type="button" class="prev-dev on" data-prev="desk">${icon("monitor", 14)} Ordinateur</button>
+        <button type="button" class="prev-dev" data-prev="tel">${icon("smartphone", 14)} Téléphone</button>
+      </span>
+      <a href="/dashboard/design">Modifier le design</a>
+      <a href="/${esc(store.slug)}" target="_blank" rel="noopener">Ouvrir le site ${icon("external", 13)}</a>
+    </div>
+  </div>
+  <div class="prev-frame" data-prev-frame>
+    <iframe src="/${esc(store.slug)}?preview=1" title="Aperçu de votre site"></iframe>
+  </div>
+  <p class="muted small">C'est ce que voient vos visiteurs sur <code>/${esc(store.slug)}</code> — vos passages ici ne sont pas comptés dans les visites.</p>
+  <script>
+  (function () {
+    var frame = document.querySelector("[data-prev-frame]");
+    if (!frame) return;
+    var btns = document.querySelectorAll(".prev-dev");
+    btns.forEach(function (b) {
+      b.addEventListener("click", function () {
+        btns.forEach(function (x) { x.classList.remove("on"); });
+        b.classList.add("on");
+        frame.classList.toggle("tel", b.getAttribute("data-prev") === "tel");
+      });
+    });
+  })();
+  </script>
+</section>`
+
 const dashHome = (user, store, stats, recentOrders) => store.site_kind === "vitrine"
   ? dashLayout(user, store, `
 <header class="dash-head">
@@ -2290,6 +2326,7 @@ ${startGuide(store, stats)}
   <div class="kpi"><span>Pages</span>${icon("receipt", 16)}<b>${stats.pageCount}</b><i>${stats.published} en ligne</i></div>
   <div class="kpi"><span>Contact</span>${icon("chat", 16)}<b>${String(store.phone || "").trim() ? "Oui" : "Non"}</b><i>${esc(store.phone || "téléphone manquant")}</i></div>
 </div>
+${sitePreview(store)}
 <section class="panel">
   <div class="panel-head"><h2>Formulaires reçus</h2><a href="/dashboard/recus">Tout voir →</a></div>
   ${(stats.recentLeads || []).length ? `<table class="table">
@@ -2327,6 +2364,15 @@ ${startGuide(store, stats)}
   <div class="kpi"><span>Produits</span>${icon("box", 16)}<b>${stats.productCount}</b><i>${stats.lowStock} en stock faible</i></div>
   <div class="kpi"><span>Panier moyen</span>${icon("cart", 16)}<b>${money(stats.avgBasket, store.currency)}</b><i>par commande</i></div>
 </div>
+${sitePreview(store)}
+<section class="panel">
+  <div class="panel-head"><h2>Livraisons à suivre</h2><a href="/dashboard/orders">Toutes les commandes →</a></div>
+  <div class="suivi-tiles">
+    <a class="suivi-tile" href="/dashboard/orders?statut=nouvelle"><b>${(stats.newOrders || 0) + (stats.toCheck || 0)}</b><span>À traiter</span><i>commandes en attente d'appel</i></a>
+    <a class="suivi-tile" href="/dashboard/orders?statut=expediee"><b>${stats.shipped || 0}</b><span>Colis en route</span><i>confiés au transporteur</i></a>
+    <a class="suivi-tile ${(stats.lost || 0) > 0 ? "danger" : ""}" href="/dashboard/orders?statut=perdue"><b>${stats.lost || 0}</b><span>Colis perdus</span><i>à renvoyer ou rembourser</i></a>
+  </div>
+</section>
 <section class="panel">
   <div class="panel-head"><h2>Dernières commandes</h2><a href="/dashboard/orders">Tout voir →</a></div>
   ${recentOrders.length ? `<table class="table">

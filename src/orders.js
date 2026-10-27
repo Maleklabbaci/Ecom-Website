@@ -24,6 +24,7 @@ const STATUSES = [
   { id: "expediee", label: "Expédiée", tone: "info", icon: "truck", desc: "Confiée au transporteur" },
   { id: "livree", label: "Livrée", tone: "ok", icon: "box", desc: "Colis remis au client" },
   { id: "retour", label: "Retour", tone: "warn", icon: "refresh", desc: "Le colis est revenu" },
+  { id: "perdue", label: "Colis perdu", tone: "danger", icon: "search", desc: "Perdu pendant le transport — à renvoyer ou rembourser" },
   { id: "remboursee", label: "Remboursée", tone: "muted", icon: "refresh", desc: "Argent rendu au client" },
   { id: "a_verifier", label: "À vérifier", tone: "warn", icon: "shield", desc: "Le contrôle automatique a un doute" },
 ]
@@ -34,6 +35,7 @@ const LEGACY = {
   "remboursée": "remboursee", "reportée": "reportee", "à vérifier": "a_verifier",
   "en attente": "nouvelle", "annule": "annulee", "confirme": "confirmee",
   "expedie": "expediee", "livre": "livree", "retour": "retour", "retournée": "retour", "returned": "retour",
+  "perdu": "perdue", "colis perdu": "perdue", "lost": "perdue", "égaré": "perdue", "egare": "perdue",
 }
 
 /** Statut normalisé : accepte n'importe quel libellé reçu d'un formulaire. */
@@ -73,6 +75,8 @@ const waText = (order) => {
       return `${hello} votre commande ${ref} est annulée.`
     case "retour":
       return `${hello} le colis de la commande ${ref} est revenu.`
+    case "perdue":
+      return `${hello} mauvaise nouvelle : le colis de la commande ${ref} semble perdu pendant le transport. On vous le renvoie ou on vous rembourse — dites-nous ce que vous préférez.`
     case "remboursee":
       return `${hello} votre commande ${ref} est remboursée.`
     default:
@@ -80,8 +84,8 @@ const waText = (order) => {
   }
 }
 
-/** Vrai si la commande compte dans l'argent (ni test, ni annulée). */
-const counts = (order) => !order.fake && !["annulee", "retour"].includes(norm(order.status))
+/** Vrai si la commande compte dans l'argent (ni test, ni annulée, ni retour, ni colis perdu). */
+const counts = (order) => !order.fake && !["annulee", "retour", "perdue"].includes(norm(order.status))
 
 /* ------------------------------------------------------------------------- */
 /* Attribution : d'où vient le visiteur, donc la commande.                    */

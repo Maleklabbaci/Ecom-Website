@@ -58,7 +58,7 @@ const overview = () => {
     accounts: count("SELECT COUNT(*) n FROM users"),
     products: count("SELECT COUNT(*) n FROM products"),
     orders: count("SELECT COUNT(*) n FROM orders WHERE COALESCE(fake, 0) = 0"),
-    revenue: count("SELECT COALESCE(SUM(total_cents), 0) n FROM orders WHERE status != 'annulee' AND COALESCE(fake, 0) = 0"),
+    revenue: count("SELECT COALESCE(SUM(total_cents), 0) n FROM orders WHERE status NOT IN ('annulee', 'perdue') AND COALESCE(fake, 0) = 0"),
     empty: count("SELECT COUNT(*) n FROM stores s WHERE NOT EXISTS (SELECT 1 FROM products p WHERE p.store_id = s.id)"),
     domains: count("SELECT COUNT(*) n FROM stores WHERE domain IS NOT NULL AND domain != ''"),
     errors: count("SELECT COUNT(*) n FROM logs WHERE level = 'error' AND COALESCE(last_at, created_at) >= datetime('now', '-1 day')"),
@@ -92,7 +92,7 @@ const stores = ({ q = "", status = "", plan = "" } = {}) => {
       (SELECT COUNT(*) FROM orders o WHERE o.store_id = s.id AND COALESCE(o.fake, 0) = 0) AS order_count,
       (SELECT COUNT(*) FROM orders o WHERE o.store_id = s.id AND o.status = 'nouvelle' AND COALESCE(o.fake, 0) = 0) AS waiting,
       (SELECT COALESCE(SUM(o.total_cents), 0) FROM orders o
-        WHERE o.store_id = s.id AND o.status != 'annulee' AND COALESCE(o.fake, 0) = 0) AS revenue
+        WHERE o.store_id = s.id AND o.status NOT IN ('annulee', 'perdue') AND COALESCE(o.fake, 0) = 0) AS revenue
     FROM stores s JOIN users u ON u.id = s.owner_id
     WHERE ${where.join(" AND ")}
     ORDER BY s.id DESC
@@ -115,7 +115,7 @@ const store = (raw) => {
     products: count("SELECT COUNT(*) n FROM products WHERE store_id = ?", id),
     orders: count("SELECT COUNT(*) n FROM orders WHERE store_id = ? AND COALESCE(fake, 0) = 0", id),
     waiting: count("SELECT COUNT(*) n FROM orders WHERE store_id = ? AND status = 'nouvelle' AND COALESCE(fake, 0) = 0", id),
-    revenue: count("SELECT COALESCE(SUM(total_cents), 0) n FROM orders WHERE store_id = ? AND status != 'annulee' AND COALESCE(fake, 0) = 0", id),
+    revenue: count("SELECT COALESCE(SUM(total_cents), 0) n FROM orders WHERE store_id = ? AND status NOT IN ('annulee', 'perdue') AND COALESCE(fake, 0) = 0", id),
     team: count("SELECT COUNT(*) n FROM store_members WHERE store_id = ?", id),
   }
   const orders = db.prepare(`
