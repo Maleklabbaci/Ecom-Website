@@ -201,7 +201,7 @@ test("une boutique qui vient d'être créée arrive dans le Studio, pas dans l'a
   /* le menu propose le Studio, et il s'ouvre (plus de renvoi vers la galerie) */
   const dash = await req("/dashboard")
   assert.match(dash.text, /href="\/dashboard\/studio"/, "le Studio est proposé au menu")
-  const studio = await req("/dashboard/studio")
+  const studio = await req("/dashboard/studio/pages")
   assert.equal(studio.status, 200, "le Studio s'ouvre tout de suite")
   assert.match(studio.text, /data-tpl="site6"/, "le Studio travaille sur le modèle du métier")
 

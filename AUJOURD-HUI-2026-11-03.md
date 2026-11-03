@@ -82,8 +82,13 @@ Une boutique sur un thème classique n'avait aucun éditeur.
   déjà, avec les vrais produits et les vrais prix ; publier écrit la page dans la
   page d'accueil, le thème garde son en-tête, son pied et sa coque (panier,
   commande, tout continue de marcher).
-- **Un seul Studio.** L'« Atelier » était un prototype jamais relié au menu :
-  son adresse renvoie maintenant vers le Studio. Un bouton, un éditeur.
+- **Un seul Studio : le studio avancé « un seul écran »** (Simple / Avancé /
+  Atelier, aperçu ordinateur et téléphone, publication). C'est ce qu'ouvre le
+  bouton Studio du menu. L'ancien éditeur de blocs reste joignable à
+  `/dashboard/studio/pages`, mais il n'est plus la porte d'entrée.
+- **Un thème et un modèle ne se cumulent plus** : choisir un thème retire le
+  modèle de site du brouillon (l'aperçu montrait le modèle au lieu du thème),
+  et « Annuler » remet tout comme avant.
 - **Prix des modèles en dinars** : les modèles Adeline et VOID affichaient
   « 95,00 € ». 24 prix convertis en DZD (« 9 500 DZD »).
 - Dans la liste des blocs du Studio, un titre et son prix ne sont plus collés

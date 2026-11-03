@@ -79,7 +79,7 @@ test("l'aperçu montre le thème choisi, plus le modèle", async () => {
 })
 
 test("le Studio bascule sur le thème, pas sur le modèle", async () => {
-  const r = await req("/dashboard/studio")
+  const r = await req("/dashboard/studio/pages")
   assert.equal(r.status, 200)
   assert.match(r.text, /data-tpl="theme:galerie"/)
 })
@@ -91,7 +91,7 @@ test("annuler l'essai rend la boutique exactement comme avant", async () => {
   const row = db.prepare("SELECT draft FROM stores WHERE slug = 'amina-mode'").get()
   assert.equal(row.draft, null, "le brouillon doit être effacé")
   /* rien n'avait été publié : le Studio revient donc au thème en ligne */
-  const studio = await req("/dashboard/studio")
+  const studio = await req("/dashboard/studio/pages")
   assert.equal(studio.status, 200)
   assert.match(studio.text, /data-tpl="theme:minimal"/)
 })

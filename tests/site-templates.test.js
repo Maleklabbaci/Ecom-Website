@@ -207,7 +207,7 @@ test("galerie : 6 cartes « Utiliser » (3 vitrine + 3 e-commerce) ; l'inscripti
 test("studio : brouillon, publication, assainissement, CSP, isolation", async () => {
   await req("/login", form({ email: "demo@novadz.dz", password: "demo1234" }))
   await req("/dashboard/design/site-template", form({ id: "site11" }))
-  const studio = await req("/dashboard/studio")
+  const studio = await req("/dashboard/studio/pages")
   assert.equal(studio.status, 200)
   assert.match(studio.text, /_studio\/studio\.js/)
 
@@ -392,7 +392,7 @@ test("raccourci démo : ouvre le studio vitrine, refuse une redirection externe"
   const r = await req("/demo-login/vitrine?next=/dashboard/studio")
   assert.equal(r.status, 302)
   assert.match(r.location, /^\/dashboard\/studio(\?|$)/)
-  assert.equal((await req("/dashboard/studio")).status, 200, "session ouverte par le raccourci")
+  assert.equal((await req("/dashboard/studio/atelier")).status, 200, "session ouverte par le raccourci")
 
   jar.clear()
   const evil = await req("/demo-login/marchand?next=//evil.example/x")
@@ -450,7 +450,7 @@ test("démo : ?as=vitrine ouvre la session même sans cookie", async () => {
   assert.match(direct.location, /login/)
 
   jar.clear()
-  const lifted = await req("/dashboard/studio?as=vitrine")
+  const lifted = await req("/dashboard/studio/pages?as=vitrine")
   assert.equal(lifted.status, 200, "la session est recréée par l'URL")
   assert.match(lifted.text, /data-slug="atelier-lina"/)
 })

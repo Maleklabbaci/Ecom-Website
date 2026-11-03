@@ -54,7 +54,7 @@ after(async () => {
 })
 
 test("un thème classique ouvre le Studio (plus de renvoi vers les modèles)", async () => {
-  const r = await req("/dashboard/studio")
+  const r = await req("/dashboard/studio/pages")
   assert.equal(r.status, 200, "le Studio doit s'ouvrir pour un thème")
   assert.match(r.text, /data-tpl="theme:/, "le Studio doit être en mode thème")
   assert.match(r.text, /Studio/, "la page doit être le Studio")
@@ -93,7 +93,7 @@ test("choisir un modèle de site repasse le Studio en mode modèle", async () =>
   const choice = await req("/dashboard/design/site-template", form({ id: "site6" }))
   assert.equal(choice.status, 302)
   assert.equal(choice.location, "/dashboard/studio")
-  const r = await req("/dashboard/studio")
+  const r = await req("/dashboard/studio/pages")
   assert.equal(r.status, 200)
   assert.match(r.text, /data-tpl="site6"/)
 })

@@ -133,7 +133,7 @@ test("studio en arabe : sens de lecture, police, table de traduction, bouton FR"
   jar.clear()
   await req("/login", form({ email: "demo@novadz.dz", password: "demo1234" }))
   await req("/dashboard/design/site-template", form({ id: "site11" }))
-  const ar = await req("/dashboard/studio?lang=ar")
+  const ar = await req("/dashboard/studio/pages?lang=ar")
   assert.match(ar.text, /<html lang="ar" dir="rtl">/)
   assert.match(ar.text, /\/arabic-fonts\.css/)
   assert.match(ar.text, /body\.ar[^{]*\{font-family:"Amiri"/, "l'interface arabe de la plateforme est en Amiri")
@@ -146,7 +146,7 @@ test("studio en arabe : sens de lecture, police, table de traduction, bouton FR"
      la page qu'on regarde (sinon la page restait dans l'autre langue). */
   assert.match(js, /href: "\?uilang=" \+ \(LANG === "ar" \? "fr" : "ar"\) \+ "&lang=" \+ \(LANG === "ar" \? "fr" : "ar"\)/)
 
-  const frPage = await req("/dashboard/studio?lang=fr")
+  const frPage = await req("/dashboard/studio/pages?lang=fr")
   assert.match(frPage.text, /<html lang="fr" dir="ltr">/)
   assert.ok(!/id="st-ar"/.test(frPage.text), "pas de table arabe en français")
 })

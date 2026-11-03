@@ -1620,7 +1620,9 @@ const studioTpl = (store) => {
 /** Description du modèle ouvert : un vrai modèle de site, ou le thème en cours. */
 const studioTplDesc = (store, tpl) => (isThemeTpl(tpl) ? themeTplOf(store) : SITES.get(tpl))
 const pageKey = (v) => (STUDIO.isKey(String(v || "home")) ? String(v || "home") : "home")
-app.get("/dashboard/studio", requireAuth, requireStore, (req, res) => {
+/* L'ancien éditeur (liste de blocs, pages HTML) garde son adresse propre :
+   /dashboard/studio/pages. Le Studio principal est l'atelier, juste en dessous. */
+app.get("/dashboard/studio/pages", requireAuth, requireStore, (req, res) => {
   const tpl = studioTpl(req.store)
   const desc = studioTplDesc(req.store, tpl)
   if (!desc) return res.redirect("/dashboard/design/themes?modele=1")
@@ -1983,14 +1985,12 @@ app.get("/_proto/:file", (req, res, next) => {
   if (!/^[\w.-]+\.(jpe?g|png|webp|gif|avif|svg)$/i.test(String(req.params.file || ""))) return next()
   res.sendFile(path.join(__dirname, "public", "_proto", req.params.file), { maxAge: "7d" }, (e) => { if (e) next() })
 })
-/* Un seul éditeur, pour ne plus jamais se demander lequel ouvrir.
-   L'« Atelier » était un prototype de studio (état de page, blocs libres) : il
-   n'était relié à aucun bouton du tableau de bord et faisait doublon avec le
-   Studio, au point qu'on ne savait plus lequel utilise. Son adresse renvoie
-   donc vers le Studio. Le code reste là, prêt à revenir si besoin. */
-app.get("/dashboard/studio/atelier", requireAuth, requireStore, (req, res) =>
-  res.redirect("/dashboard/studio"))
-app.get("/dashboard/studio/atelier/_proto", requireAuth, requireStore, (req, res) => {
+/* LE Studio (un seul bouton dans le menu) : l'atelier « un seul écran ».
+   Simple / Avancé / Atelier, aperçu ordinateur et téléphone, publication.
+   L'ancien éditeur de blocs reste joignable à /dashboard/studio/pages. */
+app.get("/dashboard/studio", requireAuth, requireStore, (req, res) =>
+  res.redirect("/dashboard/studio/atelier"))
+app.get("/dashboard/studio/atelier", requireAuth, requireStore, (req, res) => {
   const d = DESIGN.read(req.store.id)
   res.set("Cache-Control", "no-store")
   res.send(atelierPage({
