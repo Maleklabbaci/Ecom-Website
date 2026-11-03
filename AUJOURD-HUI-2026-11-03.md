@@ -73,7 +73,23 @@ Fichiers : `src/site-templates.js`, `public/templates/*`, `public/demo/*`,
 - `DEPLOIEMENT-RAPIDE.md` : les 3 étapes
 - `deploy/novadz.service` : lancement automatique sur un serveur
 
-## 8. Ce qui n'a pas bougé
+## 8. Le Studio pour tous les thèmes — et un seul Studio
+
+Le Studio n'était ouvert qu'aux modèles « site complet » (VOID, Adeline…).
+Une boutique sur un thème classique n'avait aucun éditeur.
+
+- **Tous les thèmes ouvrent le Studio** : il affiche la page que le thème dessine
+  déjà, avec les vrais produits et les vrais prix ; publier écrit la page dans la
+  page d'accueil, le thème garde son en-tête, son pied et sa coque (panier,
+  commande, tout continue de marcher).
+- **Un seul Studio.** L'« Atelier » était un prototype jamais relié au menu :
+  son adresse renvoie maintenant vers le Studio. Un bouton, un éditeur.
+- **Prix des modèles en dinars** : les modèles Adeline et VOID affichaient
+  « 95,00 € ». 24 prix convertis en DZD (« 9 500 DZD »).
+- Dans la liste des blocs du Studio, un titre et son prix ne sont plus collés
+  (« Crewneck85,00 € » → « Crewneck 8 500 DZD »).
+
+## 9. Ce qui n'a pas bougé
 
 - `src/themes.js`, `src/fonts-ar.js`, `public/theme-fonts.css`, `public/arabic-fonts.css` :
   les thèmes et les polices d'origine sont respectés, rien n'a été réécrit.
