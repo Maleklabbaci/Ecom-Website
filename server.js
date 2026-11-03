@@ -1479,7 +1479,7 @@ app.post("/dashboard/design/publish", requireAuth, requireStore, (req, res) => {
 })
 
 app.get("/dashboard/design/themes", requireAuth, requireStore, (req, res) =>
-  res.send(V.dashThemes(req.user, req.store, TEMPLATES.list(req.store.id))))
+  res.send(V.dashThemes(req.user, req.store, TEMPLATES.list(req.store.id), { modele: String(req.query.modele || "") === "1" })))
 
 /** HTML réel de la page en cours, pour l'éditeur de code. Pas le document entier. */
 app.get("/dashboard/design/source", requireAuth, requireStore, (req, res) => {
@@ -1596,7 +1596,9 @@ const studioTpl = (store) => {
 const pageKey = (v) => (STUDIO.isKey(String(v || "home")) ? String(v || "home") : "home")
 app.get("/dashboard/studio", requireAuth, requireStore, (req, res) => {
   const tpl = studioTpl(req.store)
-  if (!tpl) return res.redirect("/dashboard/design/themes")
+  /* Pas encore de modèle de site : on n'envoie pas le marchand dans le vide.
+     Le choix des modèles s'affiche avec une phrase qui dit pourquoi. */
+  if (!tpl) return res.redirect("/dashboard/design/themes?modele=1")
   res.send(STUDIO.page(req.store, SITES.get(tpl), STUDIO.status(req.store.id, tpl)))
 })
 app.get("/dashboard/studio/meta", requireAuth, requireStore, (req, res) => {

@@ -241,12 +241,29 @@ const seed = () => {
      On publie ce modèle une fois, pour que les deux racontent la même chose.
      Si le marchand publie autre chose ensuite, on ne touche plus à rien. */
   const vitrine = DEMO_SEED
-    ? db.prepare("SELECT id, slug, design, draft FROM stores WHERE slug = 'atelier-lina'").get()
+    ? db.prepare("SELECT id, slug, design, draft, site_kind FROM stores WHERE slug = 'atelier-lina'").get()
     : null
   if (vitrine) {
     const live = (() => { try { return JSON.parse(vitrine.design || "{}") || {} } catch (_) { return {} } })()
     let brouillon = {}
     try { brouillon = (JSON.parse(vitrine.draft || "{}") || {}).design || {} } catch (_) {}
+    /* Une vitrine de démonstration sans modèle de site n'a pas de Studio : on
+       lui en donne un (le premier prévu pour son métier), sinon l'éditeur
+       reste fermé et on croit qu'il n'existe pas. Le marchand le change en un
+       clic ; ce choix ne concerne que la base de démonstration. */
+    if (!live.siteTemplate && !brouillon.siteTemplate) {
+      const SITES = require("./site-templates")
+      const premier = (SITES.forStore(vitrine)[0] || {}).id
+      if (premier) {
+        const SEC = require("./sections")
+        const base = SEC.readDesign({ ...vitrine, design: vitrine.design || "{}" })
+        db.prepare("UPDATE stores SET design = ?, published_at = datetime('now') WHERE id = ?")
+          .run(JSON.stringify({ ...base, siteTemplate: premier }), vitrine.id)
+        live.siteTemplate = premier
+        console.log("✓ Vitrine de démonstration : modèle " + premier + " publié (le Studio s'ouvre)")
+        demoRepare = true
+      }
+    }
     const tpl = live.siteTemplate || brouillon.siteTemplate
     if (tpl && live.siteTemplate !== tpl) {
       const base = require("./sections").readDesign({ ...vitrine, design: vitrine.design || "{}" })

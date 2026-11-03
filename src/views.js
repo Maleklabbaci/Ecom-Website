@@ -1849,9 +1849,10 @@ const dashLayout = (user, store, content, active) => {
       return SITES.isSite(id) ? id : ""
     } catch (_) { return "" }
   })()
-  const studioLink = (on) => (STUDIO_TPL
-    ? `<a class="${on ? "on" : ""}" href="/dashboard/studio">${icon("edit", 16)} Studio</a>`
-    : "")
+  /* Le Studio reste visible même quand aucun modèle de site n'est encore
+     choisi. Une entrée qui apparaît puis disparaît fait croire que l'éditeur
+     a été supprimé : ici, on montre le chemin, et la page explique quoi faire. */
+  const studioLink = (on) => `<a class="${on ? "on" : ""}" href="/dashboard/studio"${STUDIO_TPL ? "" : ` title="Choisis un modèle de site pour écrire dans le Studio"`}>${icon("edit", 16)} Studio</a>`
   return page(
   docTitle,
   `
@@ -1946,7 +1947,7 @@ const dashLayout = (user, store, content, active) => {
   <nav class="app-tab" aria-label="Navigation">
     ${tab("home", "/dashboard", "grid", "Accueil")}
     ${vitrine ? `${navIf(user, "design", tab("pages", "/dashboard/pages", "receipt", "Pages"))}
-    ${navIf(user, "design", tab("design", "/dashboard/design/themes", "palette", "Design"))}${STUDIO_TPL ? `<a class="${active === "studio" ? "on" : ""}" href="/dashboard/studio">${icon("edit", 20)}<span>Studio</span></a>` : ""}` : `${navIf(user, "orders", tab("orders", "/dashboard/orders", "receipt", "Commandes", B.toTreat))}
+    ${navIf(user, "design", tab("design", "/dashboard/design/themes", "palette", "Design"))}${navIf(user, "design", `<a class="${active === "studio" ? "on" : ""}" href="/dashboard/studio">${icon("edit", 20)}<span>Studio</span></a>`)}` : `${navIf(user, "orders", tab("orders", "/dashboard/orders", "receipt", "Commandes", B.toTreat))}
     ${navIf(user, "products", tab("products", "/dashboard/products", "box", "Produits"))}
     ${navIf(user, "products", tab("stock", "/dashboard/stock", "layers", "Stock", B.lowStock, "bad"))}
     ${active === "relances" ? tab("relances", "/dashboard/relances", "history", "Relances", B.relances, "warn") : ""}`}
@@ -4734,7 +4735,7 @@ ${saved ? `<div class="alert ok">Réglages de paiement enregistrés.</div>` : ""
 /* ======================================================================
    CHOIX DU THÈME (façon Shopify) — on choisit un modèle, puis on modifie
    ====================================================================== */
-const dashThemes = (user, store, templates = []) => {
+const dashThemes = (user, store, templates = [], opts = {}) => {
   const THEMES = require("./public-themes").present(require("./themes").THEMES)
   const fs = require("fs")
   const path = require("path")
@@ -4846,6 +4847,7 @@ const dashThemes = (user, store, templates = []) => {
   })()
 
   return dashLayout(user, store, `
+${opts.modele ? `<div class="alert" data-studio-modele><b>Ton Studio t'attend.</b> Choisis un modèle de site ci-dessous : il s'ouvre juste après, avec l'écriture, les photos et les pages. Rien n'est visible par tes clients avant <b>Publier</b>.</div>` : ""}
 <header class="dash-head">
   <div><h1>Thèmes</h1><p class="muted">Les modèles du haut s'ouvrent dans le <b>Studio</b> : c'est le seul endroit où l'on écrit, change les photos et les pages. Les thèmes classiques, plus bas, se règlent dans <b>Design</b>. Dans les deux cas, rien n'est visible par tes clients avant <b>Publier</b>.</p></div>
   <div class="head-actions"><a class="btn btn-ghost" href="/dashboard/design">${icon("palette", 15)} Modifier le design</a></div>
