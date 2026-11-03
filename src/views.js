@@ -1798,7 +1798,7 @@ const dashLayout = (user, store, content, active) => {
     landings: "Pages de vente", pages: "Pages", livraison: "Livraison",
     reviews: "Avis", customers: "Clients", marketing: "Marketing",
     mails: "E-mails", equipe: "Équipe", assistant: "Assistant", visits: "Visites", leads: "Reçus",
-    stores: "Mes boutiques",
+    stores: "Mes boutiques", payouts: "Reversements",
   }
   const first = esc(String(user.name || "").split(" ")[0] || "")
   const barTitle = active === "home" ? `Bonjour, ${first}` : esc(PAGE[active] || store.name)
@@ -1871,6 +1871,8 @@ const dashLayout = (user, store, content, active) => {
         ${icon("cart", 16)} <span>Paniers abandonnés</span>${BADGES.pill(B.carts, "warn")}</a>`)}
       ${navIf(user, "orders", `<a class="${active === "relances" ? "on" : ""}" href="/dashboard/relances" title="${B.relances} relance(s) en attente">
         ${icon("history", 16)} <span>Relances</span>${BADGES.pill(B.relances, "warn")}</a>`)}
+      ${navIf(user, "orders", `<a class="${active === "payouts" ? "on" : ""}" href="/dashboard/reversements" title="${B.payouts} commande(s) livrée(s) pas encore versée(s)">
+        ${icon("cash", 16)} <span>Reversements</span>${BADGES.pill(B.payouts, "warn")}</a>`)}
 
       ${navIf(user, "products", `<p class="dash-group">Catalogue</p>
       <a class="${active === "products" ? "on" : ""}" href="/dashboard/products" title="${B.products} produit(s)">
@@ -4363,7 +4365,6 @@ const dashRelances = (user, store, data) => {
 </header>
 
 ${data.saved ? `<div class="alert ok">Réglages enregistrés.</div>` : ""}
-${data.note ? `<div class="alert ${data.note.ok ? "ok" : ""}">${esc(data.note.text)}</div>` : ""}
 
 <section class="panel">
   <div class="panel-head"><h2>Envoi</h2>
@@ -4412,6 +4413,109 @@ ${data.note ? `<div class="alert ${data.note.ok ? "ok" : ""}">${esc(data.note.te
     <tbody>${data.messages.map(msgRow).join("")}</tbody>
   </table>` : `<div class="empty-state">${icon("receipt", 22)}<h3>Aucun message</h3><p>Les relances de panier apparaîtront ici.</p></div>`}
 </section>`, "relances")
+}
+
+/* ============================== REVERSEMENTS DES TRANSPORTEURS ============================== */
+/**
+ * L'argent que les transporteurs doivent encore à la boutique.
+ *
+ * Le transporteur encaisse le colis chez le client, garde les frais de
+ * livraison, puis reverse le reste — une fois par semaine en général.
+ * Cette page répond à trois questions, transporteur par transporteur :
+ *   combien il doit encore, combien il a déjà versé, et ce qui manque
+ *   commande par commande.
+ */
+const dashPayouts = (user, store, data) => {
+  const today = new Date().toISOString().slice(0, 10)
+  const shortDay = (iso) => {
+    const v = String(iso || "").slice(0, 10)
+    return /^\d{4}-\d{2}-\d{2}$/.test(v) ? `${v.slice(8, 10)}/${v.slice(5, 7)}/${v.slice(0, 4)}` : "—"
+  }
+  const nb = (n, one, many) => `${n} ${n > 1 ? many : one}`
+  const paidTotal = data.history.reduce((a, p) => a + (Number(p.cents) || 0), 0)
+  const openCount = data.carriers.reduce((a, c) => a + c.orders, 0)
+  const waiting = data.carriers.filter((c) => c.due > 0).length
+
+  const orderRow = (o) => `<tr>
+      <td><b class="mono">${esc(o.ref || "#" + o.id)}</b><br><small class="muted">${esc(o.customer_name || "—")} · reçu ${cashOf(store, o.due)}${o.paid > 0 ? ` · versé ${cashOf(store, o.paid)}` : ""}</small></td>
+      <td class="muted">${esc(o.wilaya || "—")}</td>
+      <td class="muted" style="white-space:nowrap">${shortDay(o.created_at)}</td>
+      <td class="num"><b>${cashOf(store, o.left)}</b></td>
+    </tr>`
+
+  const carrierPanel = (c) => {
+    const lines = c.rows.filter((o) => o.left > 0)
+    const settled = c.rows.length - lines.length
+    return `<section class="panel">
+  <div class="panel-head">
+    <h2>${esc(c.label)}</h2>
+    ${c.due > 0 ? `<span class="pill nouvelle">${cashOf(store, c.due)} à recevoir</span>` : `<span class="pill ok">à jour</span>`}
+  </div>
+  <p class="muted" style="margin:0 0 12px">
+    ${nb(lines.length, "commande livrée pas encore versée", "commandes livrées pas encore versées")}${settled > 0 ? ` · ${nb(settled, "déjà réglée", "déjà réglées")}` : ""}${c.payouts ? ` · ${nb(c.payouts, "versement reçu", "versements reçus")}, le dernier le ${shortDay(c.lastDay)}` : " · aucun versement reçu pour l'instant"}
+  </p>
+  ${lines.length ? `<table class="table">
+    <thead><tr><th>Commande</th><th>Wilaya</th><th>Date</th><th class="num">Il manque</th></tr></thead>
+    <tbody>${lines.map(orderRow).join("")}</tbody>
+  </table>
+  <p class="pay-total"><span>Total dû par ${esc(c.label)}</span><b>${cashOf(store, c.due)}</b></p>` : `<div class="empty-state">${icon("check", 22)}<h3>Tout est versé</h3>
+    <p>Ce transporteur ne te doit rien. Le prochain colis livré apparaîtra ici.</p></div>`}
+
+  ${c.due > 0 ? `<form class="form" method="post" action="/dashboard/reversements">
+    <input type="hidden" name="carrier_id" value="${c.id}">
+    <div class="grid-2">
+      <label>Jour du versement
+        <input type="date" name="day" value="${today}" max="${today}"></label>
+      <label>Montant reçu (${esc(store.currency)})
+        <input name="amount" type="number" step="0.01" min="0" value="${(c.due / 100).toFixed(2)}" required>
+        <small class="muted">Il doit ${cashOf(store, c.due)}. Un montant plus petit laisse le reste dû.</small></label>
+    </div>
+    <label>Note (facultatif)
+      <input name="note" maxlength="120" placeholder="Virement CCP, reçu n°…"></label>
+    <div class="form-actions"><button class="btn btn-primary">${icon("cash", 15)} Enregistrer le versement</button></div>
+  </form>` : ""}
+</section>`
+  }
+
+  return dashLayout(user, store, `
+<header class="dash-head">
+  <div><h1>Reversements</h1>
+    <p class="muted">L'argent que tes transporteurs ont encaissé et doivent encore te verser.
+    Ce qui rentre = ce que le client a payé − les frais de livraison, que le transporteur garde.</p></div>
+  <a class="btn btn-ghost" href="/dashboard/transporteur">${icon("truck", 15)} Mes transporteurs</a>
+</header>
+
+${data.saved ? `<div class="alert ok">Versement enregistré.</div>` : ""}
+${data.error ? `<div class="alert">${esc(data.error)}</div>` : ""}
+
+${data.carriers.length ? `<div class="kpis">
+  <div class="kpi${data.total > 0 ? " kpi-warn" : ""}"><span>À recevoir</span>${icon("cash", 16)}<b>${cashOf(store, data.total)}</b><i>chez ${nb(waiting, "transporteur", "transporteurs")}</i></div>
+  <div class="kpi"><span>Commandes à réclamer</span>${icon("receipt", 16)}<b>${openCount}</b><i>livrées, pas encore versées</i></div>
+  <div class="kpi"><span>Déjà versé</span>${icon("check", 16)}<b>${cashOf(store, paidTotal)}</b><i>${nb(data.history.length, "versement enregistré", "versements enregistrés")}</i></div>
+</div>
+
+${data.carriers.map(carrierPanel).join("")}
+
+<section class="panel">
+  <div class="panel-head"><h2>Versements reçus</h2><span class="muted">du plus récent au plus ancien</span></div>
+  ${data.history.length ? `<table class="table">
+    <thead><tr><th>Versement</th><th class="num">Reçu</th><th>Note</th><th></th></tr></thead>
+    <tbody>${data.history.map((p) => `<tr>
+      <td><b>${esc(p.carrier_label)}</b><br><small class="muted">${shortDay(p.day)} · commandes réglées : ${cashOf(store, p.covered_cents)}</small></td>
+      <td class="num"><b>${cashOf(store, p.cents)}</b></td>
+      <td class="muted" style="max-width:30ch">${esc(p.note || "—")}</td>
+      <td class="num"><form method="post" action="/dashboard/reversements/${p.id}/supprimer" class="inline"
+        onsubmit="return confirm('Annuler ce versement ? Les commandes qu\'il réglait redeviendront dues.')">
+        <button class="link-danger">Annuler</button></form></td>
+    </tr>`).join("")}</tbody>
+  </table>` : `<div class="empty-state">${icon("cash", 22)}<h3>Aucun versement</h3>
+    <p>Quand un transporteur te vire l'argent, note-le ici : la dette baisse toute seule.</p></div>`}
+</section>` : `<section class="panel">
+  <div class="empty-state">${icon("truck", 22)}<h3>Aucun transporteur branché</h3>
+  <p>Ajoute ton transporteur (Yalidine, ZR Express, ton livreur…). Ensuite, chaque commande livrée
+  affichera ici l'argent qu'il te doit encore.</p>
+  <a class="btn btn-primary" href="/dashboard/transporteur">Ajouter un transporteur</a></div>
+</section>`}`, "payouts")
 }
 
 /* ============================== DASHBOARD : STATISTIQUES LIVRAISON ============================== */
@@ -5233,7 +5337,7 @@ module.exports = {
   dashSettings, dashDesign, dashPages, pageForm, dashDiscounts, dashOrderDetail, adminPage,
   legalPage, customerAccount, orderTrack, invoice, dashStats, dashForm, dashCategories, dashShipping, dashReviews, dashCustomers, adminHealth, adminLogs, dashStock,
   dashLandings, landingForm, dashMarketing, dashCarrier, carrierBlock,
-  dashCarts, dashRelances, dashDeliveryStats,
+  dashCarts, dashRelances, dashPayouts, dashDeliveryStats,
   dashTeam, dashMails, joinPage, joinReady, noAccess, errorPage, dashHistory, dashAssistant, dashVisits, dashLeads,
   publicThemesPage, startPage, dashStores,
 }

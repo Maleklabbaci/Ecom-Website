@@ -34,6 +34,7 @@ const LAND = require("./src/landings")
 const REFS = require("./src/refs")
 const CARRIERS = require("./src/carriers")
 const REL = require("./src/relance")
+const PAYOUTS = require("./src/payouts")
 const STATS = require("./src/stats")
 const PAY = require("./src/payments")
 const SOCIAL = require("./src/social")
@@ -312,7 +313,7 @@ const requireAdmin = (req, res, next) => {
 
 const commercePath = (p) => [
   "/dashboard/orders", "/dashboard/products", "/dashboard/stock", "/dashboard/paniers",
-  "/dashboard/relances", "/dashboard/discounts", "/dashboard/categories", "/dashboard/shipping",
+  "/dashboard/relances", "/dashboard/reversements", "/dashboard/discounts", "/dashboard/categories", "/dashboard/shipping",
   "/dashboard/paiement", "/dashboard/transporteur", "/dashboard/livraison", "/dashboard/reviews",
   "/dashboard/customers", "/dashboard/marketing", "/dashboard/landings", "/dashboard/stats",
 ].some((b) => p === b || p.startsWith(b + "/"))
@@ -4062,6 +4063,37 @@ app.post("/dashboard/paniers/detecter", requireAuth, requireStore, (req, res) =>
     }
   } catch (_) { }
   res.redirect("/dashboard/paniers")
+})
+
+/* ---------------------------- REVERSEMENTS TRANSPORTEURS ---------------------------- */
+app.get("/dashboard/reversements", requireAuth, requireStore, (req, res) => {
+  const carriers = PAYOUTS.dueByCarrier(req.store.id)
+  res.send(V.dashPayouts(req.user, req.store, {
+    carriers,
+    total: carriers.reduce((a, c) => a + c.due, 0),
+    history: PAYOUTS.list(req.store.id),
+    saved: req.query.saved === "1",
+    error: req.query.error ? String(req.query.error).slice(0, 200) : "",
+  }))
+})
+
+app.post("/dashboard/reversements", requireAuth, requireStore, (req, res) => {
+  const cents = parseDzdCents(req.body.amount)
+  if (cents === null) return res.redirect("/dashboard/reversements?error=" + encodeURIComponent("Montant invalide."))
+  const out = PAYOUTS.record(req.store.id, {
+    carrier_id: req.body.carrier_id,
+    day: req.body.day,
+    cents,
+    note: req.body.note,
+  })
+  if (!out.ok) return res.redirect("/dashboard/reversements?error=" + encodeURIComponent(out.error))
+  res.redirect("/dashboard/reversements?saved=1")
+})
+
+app.post("/dashboard/reversements/:id/supprimer", requireAuth, requireStore, (req, res) => {
+  const out = PAYOUTS.remove(req.store.id, parseInt(req.params.id, 10))
+  if (!out.ok) return res.redirect("/dashboard/reversements?error=" + encodeURIComponent(out.error))
+  res.redirect("/dashboard/reversements?saved=1")
 })
 
 /* ---------------------------- RELANCES / MESSAGES ---------------------------- */

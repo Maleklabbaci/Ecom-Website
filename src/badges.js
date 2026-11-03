@@ -18,6 +18,7 @@ const db = require("./db")
 const ORD = require("./orders")
 const REL = require("./relance")
 const INV = require("./inventory")
+const PAY = require("./payouts")
 
 const one = (sql, ...args) => {
   try { return db.prepare(sql).get(...args).n || 0 } catch (_) { return 0 }
@@ -61,6 +62,8 @@ const counts = (store) => {
     reviews: one("SELECT COUNT(*) n FROM reviews WHERE store_id = ? AND approved = 0", id),
     relances: one("SELECT COUNT(*) n FROM messages WHERE store_id = ? AND status = 'pending'", id),
     carriers: one("SELECT COUNT(*) n FROM carriers WHERE store_id = ? AND enabled = 1", id),
+    /* commandes livrées dont le transporteur n'a pas encore versé l'argent */
+    payouts: PAY.count(id),
     products: one("SELECT COUNT(*) n FROM products WHERE store_id = ?", id),
     pages: one("SELECT COUNT(*) n FROM pages WHERE store_id = ?", id),
     leads: one("SELECT COUNT(*) n FROM leads WHERE store_id = ? AND read_at IS NULL", id),

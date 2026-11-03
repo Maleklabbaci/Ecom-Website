@@ -1969,6 +1969,14 @@ input[type=checkbox],input[type=radio]{width:15px;height:15px;flex:0 0 auto;marg
   .dash .panel:has(.stock-table)::-webkit-scrollbar { height: 8px; }
   .dash .panel:has(.stock-table)::-webkit-scrollbar-thumb { background: #C4C4C8; border-radius: 8px; }
 }
+/* ---------- reversements transporteurs : colonnes de chiffres + total ---------- */
+.dash .table th.num,.dash .table td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dash .table td.num form{display:inline-flex;margin:0}
+.pay-total{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0 0;
+  padding:10px 12px;border:1px solid var(--line-2);border-radius:10px;background:var(--bg-sub,#FAFAFA)}
+.pay-total span{font-size:12.5px;color:var(--muted)}
+.pay-total b{font-size:15px;letter-spacing:-.01em}
+
 .dash-side{scrollbar-width:thin}
 .dash-head h1{line-height:1.15;margin-bottom:6px}
 .dash-head p{margin:0}
@@ -4789,6 +4797,9 @@ img#cropImg:not([src]), img#cropImg[src=""] { display: none !important; }
     min-width: 0;
   }
   .dash .table td::before { content: none !important; }
+  .dash .table th.num, .dash .table td.num { text-align: left; }
+  .dash .table td.num form { display: inline-flex; }
+  .pay-total { padding: 10px 0 0; border: 0; border-top: 1px solid var(--line-2); border-radius: 0; background: transparent; }
   .dash .table tr:hover td { background: transparent; }
   .dash .panel:has(.m-list) { padding: 2px 12px 6px; }
   .dash .panel:has(.m-list) .panel-head { margin-bottom: 2px; padding-top: 8px; }
