@@ -484,6 +484,16 @@
   /* nom lisible d'une section : « En-tête », « Pied de page », sinon son premier
      titre, sinon un extrait de texte propre (jamais une bouillie de menu). */
   var NAVISH = /(^|[-_ ])(nav|navbar|menu|header|masthead|topbar|toolbar|breadcrumb)/i
+  /* Texte d'une section entière, remis à plat.
+     `textContent` colle les morceaux : un titre « Crewneck » suivi du prix
+     donne « Crewneck85,00 € » dans la liste des blocs. `innerText` garde le
+     saut de ligne entre les deux, on le transforme en espace. */
+  function flatText(el) {
+    var v = ""
+    try { v = el.innerText } catch (_) {}
+    if (!v) v = el.textContent || ""
+    return v.replace(/\s+/g, " ").trim()
+  }
   function secName(sec, i) {
     var tag = sec.tagName, cls = String(sec.getAttribute("class") || "") + " " + String(sec.id || "")
     if (tag === "HEADER" || sec.querySelector("nav") && sec.getBoundingClientRect().height < 220 || NAVISH.test(cls)) return (i + 1) + ". En-tête (menu)"
@@ -502,7 +512,7 @@
         if (pv && pv.length >= 12) t = pv
       }
     }
-    if (!t) t = plainText(sec)
+    if (!t) t = flatText(sec)
     if (!t) {
       /* section surtout visuelle : on la nomme par sa photo */
       var im = sec.querySelectorAll("img")
