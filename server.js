@@ -1980,7 +1980,14 @@ app.get("/_proto/:file", (req, res, next) => {
   if (!/^[\w.-]+\.(jpe?g|png|webp|gif|avif|svg)$/i.test(String(req.params.file || ""))) return next()
   res.sendFile(path.join(__dirname, "public", "_proto", req.params.file), { maxAge: "7d" }, (e) => { if (e) next() })
 })
-app.get("/dashboard/studio/atelier", requireAuth, requireStore, (req, res) => {
+/* Un seul éditeur, pour ne plus jamais se demander lequel ouvrir.
+   L'« Atelier » était un prototype de studio (état de page, blocs libres) : il
+   n'était relié à aucun bouton du tableau de bord et faisait doublon avec le
+   Studio, au point qu'on ne savait plus lequel utilise. Son adresse renvoie
+   donc vers le Studio. Le code reste là, prêt à revenir si besoin. */
+app.get("/dashboard/studio/atelier", requireAuth, requireStore, (req, res) =>
+  res.redirect("/dashboard/studio"))
+app.get("/dashboard/studio/atelier/_proto", requireAuth, requireStore, (req, res) => {
   const d = DESIGN.read(req.store.id)
   res.set("Cache-Control", "no-store")
   res.send(atelierPage({
