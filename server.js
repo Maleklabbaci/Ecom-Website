@@ -851,7 +851,11 @@ if (process.env.NOVADZ_DEMO === "1") {
     const session = regenerateSession(req, res)
     session.userId = user.id
     session.supportStoreId = null
-    const first = db.prepare("SELECT id FROM stores WHERE owner_id = ? ORDER BY id LIMIT 1").get(user.id)
+    /* ?store=<slug> : ouvrir directement une boutique précise (démo guidée) */
+    const wanted = String(req.query.store || "").trim()
+    const asked0 = wanted ? db.prepare("SELECT id, owner_id FROM stores WHERE slug = ?").get(wanted) : null
+    const first = (asked0 && (user.role === "admin" || asked0.owner_id === user.id) ? asked0 : null)
+      || db.prepare("SELECT id FROM stores WHERE owner_id = ? ORDER BY id LIMIT 1").get(user.id)
     if (first) session.storeId = first.id
     saveSession(session.sid, session)
     logRow("info", "connexion démo (raccourci)", { email })
@@ -1587,19 +1591,37 @@ const ownsStore = (req, store) => {
   return user.role === "admin" || db.prepare("SELECT 1 FROM stores WHERE id = ? AND owner_id = ?").get(store.id, user.id) !== undefined
     || db.prepare("SELECT 1 FROM store_members WHERE store_id = ? AND user_id = ?").get(store.id, user.id) !== undefined
 }
+/* Le Studio n'est pas réservé aux modèles « site complet ».
+   Un thème classique (minimal, galerie, tech…) s'ouvre aussi dans le Studio,
+   sur la page que ce thème dessine déjà : on écrit dans une copie, on publie
+   quand on veut. L'identifiant de ce mode est « theme:<thème> », pour que le
+   brouillon d'un thème ne se mélange pas avec celui d'un modèle. */
+const THEMES_LIST = require("./src/themes").THEMES
+const themeTplOf = (store) => {
+  const id = require("./src/themes").isTheme(String(store.theme || "")) ? String(store.theme) : require("./src/themes").DEFAULT_THEME
+  const t = THEMES_LIST.find((x) => x.id === id) || {}
+  return {
+    id: "theme:" + id,
+    name: t.name || "Thème",
+    kind: store.site_kind === "vitrine" ? "vitrine" : "boutique",
+    isTheme: true,
+  }
+}
+const isThemeTpl = (tpl) => /^theme:/.test(String(tpl || ""))
 const studioTpl = (store) => {
   const d = readOwnDraft(store).design || {}
   if (SITES.isSite(d.siteTemplate)) return d.siteTemplate
   const l = SECTIONS.readDesign(store).siteTemplate
-  return SITES.isSite(l) ? l : ""
+  return SITES.isSite(l) ? l : themeTplOf(store).id
 }
+/** Description du modèle ouvert : un vrai modèle de site, ou le thème en cours. */
+const studioTplDesc = (store, tpl) => (isThemeTpl(tpl) ? themeTplOf(store) : SITES.get(tpl))
 const pageKey = (v) => (STUDIO.isKey(String(v || "home")) ? String(v || "home") : "home")
 app.get("/dashboard/studio", requireAuth, requireStore, (req, res) => {
   const tpl = studioTpl(req.store)
-  /* Pas encore de modèle de site : on n'envoie pas le marchand dans le vide.
-     Le choix des modèles s'affiche avec une phrase qui dit pourquoi. */
-  if (!tpl) return res.redirect("/dashboard/design/themes?modele=1")
-  res.send(STUDIO.page(req.store, SITES.get(tpl), STUDIO.status(req.store.id, tpl)))
+  const desc = studioTplDesc(req.store, tpl)
+  if (!desc) return res.redirect("/dashboard/design/themes?modele=1")
+  res.send(STUDIO.page(req.store, desc, STUDIO.status(req.store.id, tpl)))
 })
 app.get("/dashboard/studio/meta", requireAuth, requireStore, (req, res) => {
   const tpl = studioTpl(req.store)
@@ -1642,6 +1664,15 @@ app.get("/dashboard/studio/frame", requireAuth, requireStore, (req, res) => {
   const tpl = studioTpl(req.store)
   if (!tpl) return res.status(404).send("Aucun template choisi.")
   const key = pageKey(req.query.page)
+  /* Thème classique : la page est dessinée par le thème, avec ses vrais
+     produits et ses vrais prix. On la montre telle quelle dans le Studio. */
+  if (isThemeTpl(tpl)) {
+    const saved = STUDIO.html(req.store.id, tpl, "home", "edit")
+    let doc = saved || V.storefront(req.store, SHOP.searchProducts(req.store.id, {}), 0, true, { origin: "" })
+    doc = String(doc).replace(/<\/head>/i,
+      `<link rel="stylesheet" href="/dashboard/studio/plateforme.css"><script defer src="/_studio/frame.js"></script></head>`)
+    return res.set({ "Content-Security-Policy": STUDIO.FRAME_CSP, "Cache-Control": "no-store" }).type("html").send(doc)
+  }
   const products = SHOP.searchProducts(req.store.id, {})
   const base = STUDIO.html(req.store.id, tpl, key, "edit") || (key !== "home" ? SITES.pageSource(tpl, key) : "")
   if (key !== "home" && !base) return res.status(404).send("Page introuvable.")
@@ -1759,6 +1790,17 @@ app.post("/dashboard/studio/save", requireAuth, requireStore, (req, res) => {
 app.post("/dashboard/studio/publish", requireAuth, requireStore, (req, res) => {
   const tpl = studioTpl(req.store)
   if (!tpl || !STUDIO.publishAll(req.store.id, tpl)) return res.status(400).json({ ok: false, error: "Rien à publier : enregistre d'abord." })
+  if (isThemeTpl(tpl)) {
+    /* Thème classique : la page publiée devient le code de la page d'accueil.
+       Le thème garde son en-tête, son pied et sa coque : seuls les textes, les
+       photos et les blocs écrits dans le Studio changent. */
+    const page = STUDIO.html(req.store.id, tpl, "home", "live")
+    const d = SECTIONS.readDesign(req.store)
+    const live = SECTIONS.sanitizeDesign({ ...d, pageCode: { ...(d.pageCode || {}), home: page } })
+    db.prepare("UPDATE stores SET design = ?, published_at = datetime('now') WHERE id = ?").run(JSON.stringify(live), req.store.id)
+    logRow("info", `studio publié sur le thème ${req.store.theme} (${req.store.slug})`, { tpl })
+    return res.json({ ok: true, theme: true })
+  }
   const live = SECTIONS.sanitizeDesign({ ...SECTIONS.readDesign(req.store), siteTemplate: tpl })
   db.prepare("UPDATE stores SET design = ?, published_at = datetime('now') WHERE id = ?").run(JSON.stringify(live), req.store.id)
   logRow("info", `studio publié (${req.store.slug})`, { tpl })
