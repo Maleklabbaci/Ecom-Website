@@ -126,7 +126,8 @@ class Importer:
             else:
                 code = body
             if not code.strip(): return ""
-            return f'<script {"type=\"module\" " if mod else ""}defer src="{self.js_file(code, mod)}"></script>'
+            mod_attr = 'type="module" ' if mod else ""
+            return '<script ' + mod_attr + 'defer src="' + self.js_file(code, mod) + '"></script>'
         s = re.sub(r"<script\b([^>]*)>([\s\S]*?)</script\s*>", script, s, flags=re.I)
         # gros blocs <style> : en fichiers ; les petits restent (l'éditeur peut alors changer couleurs/polices partout)
         def style(m):

@@ -144,7 +144,36 @@ const business = (storeId) => {
     FROM orders WHERE store_id = ? AND status NOT IN ('annulee', 'perdue') AND fake = 0 AND wilaya != ''
     GROUP BY wilaya ORDER BY n DESC LIMIT 6`).all(storeId)
 
+  /* --- bénéfice net : ce qui reste vraiment après la marchandise et la pub --- */
+  const deliveredRevenue = db.prepare(`SELECT COALESCE(SUM(total_cents), 0) AS c, COUNT(*) AS n
+    FROM orders WHERE store_id = ? AND fake = 0 AND status = 'livree'
+    AND date(created_at) >= date('now', '-29 days')`).get(storeId)
+  const deliveredCost = db.prepare(`SELECT COALESCE(SUM(i.qty * COALESCE(p.cost_cents, 0)), 0) AS c
+    FROM order_items i
+    JOIN orders o ON o.id = i.order_id
+    LEFT JOIN products p ON p.id = i.product_id
+    WHERE o.store_id = ? AND o.fake = 0 AND o.status = 'livree'
+    AND date(o.created_at) >= date('now', '-29 days')`).get(storeId)
+  const adSpend = db.prepare(`SELECT COALESCE(SUM(cents), 0) AS c FROM ad_spend
+    WHERE store_id = ? AND day >= date('now', '-29 days')`).get(storeId)
+  const ads = db.prepare(`SELECT channel, COALESCE(SUM(cents), 0) AS cents FROM ad_spend
+    WHERE store_id = ? AND day >= date('now', '-29 days') GROUP BY channel ORDER BY cents DESC`).all(storeId)
+  const delivered30 = Number(deliveredRevenue.n) || 0
+  const profit = {
+    delivered: Number(deliveredRevenue.c) || 0,
+    deliveredCount: delivered30,
+    goods: Number(deliveredCost.c) || 0,
+    ads: Number(adSpend.c) || 0,
+    /* ce que rapporte une commande livrée, une fois la marchandise et la pub payées */
+    net: (Number(deliveredRevenue.c) || 0) - (Number(deliveredCost.c) || 0) - (Number(adSpend.c) || 0),
+    perOrder: delivered30
+      ? Math.round(((Number(deliveredRevenue.c) || 0) - (Number(deliveredCost.c) || 0) - (Number(adSpend.c) || 0)) / delivered30)
+      : 0,
+    adsRows: ads,
+  }
+
   return {
+    profit,
     today, week, month, all,
     counts: { total, confirmed, cancelled, shipped, lost },
     visits,
@@ -187,4 +216,15 @@ const byDevice = (storeId) => {
   return rows.map((r) => ({ ...r, share: Math.round((r.orders / total) * 100) }))
 }
 
-module.exports = { byCarrier, byWilaya, bySource, byDevice, avgDeliveryHours, business, overview, verdict }
+/** Enregistre (ou remplace) la dépense publicitaire d'un jour, par canal. */
+const saveAdSpend = (storeId, day, channel, cents) => {
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(String(day)) ? String(day) : new Date().toISOString().slice(0, 10)
+  const ch = ["meta", "tiktok", "snap", "google", "autre"].includes(channel) ? channel : "autre"
+  const amount = Math.max(0, Math.round(Number(cents) || 0))
+  if (!amount) db.prepare("DELETE FROM ad_spend WHERE store_id = ? AND day = ? AND channel = ?").run(storeId, d, ch)
+  else db.prepare(`INSERT INTO ad_spend (store_id, day, channel, cents) VALUES (?, ?, ?, ?)
+    ON CONFLICT(store_id, day, channel) DO UPDATE SET cents = excluded.cents`).run(storeId, d, ch, amount)
+  return { day: d, channel: ch, cents: amount }
+}
+
+module.exports = { byCarrier, byWilaya, bySource, byDevice, avgDeliveryHours, business, overview, verdict, saveAdSpend }

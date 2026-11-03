@@ -11,7 +11,7 @@ const express = require("express")
 const db = require("./src/db")
 /* une référence ne doit jamais désigner deux commandes de la même boutique */
 try { db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_store_ref ON orders(store_id, ref)") } catch (e) { /* doublons historiques : on ne bloque pas le démarrage */ }
-const { hash, verify, getSession, saveSession, cookiesParser } = require("./src/auth")
+const { hash, verify, getSession, saveSession, regenerateSession, cookiesParser } = require("./src/auth")
 const hashPassword = hash
 const verifyPassword = verify
 const seed = require("./src/seed")
@@ -23,7 +23,9 @@ const SECTIONS = require("./src/sections")
 const TEMPLATES = require("./src/templates")
 const SITES = require("./src/site-templates")
 const STUDIO = require("./src/studio")
+const DESIGN = require("./src/studio-design") /* l'atelier : l'état de la page, brouillon et version en ligne */
 const UPLOADS = require("./src/uploads")
+const ASSIGN = require("./src/assign")
 const SHOP = require("./src/shop")
 const INV = require("./src/inventory")
 const SEC = require("./src/security")
@@ -38,6 +40,8 @@ const SOCIAL = require("./src/social")
 const CF = require("./src/checkoutform")
 const I18N = require("./src/i18n")
 const GEO = require("./src/geo")
+const METIERS = require("./src/metiers")
+const crypto = require("crypto")
 const ORD = require("./src/orders")
 const DOMAIN = require("./src/domain")
 const { messageOf } = require("./src/plain")
@@ -48,6 +52,8 @@ const LIV = require("./src/livraison")
 const HIST = require("./src/historique")
 const NOTICES = require("./src/notices")
 const AI = require("./src/ai")
+const REDACTION = require("./src/redaction")
+const AR_FONTS = require("./src/fonts-ar")
 const PLAT = require("./src/platform")
 const ADM = require("./src/admin-views")
 const PT = require("./src/public-themes")
@@ -57,11 +63,117 @@ seed()
 
 const app = express()
 const PORT = process.env.PORT || 3000
-const RESERVED = new Set(["dashboard", "admin", "login", "signup", "logout", "rejoindre", "themes", "styles.css", "api", "favicon.ico"])
+const RESERVED = new Set(["dashboard", "admin", "login", "signup", "logout", "rejoindre", "themes", "styles.css", "api", "favicon.ico", "demo-login", "apercu", "demarrer"])
+
+/* Démonstration guidée : si NOVADZ_DEMO_HOME est posé (mode démo seulement),
+   arriver sur l'accueil ouvre directement cet écran. Pratique pour montrer le
+   Studio sans taper d'adresse ; ?stay=1 affiche quand même la vraie accueil. */
+if (process.env.NOVADZ_DEMO === "1" && process.env.NOVADZ_DEMO_HOME) {
+  const DEMO_HOME = String(process.env.NOVADZ_DEMO_HOME)
+  app.use((req, res, next) => {
+    if (req.method !== "GET" || req.path !== "/" || req.query.stay === "1") return next()
+    res.redirect(DEMO_HOME)
+  })
+}
+
+/* Derrière Cloudflare (ou tout reverse-proxy) : faire confiance à
+   X-Forwarded-* pour req.ip / req.protocol. Activé par NOVADZ_TRUST_PROXY=1
+   ou automatiquement si l'adresse publique est en https. */
+if (process.env.NOVADZ_TRUST_PROXY === "1" || /^https:/i.test(process.env.PUBLIC_URL || "")) {
+  app.set("trust proxy", 1)
+}
+app.disable("x-powered-by")
+
+/* En-têtes de sécurité. CSP volontairement compatible avec l'existant
+   (scripts/styles en ligne, pixels et CAPTCHA externes) : elle bloque
+   l'encadrement par un autre site, les objets et les bases détournées. */
+/* Qui peut encadrer le site dans une iframe. Par défaut : uniquement le
+   site lui-même (anti-clickjacking, et l'aperçu du tableau de bord en a
+   besoin). Un hébergeur qui affiche le site dans son propre panneau
+   d'aperçu peut élargir via NOVADZ_FRAME_ANCESTORS, par exemple :
+   NOVADZ_FRAME_ANCESTORS="'self' https://*.exemple.com" */
+const FRAME_ANCESTORS = String(process.env.NOVADZ_FRAME_ANCESTORS || "'self'").trim() || "'self'"
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff")
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin")
+  if (FRAME_ANCESTORS === "'self'") res.setHeader("X-Frame-Options", "SAMEORIGIN")
+  res.setHeader("Content-Security-Policy",
+    "default-src 'self'; img-src 'self' data: blob: https:; media-src 'self' https: data:;" +
+    " font-src 'self' data: https:; style-src 'self' 'unsafe-inline' https:;" +
+    " script-src 'self' 'unsafe-inline' https:; connect-src 'self' https:;" +
+    " frame-src 'self' https:; frame-ancestors " + FRAME_ANCESTORS + "; base-uri 'self'; form-action 'self'; object-src 'none'")
+  next()
+})
+
+/* Anti-CSRF par vérification d'origine : les navigateurs envoient toujours
+   Origin sur un POST. Un POST dont l'origine ne correspond pas à l'hôte
+   (ni à PUBLIC_URL) est refusé. Sans Origin (clients non-navigateurs,
+   webhooks serveur à serveur), on laisse passer : la protection vise le
+   navigateur d'un marchand connecté. Le cookie de session SameSite=Lax
+   reste la première barrière. */
+app.use((req, res, next) => {
+  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return next()
+  const origin = req.headers.origin
+  if (!origin) return next()
+  let originName = ""
+  try { originName = new URL(origin).hostname.toLowerCase() } catch (_) { return res.status(403).send("Origine invalide.") }
+  /* On compare les NOMS d'hôte, sans le port : un aperçu ou un reverse-proxy
+     présente souvent la même machine sur un autre port (ou réécrit Host), et
+     comparer le « host » complet refusait alors tous les POST (enregistrer,
+     publier, connexion) derrière un proxy. Un site étranger reste refusé : son
+     nom d'hôte est différent. */
+  const names = new Set()
+  const add = (h) => {
+    if (!h) return
+    const v = String(h).split(",")[0].trim()
+    if (!v) return
+    names.add(v.toLowerCase().replace(/:\d+$/, ""))
+  }
+  add(req.headers.host)
+  add(req.headers["x-forwarded-host"])   /* hôte d'origine vu par le proxy */
+  try { if (process.env.PUBLIC_URL) add(new URL(process.env.PUBLIC_URL).host) } catch (_) {}
+  String(process.env.NOVADZ_EXTRA_ORIGINS || "").split(",").forEach(add)
+  if (!names.has(originName)) {
+    logRowSafe("warn", "POST refusé : origine étrangère", { path: req.path, origin, host: req.headers.host })
+    return res.status(403).send("Requête refusée (origine). Rechargez la page puis réessayez.")
+  }
+  next()
+})
+const logRowSafe = (...a) => { try { JOURNAL.write(...a) } catch (_) {} }
 
 app.use(express.urlencoded({ extended: true, limit: "2mb" }))
 
 app.use(cookiesParser)
+
+/* ---------------------------------------------------------------------------
+   Mode démo : « ?as=vitrine|marchand|admin » (re)crée la session du compte de
+   démonstration quand elle manque. Un aperçu distant passe parfois par un proxy
+   qui perd les cookies : sans ça, chaque écran protégé renvoie vers /login et
+   rien ne s'ouvre. Le mode démo est local et ses mots de passe sont publics ;
+   hors mode démo, ce bloc et l'URL n'existent pas.
+   --------------------------------------------------------------------------- */
+const DEMO_EMAILS = { marchand: "demo@novadz.dz", vitrine: "vitrine@novadz.dz", admin: "admin@novadz.dz" }
+if (process.env.NOVADZ_DEMO === "1") {
+  app.use((req, res, next) => {
+    const as = String(req.query.as || "").toLowerCase()
+    if (!DEMO_EMAILS[as]) return next()
+    const user = db.prepare("SELECT * FROM users WHERE email = ?").get(DEMO_EMAILS[as])
+    if (!user) return next()
+    /* déjà connecté avec CE compte : rien à faire. Connecté avec un autre compte
+       de démonstration (deux onglets, même navigateur) : on bascule. */
+    const cur = getSession(req, res)
+    if (cur.userId === user.id) return next()
+    const fresh = regenerateSession(req, res)
+    fresh.userId = user.id
+    fresh.supportStoreId = null
+    const first = db.prepare("SELECT id FROM stores WHERE owner_id = ? ORDER BY id LIMIT 1").get(user.id)
+    if (first) fresh.storeId = first.id
+    saveSession(fresh.sid, fresh)
+    /* la requête continue : le cookie lu par les routes doit être le nouveau */
+    if (req.cookies) req.cookies.sid = fresh.sid
+    next()
+  })
+}
 /* langue de la page (FR/AR) disponible partout sans la passer de main en main */
 app.use((req, res, next) => {
   /* le choix de langue survit à la navigation (cookie 1 an) */
@@ -70,6 +182,14 @@ app.use((req, res, next) => {
     res.cookie("ndz_lang", String(asked), { maxAge: 365 * 864e5, sameSite: "lax" })
     req.cookies.ndz_lang = String(asked)
   }
+  /* langue de l'INTERFACE (tableau de bord) : cookie séparé de celui de la
+     vitrine, pour qu'un marchand puisse lire son espace en arabe et garder sa
+     boutique en français. */
+  const ui = req.query && req.query.uilang
+  if (ui && require("./src/ui-ar").isLang(String(ui))) {
+    res.cookie("ndz_ui", String(ui), { maxAge: 365 * 864e5, sameSite: "lax" })
+    if (req.cookies) req.cookies.ndz_ui = String(ui)
+  }
   I18N.run({ req }, next)
 })
 /* d'où vient le visiteur : première arrivée mémorisée (utm, clic publicitaire, appareil) */
@@ -77,7 +197,7 @@ app.use(ORD.track)
 
 /* Un nom de domaine de boutique sert la vitrine, sans le slug dans l'adresse. */
 const DOMAIN_SKIP = ["/styles.css", "/editor.js", "/upimg.js", "/uploads", "/demo", "/fonts",
-  "/themes-pro.css", "/ndz-merchant.css", "/ndz-store.js", "/landing.css", "/inter-font.css", "/estedad.css", "/theme-fonts.css",
+  "/themes-pro.css", "/ndz-merchant.css", "/ndz-store.js", "/landing.css", "/inter-font.css", "/estedad.css", "/arabic-fonts.css", "/theme-fonts.css",
   "/dashboard", "/admin", "/login", "/signup", "/logout", "/welcome", "/rejoindre", "/themes"]
 app.use((req, res, next) => {
   const host = String(req.headers.host || "").split(":")[0]
@@ -109,31 +229,49 @@ app.use((req, res, next) => {
   next()
 })
 
+/* gzip : styles.css fait ~430 Ko à froid, ~60 Ko compressé */
+app.use(require("compression")())
+
 /* une photo de téléphone peut peser lourd : 8 Mo, et un message clair au-delà */
 app.use(express.json({ limit: "8mb" }))
-app.use("/styles.css", express.static(path.join(__dirname, "public", "styles.css")))
-app.use("/editor.js", express.static(path.join(__dirname, "public", "editor.js")))
-app.use("/formulaire.js", express.static(path.join(__dirname, "public", "formulaire.js")))
-app.use("/upimg.js", express.static(path.join(__dirname, "public", "upimg.js")))
-app.use("/uploads", express.static(path.join(__dirname, "public", "uploads"), { maxAge: "30d" }))
-app.use("/demo", express.static(path.join(__dirname, "public", "demo"), { maxAge: "30d" })) /* photos de démo livrées avec le code */
-app.use("/themes-pro.css", express.static(path.join(__dirname, "public", "themes-pro.css"))) /* six thèmes prêts à l'emploi */
-app.use("/ndz-merchant.css", express.static(path.join(__dirname, "public", "ndz-merchant.css")))
-app.use("/ndz-store.js", express.static(path.join(__dirname, "public", "ndz-store.js")))
-app.use("/horizon-panel.css", express.static(path.join(__dirname, "public", "horizon-panel.css")))
-app.use("/horizon-panel.js", express.static(path.join(__dirname, "public", "horizon-panel.js")))
-app.use("/theme-fonts.css", express.static(path.join(__dirname, "public", "theme-fonts.css"))) /* polices des six thèmes */
-app.use("/landing.css", express.static(path.join(__dirname, "public", "landing.css")))
-app.use("/shots", express.static(path.join(__dirname, "public", "shots")))
-app.use("/templates", express.static(path.join(__dirname, "public", "templates")))
-app.use("/inter-font.css", express.static(path.join(__dirname, "public", "inter-font.css")))
+/* un envoi trop lourd reçoit un message clair (413), pas un « Erreur serveur » */
+app.use((err, req, res, next) => {
+  if (err && (err.type === "entity.too.large" || err.status === 413)) {
+    const msg = "Photo trop lourde : 2,5 Mo maximum après compression. Réduis la photo puis réessaie."
+    if (req.headers["content-type"] && req.headers["content-type"].includes("application/json")) {
+      return res.status(413).json({ ok: false, error: msg })
+    }
+    return res.status(413).send(msg)
+  }
+  return next(err)
+})
+/* cache : les CSS/JS changent à chaque déploiement (1 h + ETag), les images,
+   polices et sons sont stables (30 j). Économie de bande passante réelle. */
+const CACHE_CODE = { maxAge: "1h" }
+const CACHE_MEDIA = { maxAge: "30d" }
+app.use("/styles.css", express.static(path.join(__dirname, "public", "styles.css"), CACHE_CODE))
+app.use("/editor.js", express.static(path.join(__dirname, "public", "editor.js"), CACHE_CODE))
+app.use("/formulaire.js", express.static(path.join(__dirname, "public", "formulaire.js"), CACHE_CODE))
+app.use("/upimg.js", express.static(path.join(__dirname, "public", "upimg.js"), CACHE_CODE))
+app.use("/uploads", express.static(path.join(__dirname, "public", "uploads"), CACHE_MEDIA))
+app.use("/demo", express.static(path.join(__dirname, "public", "demo"), CACHE_MEDIA)) /* photos de démo livrées avec le code */
+app.use("/themes-pro.css", express.static(path.join(__dirname, "public", "themes-pro.css"), CACHE_CODE)) /* six thèmes prêts à l'emploi */
+app.use("/ndz-merchant.css", express.static(path.join(__dirname, "public", "ndz-merchant.css"), CACHE_CODE))
+app.use("/ndz-store.js", express.static(path.join(__dirname, "public", "ndz-store.js"), CACHE_CODE))
+app.use("/horizon-panel.css", express.static(path.join(__dirname, "public", "horizon-panel.css"), CACHE_CODE))
+app.use("/horizon-panel.js", express.static(path.join(__dirname, "public", "horizon-panel.js"), CACHE_CODE))
+app.use("/theme-fonts.css", express.static(path.join(__dirname, "public", "theme-fonts.css"), CACHE_CODE)) /* polices des six thèmes */
+app.use("/landing.css", express.static(path.join(__dirname, "public", "landing.css"), CACHE_CODE))
+app.use("/shots", express.static(path.join(__dirname, "public", "shots"), CACHE_MEDIA))
+app.use("/templates", express.static(path.join(__dirname, "public", "templates"), CACHE_MEDIA))
 app.use("/_studio", express.static(path.join(__dirname, "public", "_studio"), { maxAge: 0 }))
-app.use("/landing-fonts.css", express.static(path.join(__dirname, "public", "landing-fonts.css")))
-app.use("/estedad.css", express.static(path.join(__dirname, "public", "estedad.css")))
-app.use("/fonts", express.static(path.join(__dirname, "public", "fonts"), { maxAge: "30d" }))
-app.use("/sons", express.static(path.join(__dirname, "public", "sons")))
-app.use("/favicon.ico", express.static(path.join(__dirname, "public", "favicon.ico")))
-/* temps de chaque page : mémoire pour le passage, base seulement si erreur ou lenteur */
+app.use("/landing-fonts.css", express.static(path.join(__dirname, "public", "landing-fonts.css"), CACHE_CODE))
+app.use("/inter-font.css", express.static(path.join(__dirname, "public", "inter-font.css"), CACHE_MEDIA))
+app.use("/estedad.css", express.static(path.join(__dirname, "public", "estedad.css"), CACHE_MEDIA))
+app.use("/arabic-fonts.css", express.static(path.join(__dirname, "public", "arabic-fonts.css"), CACHE_MEDIA)) /* polices arabes au choix */
+app.use("/fonts", express.static(path.join(__dirname, "public", "fonts"), CACHE_MEDIA))
+app.use("/sons", express.static(path.join(__dirname, "public", "sons"), CACHE_MEDIA))
+app.use("/favicon.ico", express.static(path.join(__dirname, "public", "favicon.ico"), CACHE_MEDIA))/* temps de chaque page : mémoire pour le passage, base seulement si erreur ou lenteur */
 app.use(JOURNAL.observe)
 
 /* ------------------------------- helpers ------------------------------- */
@@ -199,12 +337,16 @@ const requireStore = (req, res, next) => {
     session.supportStoreId = null
     saveSession(session.sid, session)
   }
-  const owned = db.prepare("SELECT * FROM stores WHERE owner_id = ? ORDER BY id LIMIT 1").get(req.user.id)
+  /* Toutes les boutiques du compte, pas seulement la première : un marchand
+     peut en avoir plusieurs (une par marque, une vitrine + une boutique). */
+  const ownedRows = db.prepare("SELECT * FROM stores WHERE owner_id = ? ORDER BY id").all(req.user.id)
   const memberRows = TEAM.storesFor(req.user.id)
   const choices = []
-  if (owned) choices.push({ id: owned.id, name: owned.name, owner: true })
+  for (const row of ownedRows) choices.push({ id: row.id, name: row.name, slug: row.slug, kind: row.site_kind, owner: true })
+  const owned = ownedRows[0]
+  const known = new Set(choices.map((c) => c.id))
   for (const row of memberRows) {
-    if (!owned || row.id !== owned.id) choices.push({ id: row.id, name: row.name, owner: false, perms: row.member_perms })
+    if (!known.has(row.id)) choices.push({ id: row.id, name: row.name, slug: row.slug, kind: row.site_kind, owner: false, perms: row.member_perms })
   }
   if (!choices.length) return res.redirect(req.user.role === "admin" ? "/admin" : "/signup")
   let pick = choices[0]
@@ -241,12 +383,28 @@ const getStore = (slug) => {
   return store ? PT.dressStore(store) : store
 }
 
+/** Vrai quand la page est demandée en aperçu : par le propriétaire
+    (`?preview=1`) ou par quelqu'un qui a le lien d'aperçu partagé. */
+const previewMode = (req) => Boolean(req && (req.query.preview || req._apercu === true))
+
+/** Jeton du lien d'aperçu. Il est créé la première fois qu'on en a besoin,
+    puis conservé : le lien déjà envoyé à la famille continue de marcher. */
+const previewTokenFor = (store) => {
+  if (!store) return ""
+  if (store.preview_token) return store.preview_token
+  const token = crypto.randomBytes(12).toString("hex")
+  db.prepare("UPDATE stores SET preview_token = ? WHERE id = ?").run(token, store.id)
+  store.preview_token = token
+  return token
+}
+
 /** Applique le brouillon (design/sections/nav) quand le propriétaire prévisualise. */
 const withDraft = (store, req) => {
-  if (!store || !req.query.preview) return store
+  if (!store || !previewMode(req)) return store
   const { session } = auth(req)
   const user = session.userId ? db.prepare("SELECT id, role FROM users WHERE id = ?").get(session.userId) : null
-  if (!user || (user.id !== store.owner_id && user.role !== "admin")) return store
+  const shared = req._apercu === true
+  if (!shared && (!user || (user.id !== store.owner_id && user.role !== "admin"))) return store
   const draft = SECTIONS.readDraft(store)
   if (!draft) return store
   const origin = isTheme(draft.theme) ? draft.theme : (store._originTheme || store.theme)
@@ -259,6 +417,34 @@ const withDraft = (store, req) => {
     nav: draft.nav ? JSON.stringify(draft.nav) : store.nav,
     logo: (draft.design && draft.design.logo) || store.logo,
   })
+}
+
+/**
+ * Prix saisi par un humain → centimes. Tolère « 1 200,50 », « 1200.5 », « 1200 ».
+ * Renvoie null si vide, illisible, négatif ou absurde (jamais de NaN en base,
+ * jamais un produit à −900 DZD).
+ */
+const parseDzdCents = (v) => {
+  const raw = String(v == null ? "" : v).trim().replace(/[\s\u202f\u00a0]/g, "").replace(",", ".")
+  if (!raw || !/^\d+(\.\d{1,2})?$/.test(raw)) return null
+  const n = Math.round(parseFloat(raw) * 100)
+  return Number.isFinite(n) && n <= 10000000000 ? n : null // plafond : 100 000 000 DZD
+}
+
+/** Cellule CSV sûre : guillemets doublés + anti-formule Excel/Sheets
+ *  (une cellule qui commence par =, +, -, @ est préfixée d'une apostrophe). */
+const csvCell = (v) => {
+  let s = String(v == null ? "" : v)
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s
+  return '"' + s.replace(/"/g, '""') + '"'
+}
+
+/** Quantité / stock : entier positif. Vide → 0 ; texte illisible → null (erreur). */
+const parseQty = (v) => {
+  const raw = String(v == null ? "" : v).trim()
+  if (!raw) return 0
+  if (!/^\d+$/.test(raw)) return null
+  return Math.min(parseInt(raw, 10), 1000000)
 }
 
 /** Galerie + variantes envoyées en JSON par le formulaire produit. */
@@ -284,6 +470,12 @@ const cleanOptionGroups = (raw) => {
   return out.length ? JSON.stringify(out) : ""
 }
 
+/** Vidéo du produit : un fichier du site ou un lien direct MP4/WEBM. Rien d'autre. */
+const cleanVideo = (raw) => {
+  const v = String(raw || "").trim().slice(0, 300)
+  return /^(\/uploads\/[\w.-]+|https?:\/\/[^\s"']+)\.(mp4|webm|ogv)(\?[^\s"']*)?$/i.test(v) ? v : ""
+}
+
 const saveExtras = (productId, body) => {
   if (body.option_groups !== undefined) {
     db.prepare("UPDATE products SET option_groups = ? WHERE id = ?").run(cleanOptionGroups(body.option_groups), productId)
@@ -306,7 +498,7 @@ const saveExtras = (productId, body) => {
     variants.filter((v) => v && String(v.label || "").trim())
       .slice(0, 20).forEach((v, i) =>
         ins.run(productId, String(v.label).trim().slice(0, 40),
-          Math.round(parseFloat(v.price || "0") * 100) || null,
+          parseDzdCents(v.price) || null,
           Math.max(0, parseInt(v.stock, 10) || 0), i))
   }
 }
@@ -366,17 +558,19 @@ app.get("/", (req, res) => {
 app.get("/signup", (req, res) => {
   const { user } = auth(req)
   if (user) return res.redirect("/dashboard")
-  const kind = req.query.kind === "commerce" ? "commerce" : req.query.kind === "vitrine" ? "vitrine" : ""
-  const theme = isTheme(req.query.theme) ? req.query.theme : ""
   const site = SITES.isSite(req.query.site) ? req.query.site : ""
-  res.send(V.authPage("signup", null, kind, theme, site))
+  const kind = site
+    ? SITES.storeKindForSite(site)
+    : (req.query.kind === "commerce" ? "commerce" : req.query.kind === "vitrine" ? "vitrine" : "")
+  res.send(V.authPage("signup", null, kind, site))
 })
 
 app.post("/signup", (req, res) => {
   const kind = req.body.kind === "commerce" ? "commerce" : "vitrine"
-  const theme = isTheme(req.body.theme) ? req.body.theme : ""
-  const site = SITES.isSite(req.body.site) ? req.body.site : ""
-  const again = (msg) => res.status(400).send(V.authPage("signup", msg, kind, theme, site))
+  /* Un template de l'autre famille est ignoré : le type choisi par
+     l'utilisateur gagne, mais aucun mélange n'entre en base. */
+  const site = SITES.isSiteForStore(req.body.site, kind) ? req.body.site : ""
+  const again = (msg) => res.status(400).send(V.authPage("signup", msg, kind, site))
   const name = String(req.body.name || "").trim()
   const storeName = String(req.body.store || "").trim()
   const email = String(req.body.email || "").trim().toLowerCase()
@@ -397,42 +591,167 @@ app.post("/signup", (req, res) => {
 
   const slug = uniqueSlug(slugify(storeName))
   const firstTheme = THEMES[0] && THEMES[0].id
-  const chosen = theme || (isTheme(firstTheme) ? firstTheme : DEFAULT_THEME)
+  const chosen = isTheme(firstTheme) ? firstTheme : DEFAULT_THEME
   db.prepare(`INSERT INTO stores (owner_id, slug, name, tagline, theme, site_kind) VALUES (?, ?, ?, ?, ?, ?)`)
     .run(info.lastInsertRowid, slug, storeName, "", chosen, kind)
 
-  const { session } = auth(req)
+  const session = regenerateSession(req, res)
   session.userId = info.lastInsertRowid
   saveSession(session.sid, session)
 
   if (site) {
     const st = db.prepare("SELECT * FROM stores WHERE slug = ?").get(slug)
     const draft = readOwnDraft(st)
-    draft.design = SECTIONS.sanitizeDesign({ ...draft.design, siteTemplate: site })
+    draft.design = SECTIONS.sanitizeDesign({ ...draft.design, siteTemplate: site }, st)
     db.prepare("UPDATE stores SET draft = ? WHERE id = ?").run(JSON.stringify(draft), st.id)
     return res.redirect("/dashboard/studio")
   }
-  res.redirect("/dashboard/design/themes")
+  /* Une boutique neuve reçoit tout de suite un modèle de site complet : c'est
+     lui qui ouvre le Studio. Sans ça, elle partait sur une ancienne mise en
+     page et le Studio n'apparaissait jamais dans son menu — deux façons de
+     modifier son site selon le thème choisi. /demarrer précisera le modèle
+     selon le métier. */
+  {
+    const first = (SITES.forStore(kind)[0] || {}).id || ""
+    if (first) {
+      const st = db.prepare("SELECT * FROM stores WHERE slug = ?").get(slug)
+      const draft = readOwnDraft(st)
+      draft.design = SECTIONS.sanitizeDesign({ ...draft.design, siteTemplate: first }, st)
+      db.prepare("UPDATE stores SET draft = ? WHERE id = ?").run(JSON.stringify(draft), st.id)
+    }
+  }
+  /* Premier écran : trois questions (vendre/montrer, métier, contact).
+     Un débutant ne choisit pas un « thème » : on choisit pour lui. */
+  res.redirect("/demarrer")
 })
+
+/* --------------------------- premier écran --------------------------- */
+/* Le marchand qui vient de créer son compte ne connaît ni les thèmes ni le
+   vocabulaire de la plateforme. On lui pose trois questions et on applique
+   les réponses : type de site, mise en page de départ, coordonnées. */
+app.get("/demarrer", requireAuth, requireStore, (req, res) => {
+  res.send(V.startPage(req.user, req.store, null))
+})
+
+app.post("/demarrer", requireAuth, requireStore, (req, res) => {
+  const { store } = req
+  const again = (msg) => res.status(400).send(V.startPage(req.user, store, msg))
+  const kind = req.body.kind === "vitrine" ? "vitrine" : "commerce"
+  const metier = METIERS.get(String(req.body.metier || ""))
+  const phone = String(req.body.phone || "").trim()
+  const wilaya = String(req.body.wilaya || "").trim()
+  if (!metier) return again("Choisissez ce que vous vendez (ou ce que vous montrez).")
+  if (phone.replace(/\D/g, "").length < 9) return again("Le téléphone doit contenir au moins 9 chiffres.")
+  if (!wilaya || !GEO.WILAYAS.includes(wilaya)) return again("Choisissez votre wilaya.")
+
+  const asked = METIERS.themeFor(metier, kind)
+  const theme = isTheme(asked) ? asked : store.theme
+  /* textes de départ : seulement s'ils sont vides, jamais à la place de
+     ce que la personne a déjà écrit */
+  const tagline = String(store.tagline || "").trim() || metier.tagline
+  const about = String(store.about || "").trim() || metier.about
+  const address = String(store.legal_address || "").trim()
+  const whatsapp = String(store.whatsapp || "").trim() || phone
+
+  db.prepare(`UPDATE stores SET site_kind = ?, theme = ?, tagline = ?, about = ?,
+      phone = ?, whatsapp = ?, wilaya = ? WHERE id = ?`)
+    .run(kind, theme, tagline, about, phone, whatsapp, wilaya, store.id)
+
+  /* le modèle de site éventuel doit rester de la même famille que la boutique */
+  const draft = readOwnDraft({ ...store, site_kind: kind })
+  const site = draft.design && draft.design.siteTemplate
+  if (site && !SITES.isSiteForStore(site, kind)) {
+    draft.design = SECTIONS.sanitizeDesign({ ...draft.design, siteTemplate: "" }, { ...store, site_kind: kind })
+    db.prepare("UPDATE stores SET draft = ? WHERE id = ?").run(JSON.stringify(draft), store.id)
+  }
+  /* Le modèle de site suit le métier — sauf si le marchand en a déjà choisi un
+     lui-même dans la galerie. Un seul éditeur, donc : le Studio. */
+  const want = METIERS.siteFor(metier, kind)
+  const firstOfKind = (SITES.forStore(kind)[0] || {}).id || ""
+  const chosen = draft.design && draft.design.siteTemplate
+  if (SITES.isSiteForStore(want, kind) && (!chosen || chosen === firstOfKind)) {
+    draft.design = SECTIONS.sanitizeDesign({ ...draft.design, siteTemplate: want }, { ...store, site_kind: kind })
+    db.prepare("UPDATE stores SET draft = ? WHERE id = ?").run(JSON.stringify(draft), store.id)
+  }
+  if (!address) db.prepare("UPDATE stores SET legal_address = ? WHERE id = ?").run("", store.id)
+  logRow("info", `Premier écran terminé : ${store.slug} (${kind}, ${metier.id})`)
+  res.redirect("/dashboard")
+})
+
+/* Après connexion : l'écran d'accueil seulement si la boutique n'a pas encore
+   ses coordonnées (téléphone + wilaya) ; sinon, droit au tableau de bord. */
+const afterLogin = (user) => {
+  const store = db.prepare("SELECT phone, wilaya FROM stores WHERE owner_id = ? ORDER BY id LIMIT 1").get(user.id)
+  if (!store) return user.role === "admin" ? "/admin" : "/dashboard"
+  const digits = String(store.phone || "").replace(/\D/g, "")
+  return digits.length >= 9 && store.wilaya ? "/dashboard" : "/welcome"
+}
 
 app.get("/login", (req, res) => {
   const { user } = auth(req)
-  if (user) return res.redirect("/welcome")
+  if (user) return res.redirect(afterLogin(user))
   res.send(V.authPage("login"))
 })
+
+/* Bourrage d'identifiants : 10 échecs (IP + identifiant) → 15 minutes de pause.
+   Un succès remet le compteur à zéro. En mémoire, purgé quand il grandit. */
+const loginFails = new Map()
+const loginKey = (req, who) => `${req.ip || "?"}|${who}`
+const loginWaitSec = (req, who) => {
+  const row = loginFails.get(loginKey(req, who))
+  if (!row || !row.until) return 0
+  if (Date.now() > row.until) { loginFails.delete(loginKey(req, who)); return 0 }
+  return Math.ceil((row.until - Date.now()) / 1000)
+}
+const loginFailed = (req, who) => {
+  if (loginFails.size > 5000) {
+    for (const [k, r] of loginFails) if (!r.until || Date.now() > r.until) loginFails.delete(k)
+  }
+  const key = loginKey(req, who)
+  const row = loginFails.get(key) || { n: 0, until: 0 }
+  row.n++
+  if (row.n >= 10) { row.until = Date.now() + 15 * 60e3; row.n = 0 }
+  loginFails.set(key, row)
+}
+const loginSucceeded = (req, who) => loginFails.delete(loginKey(req, who))
+
+/** Limite souple par IP (commandes, avis) : protège du spam sans gêner un client normal. */
+const rateHits = new Map()
+const rateLimit = (prefix, max, windowMs) => (req, res, next) => {
+  const key = `${prefix}|${req.ip || "?"}`
+  const now = Date.now()
+  const row = rateHits.get(key)
+  if (!row || now > row.until) {
+    rateHits.set(key, { n: 1, until: now + windowMs })
+    if (rateHits.size > 10000) rateHits.clear()
+    return next()
+  }
+  row.n++
+  if (row.n > max) {
+    return res.status(429).send("Trop de demandes en peu de temps. Patiente quelques minutes, puis réessaie.")
+  }
+  return next()
+}
 
 app.post("/login", (req, res) => {
   const email = String(req.body.email || "").trim().toLowerCase()
   const password = String(req.body.password || "")
+  const wait = loginWaitSec(req, email)
+  if (wait > 0) {
+    return res.status(429).send(V.authPage("login",
+      `Trop d'essais de connexion. Réessaie dans ${Math.max(1, Math.ceil(wait / 60))} minute(s).`))
+  }
   const user = db.prepare("SELECT * FROM users WHERE email = ? OR login_name = ?").get(email, email)
 
   if (!user) {
+    loginFailed(req, email)
     logRow("warn", "connexion refusée", { email })
     return res.status(401).send(V.authPage("login", email.includes("@")
       ? "Cet e-mail n'existe pas. Vérifie l'orthographe, ou crée un compte."
       : `L'identifiant « ${email} » n'existe pas. Vérifie-le, ou ouvre le lien d'invitation.`))
   }
   if (!verify(password, user.password_hash)) {
+    loginFailed(req, email)
     logRow("warn", "mot de passe refusé", { email })
     return res.status(401).send(V.authPage("login", "Mot de passe incorrect. Réessaie."))
   }
@@ -440,11 +759,12 @@ app.post("/login", (req, res) => {
     logRow("warn", "connexion refusée, compte bloqué", { email })
     return res.status(403).send(V.authPage("login", "Ce compte est bloqué. La boutique, si elle existe, reste en ligne. Écris à l'équipe NovaDZ."))
   }
-  const { session } = auth(req)
+  loginSucceeded(req, email)
+  const session = regenerateSession(req, res)
   session.userId = user.id
   session.supportStoreId = null
   saveSession(session.sid, session)
-  res.redirect("/welcome")
+  res.redirect(afterLogin(user))
 })
 
 app.get("/welcome", (req, res) => {
@@ -480,7 +800,72 @@ app.post("/welcome", (req, res) => {
   res.redirect("/dashboard")
 })
 
+/* Déconnexion en POST : un simple lien (ou une image piégée sur un autre site)
+   ne doit pas pouvoir déconnecter le marchand. Le GET affiche une confirmation. */
+/* Raccourci de démonstration — présent seulement si NOVADZ_DEMO=1 (local).
+   /demo-login/vitrine?next=/dashboard/studio ouvre la session du compte de
+   démonstration et renvoie vers l'écran demandé. En production la variable
+   n'existe pas : ces URL n'existent pas non plus (404). Les mots de passe de
+   démonstration sont déjà publics et le mode démo est explicitement local. */
+/* Diagnostic de démonstration : /demo-status dit ce que le serveur voit
+   (mode, cookie reçu, session, utilisateur). Utile quand un aperçu distant
+   renvoie sans cesse vers la page de connexion. */
+if (process.env.NOVADZ_DEMO === "1") {
+  app.get("/demo-status", (req, res) => {
+    const raw = String(req.headers.cookie || "")
+    const sid = (req.cookies && req.cookies.sid) || ""
+    const sess = sid ? require("./src/auth").SESSIONS.get(sid) : null
+    const user = sess && sess.userId ? db.prepare("SELECT email FROM users WHERE id = ?").get(sess.userId) : null
+    res.type("application/json").send(JSON.stringify({
+      ok: true,
+      mode: "demo",
+      demoHome: process.env.NOVADZ_DEMO_HOME || "",
+      secureCookieForced: process.env.NOVADZ_FORCE_SECURE_COOKIE === "1",
+      frameAncestors: process.env.NOVADZ_FRAME_ANCESTORS || "'self'",
+      clientSaysHttps: String(req.headers["x-forwarded-proto"] || "") === "https",
+      socketEncrypted: !!(req.socket && req.socket.encrypted),
+      cookieHeaderReceived: !!raw,
+      sidReceived: !!sid,
+      sessionFound: !!sess,
+      loggedAs: user ? user.email : null,
+      hint: !sid ? "aucun cookie sid recu : cookie bloque ou non envoye par le proxy"
+        : !sess ? "cookie recu mais session inconnue (serveur redemarre ?)"
+          : user ? "ok" : "session sans utilisateur"
+    }, null, 2))
+  })
+}
+
+if (process.env.NOVADZ_DEMO === "1") {
+  const DEMO_AS = { marchand: "demo@novadz.dz", vitrine: "vitrine@novadz.dz", admin: "admin@novadz.dz" }
+  app.get("/demo-login/:who", (req, res) => {
+    const email = DEMO_AS[String(req.params.who || "").toLowerCase()]
+    const user = email ? db.prepare("SELECT * FROM users WHERE email = ?").get(email) : null
+    if (!user) return res.status(404).send("Compte de démonstration absent : lance « npm run demo ».")
+    const session = regenerateSession(req, res)
+    session.userId = user.id
+    session.supportStoreId = null
+    const first = db.prepare("SELECT id FROM stores WHERE owner_id = ? ORDER BY id LIMIT 1").get(user.id)
+    if (first) session.storeId = first.id
+    saveSession(session.sid, session)
+    logRow("info", "connexion démo (raccourci)", { email })
+    /* on n'accepte qu'un chemin interne, jamais //ailleurs.tld */
+    const asked = String(req.query.next || "")
+    const safe = /^\/[A-Za-z0-9/_?=&.%-]*$/.test(asked) && asked.charAt(1) !== "/" ? asked : ""
+    const dest = safe || (user.role === "admin" ? "/admin" : "/dashboard")
+    /* on garde le rôle dans l'URL : si le cookie est perdu en route, la page
+       suivante rouvre la session toute seule */
+    const who = String(req.params.who || "").toLowerCase()
+    res.redirect(dest + (dest.includes("?") ? "&" : "?") + "as=" + encodeURIComponent(who))
+  })
+}
+
 app.get("/logout", (req, res) => {
+  const { user } = auth(req)
+  if (!user) return res.redirect("/")
+  res.send(V.logoutPage(user))
+})
+
+app.post("/logout", (req, res) => {
   const { session } = auth(req)
   session.userId = null
   session.supportStoreId = null
@@ -512,9 +897,10 @@ app.post("/rejoindre/:token", (req, res) => {
   }
   const out = TEAM.accept(req.params.token, { name: req.body.name, password: req.body.password, login: req.body.login })
   if (out.error) return res.status(400).send(V.joinPage(out.row || row, out.error, out.fields))
-  session.userId = out.userId
-  session.storeId = out.storeId
-  saveSession(session.sid, session)
+  const fresh = regenerateSession(req, res)
+  fresh.userId = out.userId
+  fresh.storeId = out.storeId
+  saveSession(fresh.sid, fresh)
   res.send(V.joinReady(row.store_name, out.loginName))
 })
 
@@ -544,6 +930,9 @@ app.get("/dashboard/visites", requireAuth, requireStore, (req, res) => {
 
 app.get("/dashboard", requireAuth, requireStore, (req, res) => {
   const { store } = req
+  /* le lien d'aperçu est créé au premier affichage du tableau de bord */
+  store.preview_token = previewTokenFor(store)
+  store.preview_url = `${req.protocol}://${req.get("host")}/apercu/${store.preview_token}`
   if (store.site_kind === "vitrine") {
     const pages = db.prepare("SELECT * FROM pages WHERE store_id = ? ORDER BY id DESC").all(store.id)
     const visits = db.prepare(`SELECT COALESCE(SUM(hits), 0) AS n FROM visits
@@ -569,6 +958,9 @@ app.get("/dashboard", requireAuth, requireStore, (req, res) => {
     revenue: seeOrders ? revenue : 0,
     orderCount: seeOrders ? real.length : 0,
     newOrders: seeOrders ? real.filter((o) => ORD.norm(o.status) === "nouvelle").length : 0,
+    toCheck: seeOrders ? real.filter((o) => ORD.norm(o.status) === "a_verifier").length : 0,
+    shipped: seeOrders ? real.filter((o) => ORD.norm(o.status) === "expediee").length : 0,
+    lost: seeOrders ? real.filter((o) => ORD.norm(o.status) === "perdue").length : 0,
     productCount: seeProducts ? products.length : 0,
     lowStock: seeProducts ? INV.lowStock(store.id, INV.threshold(store)).length : 0,
     avgBasket: seeOrders && real.length ? Math.round(revenue / real.length) : 0,
@@ -592,21 +984,20 @@ app.get("/dashboard/products/new", requireAuth, requireStore, (req, res) =>
 
 app.post("/dashboard/products", requireAuth, requireStore, (req, res) => {
   const { title, description } = req.body
-  if (!String(title || "").trim()) {
-    return res.redirect("/dashboard/products/new?error=" + encodeURIComponent("Le nom du produit est obligatoire."))
-  }
-  const price = Math.round(parseFloat(String(req.body.price || "0").replace(",", ".")) * 100)
-  if (!Number.isFinite(price) || price < 0) {
-    return res.redirect("/dashboard/products/new?error=" + encodeURIComponent("Le prix est invalide. Écris un nombre, par exemple 2500."))
-  }
-  const stock = parseInt(req.body.stock || "0", 10)
-
-  const compare = Math.max(0, Math.round(parseFloat(req.body.compare || "0") * 100) || 0)
-  const info = db.prepare(`INSERT INTO products (store_id, title, description, price_cents, image, category_id, focal, stock, active, compare_cents, bundle_ids)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(req.store.id, String(title).trim(), description || "", price, req.body.image || null,
+  const fail = (msg) => res.redirect("/dashboard/products/new?error=" + encodeURIComponent(msg))
+  if (!String(title || "").trim()) return fail("Le nom du produit est obligatoire.")
+  const price = parseDzdCents(req.body.price)
+  if (price === null) return fail("Le prix est invalide. Écris un nombre, par exemple 2 500 ou 2500,50.")
+  const stock = parseQty(req.body.stock)
+  if (stock === null) return fail("Le stock est invalide. Écris un nombre entier, par exemple 12.")
+  const compare = String(req.body.compare || "").trim() ? parseDzdCents(req.body.compare) : 0
+  if (compare === null) return fail("Le prix barré est invalide. Écris un nombre, ou laisse le champ vide.")
+  const cost = String(req.body.cost || "").trim() ? parseDzdCents(req.body.cost) : 0
+  const info = db.prepare(`INSERT INTO products (store_id, title, description, price_cents, image, category_id, focal, stock, active, compare_cents, bundle_ids, cost_cents, video)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(req.store.id, String(title).trim().slice(0, 140), String(description || "").slice(0, 5000), price, req.body.image || null,
       parseInt(req.body.category_id, 10) || null, req.body.focal || "center", stock, req.body.active ? 1 : 0,
-      compare, bundleIds(req.body.bundle_ids))
+      compare, bundleIds(req.body.bundle_ids), cost === null ? 0 : cost, cleanVideo(req.body.video))
   saveExtras(info.lastInsertRowid, req.body)
   if (stock) INV.record(req.store.id, info.lastInsertRowid, null, stock, stock, "creation", null, "Stock initial")
   res.redirect("/dashboard/products")
@@ -626,23 +1017,37 @@ app.get("/dashboard/products/:id", requireAuth, requireStore, (req, res) => {
 })
 
 app.post("/dashboard/products/:id", requireAuth, requireStore, (req, res) => {
+  const fail = (msg) => res.redirect(`/dashboard/products/${req.params.id}?error=` + encodeURIComponent(msg))
+  if (!String(req.body.title || "").trim()) return fail("Le nom du produit est obligatoire.")
+  const price = parseDzdCents(req.body.price)
+  if (price === null) return fail("Le prix est invalide. Écris un nombre, par exemple 2 500 ou 2500,50.")
+  const newStock = parseQty(req.body.stock)
+  if (newStock === null) return fail("Le stock est invalide. Écris un nombre entier, par exemple 12.")
+  const compare = String(req.body.compare || "").trim() ? parseDzdCents(req.body.compare) : 0
+  if (compare === null) return fail("Le prix barré est invalide. Écris un nombre, ou laisse le champ vide.")
   const prev = db.prepare("SELECT image, stock FROM products WHERE id = ? AND store_id = ?").get(req.params.id, req.store.id)
-  const newStock = parseInt(req.body.stock || "0", 10)
+  const cost = String(req.body.cost || "").trim() ? parseDzdCents(req.body.cost) : 0
   db.prepare(`UPDATE products SET title = ?, description = ?, price_cents = ?, image = ?, category_id = ?,
-              focal = ?, stock = ?, active = ?, compare_cents = ?, bundle_ids = ? WHERE id = ? AND store_id = ?`)
-    .run(String(req.body.title).trim(), req.body.description || "", Math.round(parseFloat(req.body.price || "0") * 100),
+              focal = ?, stock = ?, active = ?, compare_cents = ?, bundle_ids = ?, cost_cents = ?, video = ? WHERE id = ? AND store_id = ?`)
+    .run(String(req.body.title).trim().slice(0, 140), String(req.body.description || "").slice(0, 5000), price,
       req.body.image || null, parseInt(req.body.category_id, 10) || null, req.body.focal || "center",
       newStock, req.body.active ? 1 : 0,
-      Math.max(0, Math.round(parseFloat(req.body.compare || "0") * 100) || 0),
-      bundleIds(req.body.bundle_ids), req.params.id, req.store.id)
+      compare,
+      bundleIds(req.body.bundle_ids), cost === null ? 0 : cost, cleanVideo(req.body.video), req.params.id, req.store.id)
   saveExtras(req.params.id, req.body)
   if (prev && prev.stock !== newStock) INV.record(req.store.id, Number(req.params.id), null, newStock - prev.stock, newStock, "inventaire", null, "Modifié depuis la fiche produit")
-  if (prev && prev.image && prev.image !== req.body.image) UPLOADS.removeUrl(prev.image)
+  if (prev && prev.image && prev.image !== req.body.image) UPLOADS.removeUrl(prev.image, db)
   res.redirect("/dashboard/products")
 })
 
 app.post("/dashboard/products/:id/delete", requireAuth, requireStore, (req, res) => {
+  const prev = db.prepare("SELECT image FROM products WHERE id = ? AND store_id = ?").get(req.params.id, req.store.id)
+  const gallery = db.prepare("SELECT url FROM product_images WHERE product_id = ?").all(req.params.id)
   db.prepare("DELETE FROM products WHERE id = ? AND store_id = ?").run(req.params.id, req.store.id)
+  db.prepare("DELETE FROM product_images WHERE product_id = ?").run(req.params.id)
+  /* les fichiers partagés avec un autre produit sont conservés (removeUrl vérifie) */
+  if (prev && prev.image) UPLOADS.removeUrl(prev.image, db)
+  for (const g of gallery) UPLOADS.removeUrl(g.url, db)
   res.redirect("/dashboard/products")
 })
 
@@ -726,6 +1131,15 @@ app.get("/dashboard/stats", requireAuth, requireStore, (req, res) => {
   res.send(V.dashStats(req.user, req.store, STATS.business(req.store.id)))
 })
 
+/* Dépense publicitaire du jour : le seul chiffre que la boutique ne peut pas
+   deviner. Sans elle, « bénéfice net » resterait un chiffre d'affaires déguisé. */
+app.post("/dashboard/stats/pub", requireAuth, requireStore, (req, res) => {
+  const cents = parseDzdCents(req.body.amount)
+  if (cents === null) return res.redirect("/dashboard/stats?erreur=" + encodeURIComponent("Montant invalide."))
+  STATS.saveAdSpend(req.store.id, req.body.day, req.body.channel, cents)
+  res.redirect("/dashboard/stats?saved=1")
+})
+
 /* quelques colis ouverts, pas toute la file : l'API du transporteur a un quota */
 const refreshOpen = async (storeId) => {
   const rows = db.prepare(`SELECT s.* FROM shipments s WHERE s.store_id = ?
@@ -781,11 +1195,23 @@ app.get("/dashboard/orders", requireAuth, requireStore, async (req, res, next) =
     }
     return true
   })
+  /* qui suit quelle commande : le nom est posé sur la ligne, sans requête de plus */
+  const names = new Map()
+  for (const m of ASSIGN.agents(req.store.id)) names.set(m.id, ASSIGN.nameOf(m))
+  for (const o of orders) o.agent_name = o.assigned_to ? names.get(o.assigned_to) || "" : ""
   res.send(V.dashOrders(req.user, req.store, orders, {
     filter, shown, sources: STATS.bySource(req.store.id), devices: STATS.byDevice(req.store.id),
+    agents: ASSIGN.agents(req.store.id),
     bulkDone: parseInt(req.query.lots, 10) || 0,
   }))
   } catch (e) { next(e) }
+})
+
+/* Répartir : chaque commande en attente reçoit un nom, à tour de rôle.
+   Le vendeur peut le faire après une nuit de commandes. */
+app.post("/dashboard/orders/repartir", requireAuth, requireStore, (req, res) => {
+  const n = ASSIGN.spread(req.store.id)
+  res.redirect("/dashboard/orders?lots=" + n)
 })
 
 /* --- une commande de test, hors chiffre d'affaires (aucun stock touché) --- */
@@ -821,14 +1247,14 @@ app.post("/dashboard/orders/:id/edit", requireAuth, requireStore, (req, res) => 
     product_id: parseInt(r.product_id, 10) || null,
     variant_id: parseInt(r.variant_id, 10) || null,
     title: String(r.title || "").trim().slice(0, 160),
-    price_cents: Math.max(0, Math.round(parseFloat(r.price || "0") * 100) || 0),
+    price_cents: parseDzdCents(r.price) || 0,
     qty: Math.max(1, parseInt(r.qty, 10) || 1),
   })).filter((r) => r.title)
   if (!items.length) return res.redirect(`/dashboard/orders/${order.id}?edit=vide`)
 
   const subtotal = items.reduce((a, b) => a + b.price_cents * b.qty, 0)
-  const shipping = Math.max(0, Math.round(parseFloat(req.body.shipping || "0") * 100) || 0)
-  const discount = Math.max(0, Math.round(parseFloat(req.body.discount || "0") * 100) || 0)
+  const shipping = parseDzdCents(req.body.shipping) || 0
+  const discount = parseDzdCents(req.body.discount) || 0
   const total = Math.max(0, subtotal - discount) + shipping
   const delivery = req.body.delivery_type === "desk" ? "desk" : "home"
 
@@ -1013,7 +1439,7 @@ app.post("/dashboard/design/save", requireAuth, requireStore, (req, res) => {
   const body = req.body || {}
   const draft = readOwnDraft(req.store)
 
-  if (body.design) draft.design = SECTIONS.sanitizeDesign({ siteTemplate: (draft.design || {}).siteTemplate, ...body.design })
+  if (body.design) draft.design = SECTIONS.sanitizeDesign({ siteTemplate: (draft.design || {}).siteTemplate, ...body.design }, req.store)
   if (body.nav !== undefined) {
     const nav = SECTIONS.sanitizeNav(body.nav)
     if (!nav) return res.status(400).json({ ok: false, error: "navigation invalide" })
@@ -1130,7 +1556,7 @@ app.get("/dashboard/design/source", requireAuth, requireStore, (req, res) => {
 app.post("/dashboard/design/template", requireAuth, requireStore, (req, res) => {
   const body = req.body || {}
   const draft = readOwnDraft(req.store)
-  if (body.design) draft.design = SECTIONS.sanitizeDesign(body.design)
+  if (body.design) draft.design = SECTIONS.sanitizeDesign(body.design, req.store)
   if (body.nav !== undefined) {
     const nav = SECTIONS.sanitizeNav(body.nav)
     if (!nav) return res.status(400).json({ ok: false, error: "navigation invalide" })
@@ -1169,7 +1595,39 @@ app.get("/dashboard/studio", requireAuth, requireStore, (req, res) => {
 app.get("/dashboard/studio/meta", requireAuth, requireStore, (req, res) => {
   const tpl = studioTpl(req.store)
   const products = SHOP.searchProducts(req.store.id, {}).map((p) => ({ id: p.id, title: p.title, price: p.price_cents }))
-  res.json({ ok: true, pages: tpl ? STUDIO.list(req.store.id, tpl) : [], products, slug: req.store.slug })
+  /* bibliothèque d'images : les photos déjà envoyées, plus récentes d'abord.
+     Le marchand réutilise une image au lieu de la renvoyer. */
+  const images = (() => {
+    const out = [], seen = new Set()
+    try {
+      const dir = path.join(__dirname, "public", "uploads")
+      const files = fs.readdirSync(dir)
+        .filter((f) => /^[\w.-]+\.(jpe?g|png|webp|gif|avif)$/i.test(f))
+        .map((f) => { const st = (() => { try { return fs.statSync(path.join(dir, f)) } catch (_) { return null } })(); return { f, m: st ? st.mtimeMs : 0 } })
+        .sort((a, b) => b.m - a.m)
+      for (const { f } of files) {
+        const url = "/uploads/" + f
+        if (seen.has(url)) continue
+        seen.add(url); out.push(url)
+        if (out.length >= 60) break
+      }
+    } catch (_) {}
+    for (const p of products) if (p.image && !seen.has(p.image)) { seen.add(p.image); out.push(p.image) }
+    return out
+  })()
+  const shared = tpl ? STUDIO.sharedOf(req.store.id, tpl) : { header: "", footer: "" }
+  res.json({
+    ok: true, pages: tpl ? STUDIO.list(req.store.id, tpl) : [], products, images, slug: req.store.slug,
+    shared: { header: !!shared.header, footer: !!shared.footer },
+  })
+})
+
+/* « Séparer les en-têtes » : chaque page retrouve le sien. */
+app.post("/dashboard/studio/shared/off", requireAuth, requireStore, (req, res) => {
+  const tpl = studioTpl(req.store)
+  if (!tpl) return res.json({ ok: false, error: "Aucun modèle choisi." })
+  STUDIO.forgetShared(req.store.id, tpl)
+  res.json({ ok: true })
 })
 app.get("/dashboard/studio/frame", requireAuth, requireStore, (req, res) => {
   const tpl = studioTpl(req.store)
@@ -1178,9 +1636,107 @@ app.get("/dashboard/studio/frame", requireAuth, requireStore, (req, res) => {
   const products = SHOP.searchProducts(req.store.id, {})
   const base = STUDIO.html(req.store.id, tpl, key, "edit") || (key !== "home" ? SITES.pageSource(tpl, key) : "")
   if (key !== "home" && !base) return res.status(404).send("Page introuvable.")
-  const page = SITES.render(req.store, products, tpl, { studio: true, html: base, key, auto: key === "home" })
+  /* « N'ajoute rien si on n'ajoute rien » : la grille de produits n'est posée
+     d'office que sur une page jamais enregistrée. Dès que le marchand a
+     enregistré sa page, on respecte son choix : s'il a enlevé la grille, elle
+     ne revient pas. */
+  const page = SITES.render(req.store, products, tpl, { studio: true, html: base, key, auto: key === "home" && !base })
   res.set({ "Content-Security-Policy": STUDIO.FRAME_CSP, "Cache-Control": "no-store" }).send(page)
 })
+/* ---------------- les autres pages de la boutique, dans le Studio ----------------
+   Une boutique n'a pas qu'une page d'accueil : fiche produit, panier, commande,
+   confirmation. Elles sont dessinées par le thème, mais le marchand doit
+   pouvoir y écrire : titre, textes, images, blocs. On lui montre donc la vraie
+   page, avec ses vrais produits, et les parties vivantes (le bouton d'achat, le
+   formulaire) sont encadrées « zone protégée ». À l'enregistrement, l'encadré
+   redevient la variable {{achat}} / {{panier}} / {{formulaire}} / {{commande}} :
+   la page reste une page qui marche. */
+const STUDIO_PAGES = [
+  { key: "product", name: "Fiche produit" },
+  { key: "cart", name: "Panier" },
+  { key: "checkout", name: "Commande" },
+  { key: "done", name: "Confirmation" },
+]
+const studioPageKey = (k) => STUDIO_PAGES.reduce((ok, p) => (p.key === k ? k : ok), "")
+
+const pageVide = (titre, texte) => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><link rel="stylesheet" href="/dashboard/studio/plateforme.css"></head>
+<body style="margin:0;font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#101828;background:#f7f7f8">
+<div style="max-width:560px;margin:14vh auto;padding:28px;background:#fff;border:1px solid #e6e9ee;border-radius:16px;text-align:center">
+<h1 style="font-size:22px;margin:0 0 10px">${titre}</h1><p style="margin:0;color:#475467">${texte}</p></div></body></html>`
+
+app.get("/dashboard/studio/plateforme", requireAuth, requireStore, (req, res) => {
+  const key = studioPageKey(String(req.query.page || ""))
+  if (!key) return res.status(404).send(pageVide("Page inconnue", "Cette page n'existe pas."))
+  const store = req.store
+  SHOP.ensureShipping(store.id)
+  const types = SHOP.deliveryTypes(store)
+  const delivery = types.length ? types[0].id : "home"
+  const premier = db.prepare("SELECT * FROM products WHERE store_id = ? AND active = 1 ORDER BY id LIMIT 1").get(store.id)
+  let html = ""
+  if (!premier && key !== "done") {
+    return res.status(200).send(pageVide("Ajoutez d'abord un produit",
+      "Cette page se remplit avec vos produits. Ouvrez « Produits », ajoutez-en un, puis revenez ici."))
+  }
+  /* Langue de l'atelier : un marchand qui lit son Studio en arabe voit la page
+     de sa boutique en arabe, avec exactement les libellés du site public arabe
+     (même moteur, même dictionnaire). C'est un simple affichage : la page
+     enregistrée reste en français, sinon la langue deviendrait un contenu figé. */
+  const uiAr = String((req.query && req.query.uilang) || (req.cookies && req.cookies.ndz_ui) || "") === "ar"
+  const lang = uiAr && I18N.storeLangs(store).includes("ar") ? "ar" : "fr"
+  html = I18N.run({ req: { ...req, query: { ...(req.query || {}), lang } } }, () => {
+    if (key === "product") return V.productPage(store, premier, 0, [], { studio: true })
+    if (key === "cart" || key === "checkout") {
+      const { items, totals } = cartDetails(store, new Map([[String(premier.id), 1]]), null, null, delivery)
+      return key === "cart"
+        ? V.cartPage(store, items, totals, 1, null, true)
+        : V.checkoutPage(store, items, totals, 1, null, {
+          wilayas: SHOP.WILAYAS, shipping: SHOP.shippingTable(store.id), payments: PAY.list(store),
+          delivery: types, preview: true, studio: true,
+        })
+    }
+    const o = db.prepare("SELECT * FROM orders WHERE store_id = ? ORDER BY id DESC LIMIT 1").get(store.id)
+    return V.orderDone(store, o || {
+      ref: "NDZ-EXEMPLE", customer_name: "Sara Ben Salem", total_cents: premier ? premier.price_cents : 450000,
+      wilaya: store.wilaya || "Blida", address: "Cité 100 logements", phone: store.phone || "0555 00 00 00",
+    }, { studio: true })
+  })
+  if (lang === "ar") {
+    html = html.replace(/<html\b([^>]*)>/i, (m, a) => `<html${a.replace(/\s(dir|lang)="[^"]*"/gi, "")} dir="rtl" lang="ar">`)
+  }
+  /* on retire les scripts du marchand (ils ne tournent pas dans l'atelier) et
+     on pose l'outil d'édition + le repère des zones protégées */
+  html = html.replace(/<script\b[\s\S]*?<\/script\s*>/gi, "")
+  html = html.replace(/<\/head>/i, '<link rel="stylesheet" href="/dashboard/studio/plateforme.css"><script defer src="/_studio/frame.js"></script></head>')
+  res.set({ "Content-Security-Policy": STUDIO.FRAME_CSP, "Cache-Control": "no-store" }).send(html)
+})
+
+app.get("/dashboard/studio/plateforme.css", (req, res) => {
+  res.type("text/css").set("Cache-Control", "public, max-age=86400").send(
+    '[data-ndz-keep]{position:relative;outline:2px dashed #C8A15A;outline-offset:6px;border-radius:14px}' +
+    '[data-ndz-keep]:before{content:attr(data-ndz-keep-label);position:absolute;top:-11px;left:12px;z-index:5;' +
+    'background:#FBF3E3;color:#8A4A0B;border:1px solid #E7C9A5;border-radius:99px;padding:2px 10px;' +
+    'font:600 11px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;direction:ltr}')
+})
+
+app.post("/dashboard/studio/plateforme", requireAuth, requireStore, (req, res) => {
+  const key = studioPageKey(req.body && req.body.page)
+  if (!key) return res.status(400).json({ ok: false, error: "Page inconnue." })
+  const brut = String((req.body && req.body.html) || "")
+    .replace(/<link[^>]+plateforme\.css[^>]*>/gi, "")
+  /* La page est enregistrée en français : si le marchand travaille en arabe,
+     les libellés de la plateforme sont remis en français avant l'enregistrement.
+     La langue redevient un simple affichage, jamais un contenu figé. */
+  /* deux dictionnaires : celui de l'espace de gestion, et celui de la vitrine
+     (les pages produit, panier, commande sont dessinées par la plateforme) */
+  const clean = STUDIO.sanitize(I18N.unlocalize(require("./src/ui-ar").unlocalize(brut)))
+  if (!clean) return res.status(400).json({ ok: false, error: "Page invalide ou trop lourde (6 Mo max)." })
+  const d = SECTIONS.readDesign(req.store)
+  const design = SECTIONS.sanitizeDesign({ ...d, pageCode: { ...(d.pageCode || {}), [key]: clean } })
+  db.prepare("UPDATE stores SET design = ? WHERE id = ?").run(JSON.stringify(design), req.store.id)
+  logRow("info", `page ${key} modifiée dans le studio (${req.store.slug})`, { bytes: clean.length })
+  res.json({ ok: true, bytes: clean.length })
+})
+
 app.post("/dashboard/studio/save", requireAuth, requireStore, (req, res) => {
   const tpl = studioTpl(req.store)
   if (!tpl) return res.status(400).json({ ok: false, error: "Choisis d'abord un template." })
@@ -1199,6 +1755,77 @@ app.post("/dashboard/studio/publish", requireAuth, requireStore, (req, res) => {
   logRow("info", `studio publié (${req.store.slug})`, { tpl })
   res.json({ ok: true })
 })
+/* Couleur des prix : un seul réglage, gardé avec la boutique.
+   Pourquoi côté serveur : les prix s'affichent aussi sur la fiche produit, le
+   panier et la commande, qui ne sont pas la page ouverte dans le Studio. Une
+   variable (--ndz-prix) posée une fois les colore tous. */
+app.post("/dashboard/studio/couleur", requireAuth, requireStore, (req, res) => {
+  const prix = String((req.body && req.body.prix) || "").trim()
+  if (prix && !/^#[0-9a-f]{6}$/i.test(prix)) return res.status(400).json({ ok: false, error: "Couleur invalide." })
+  const d = SECTIONS.readDesign(req.store)
+  const design = SECTIONS.sanitizeDesign({ ...d, prix: prix || "" }, req.store)
+  db.prepare("UPDATE stores SET design = ? WHERE id = ?").run(JSON.stringify(design), req.store.id)
+  res.json({ ok: true, prix: design.prix || "" })
+})
+
+/* Nom et prix d'un produit, modifiés depuis le Studio.
+   Pourquoi ici : dans une boutique, la grille « Nos produits » est dessinée à
+   partir de la base. Sans cette route, cliquer un prix dans l'éditeur ne
+   faisait rien — il fallait sortir du Studio et ouvrir « Produits ». */
+app.post("/dashboard/studio/produit", requireAuth, requireStore, (req, res) => {
+  const id = parseInt(req.body && req.body.id, 10)
+  const produit = id ? db.prepare("SELECT * FROM products WHERE id = ? AND store_id = ?").get(id, req.store.id) : null
+  if (!produit) return res.status(404).json({ ok: false, error: "Ce produit n'existe plus." })
+  const titre = String((req.body && req.body.titre) || "").trim().slice(0, 140)
+  if (titre.length < 2) return res.status(400).json({ ok: false, error: "Le nom du produit ne peut pas être vide." })
+  const prix = parseDzdCents(req.body && req.body.prix)
+  if (prix === null) return res.status(400).json({ ok: false, error: "Le prix doit être un nombre : 2500, ou 2500,50." })
+  db.prepare("UPDATE products SET title = ?, price_cents = ? WHERE id = ? AND store_id = ?").run(titre, prix, id, req.store.id)
+  logRow("info", `produit modifié depuis le studio (${req.store.slug})`, { id, prix })
+  const prixTxt = (prix / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " " + (req.store.currency || "DZD")
+  res.json({ ok: true, id, titre, prix, prixTxt })
+})
+/* La police arabe du site. Le marchand en essaie une, il voit sa page changer
+   tout de suite ; on garde la dernière choisie. */
+app.post("/dashboard/studio/police", requireAuth, requireStore, (req, res) => {
+  const id = String((req.body && req.body.id) || "")
+  if (!AR_FONTS.valid(id)) return res.status(400).json({ ok: false, error: "Cette police n'existe pas." })
+  db.prepare("UPDATE stores SET arabic_font = ? WHERE id = ?").run(id, req.store.id)
+  res.json({ ok: true, id, family: AR_FONTS.of({ arabic_font: id }).family })
+})
+app.get("/dashboard/studio/polices", requireAuth, requireStore, (req, res) => {
+  res.json({ ok: true, fonts: AR_FONTS.FONTS, current: AR_FONTS.of(req.store).id })
+})
+
+/* L'assistant écrit la page : trois réponses, des textes prêts.
+   Rien n'est enregistré ici — le Studio les pose dans la page, et le marchand
+   voit le résultat tout de suite (Ctrl+Z s'il n'aime pas). */
+app.post("/dashboard/studio/ecrire", requireAuth, requireStore, (req, res) => {
+  const tpl = studioTpl(req.store)
+  if (!tpl) return res.status(400).json({ ok: false, error: "Choisis d'abord un modèle." })
+  const lang = I18N.langNow(req.store)
+  const produits = SHOP.searchProducts(req.store.id, {}) || []
+  const prix = produits.map((p) => Number(p.price_cents)).filter((n) => n > 0)
+  const prixMin = prix.length ? Math.min.apply(null, prix) / 100 : 0
+  const out = REDACTION.write(req.store, {
+    ...(req.body || {}),
+    name: req.store.name,
+    nProducts: produits.length,
+    priceFrom: prixMin ? prixMin.toLocaleString(lang === "ar" ? "ar-DZ" : "fr-FR") + (lang === "ar" ? " دج" : " DZD") : "",
+  }, lang)
+  if (!out.ok) return res.status(400).json(out)
+  logRow("info", `studio : textes écrits par l'assistant (${req.store.slug})`, { lang })
+  res.json(out)
+})
+/* « Revenir à ce que voient mes clients » : on jette le brouillon, on garde
+   la version en ligne. Aucune publication, donc aucun risque. */
+app.post("/dashboard/studio/revert", requireAuth, requireStore, (req, res) => {
+  const tpl = studioTpl(req.store)
+  if (!tpl) return res.status(400).json({ ok: false, error: "Choisis d'abord un modèle." })
+  const n = STUDIO.revertLive(req.store.id, tpl)
+  logRow("info", `studio : retour à la version en ligne (${req.store.slug})`, { pages: n })
+  res.json({ ok: true, pages: n })
+})
 app.post("/dashboard/studio/reset", requireAuth, requireStore, (req, res) => {
   STUDIO.reset(req.store.id, "home")
   res.json({ ok: true })
@@ -1213,6 +1840,165 @@ app.post("/dashboard/studio/page", requireAuth, requireStore, (req, res) => {
 })
 app.post("/dashboard/studio/page/delete", requireAuth, requireStore, (req, res) => {
   res.json({ ok: STUDIO.deletePage(req.store.id, String(req.body.key || "")) > 0 })
+})
+
+/* ---------------- l'atelier : la page telle que le marchand la fabrique ----------------
+   Un seul état (sections, styles, textes, couleurs) rangé sur le serveur, en deux
+   exemplaires : le brouillon et ce que voient les clients. « Enregistrer » n'écrit
+   que le brouillon ; « Publier » recopie le brouillon dans la version en ligne et
+   garde l'ancienne de côté pour pouvoir y revenir. Le fichier servi est la maquette
+   autonome de l'atelier : on lui glisse, au moment de l'envoi, la boutique du
+   marchand (son nom, ses vrais produits) et son brouillon. */
+const ATELIER_FILE = path.join(__dirname, "public", "_proto", "index2.html")
+/* Le logo réglé dans l'atelier (image, emplacement, taille, nom à côté) suit
+   le marchand sur sa boutique : sinon il choisissait une chose et en voyait
+   une autre. On n'écrit que ce qu'il a vraiment choisi, et jamais un retrait :
+   son logo de la dashboard reste en place s'il n'en met pas un ici. */
+const ATELIER_LOG_SIZES = { petit: 20, moyen: 26, grand: 36 }
+const applyAtelierLogo = (store, state) => {
+  const set = state && state.design && state.design.set
+  if (!set || typeof set !== "object") return
+  const logo = typeof set.logo === "string" ? set.logo.trim() : ""
+  let design = {}
+  try { design = JSON.parse(store.design || "{}") || {} } catch (_) { design = {} }
+  /* le marchand a retiré dans l'atelier le logo qu'il y avait mis : on le
+     retire aussi de la boutique. Un logo venu de la dashboard reste intact. */
+  if (!logo) {
+    if (design.logoFromAtelier) {
+      delete design.logo
+      delete design.logoFromAtelier
+      design.showLogo = false
+      db.prepare("UPDATE stores SET design = ?, logo = '' WHERE id = ?").run(JSON.stringify(design), store.id)
+    }
+    return
+  }
+  design.logo = logo
+  design.logoFromAtelier = true
+  design.showLogo = true
+  design.logoPlace = ["gauche", "centre", "droite"].includes(set.logoPos) ? set.logoPos : "gauche"
+  design.logoSize = ATELIER_LOG_SIZES[set.logoSize] || 28
+  design.showName = set.logoName !== "logo"
+  db.prepare("UPDATE stores SET design = ?, logo = ? WHERE id = ?").run(JSON.stringify(design), logo, store.id)
+}
+const atelierPage = (cfg) => {
+  let html = fs.readFileSync(ATELIER_FILE, "utf8")
+  const boot = (cfg.head || '<meta name="robots" content="noindex">') +
+    `<script>window.NDZ_STUDIO = ${JSON.stringify(cfg).replace(/</g, "\\u003c")}</script>`
+  html = html.replace(/<title>[\s\S]*?<\/title>/i, "")
+  return html.includes("</head>") ? html.replace("</head>", boot + "</head>") : boot + html
+}
+/* la tête de la page publique : ce que Google et WhatsApp en montrent */
+const hEsc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]))
+const atelierHead = (store, state) => {
+  const name = store.name || "Boutique"
+  const desc = String(store.tagline || store.about || "").slice(0, 180) || ("Boutique en ligne — " + name)
+  let img = ""
+  try {
+    const p = SHOP.searchProducts(store.id, {})[0]
+    img = (p && p.image) || ""
+  } catch (_) {}
+  const url = "/" + store.slug
+  return `<title>${hEsc(name)}</title>` +
+    `<meta name="description" content="${hEsc(desc)}">` +
+    `<meta property="og:type" content="website">` +
+    `<meta property="og:title" content="${hEsc(name)}">` +
+    `<meta property="og:description" content="${hEsc(desc)}">` +
+    (img ? `<meta property="og:image" content="${hEsc(img)}">` : "") +
+    `<meta property="og:url" content="${hEsc(url)}">` +
+    `<meta name="twitter:card" content="summary_large_image">`
+}
+/* les vraies affaires de la boutique : ses produits, son nom, son téléphone */
+const atelierShop = (store) => {
+  let design = {}
+  try { design = JSON.parse(store.design || "{}") } catch (_) {}
+  let products = []
+  try {
+    products = SHOP.searchProducts(store.id, {}).slice(0, 30).map((p) => ({
+      id: p.id, title: p.title, price_cents: p.price_cents, img: p.image || "", description: p.description || "",
+    }))
+  } catch (_) {}
+  return {
+    name: store.name || "", tagline: store.tagline || "", phone: store.phone || "",
+    slug: store.slug || "", domain: store.domain || "", theme: store.theme || "",
+    logo: design.logo || store.logo || "", products,
+  }
+}
+/* les photos de l'atelier. On ne sert QUE des images : les maquettes de
+   travail rangées dans le même dossier (index2.html…) ne sont pas publiques. */
+app.get("/_proto/:file", (req, res, next) => {
+  if (!/^[\w.-]+\.(jpe?g|png|webp|gif|avif|svg)$/i.test(String(req.params.file || ""))) return next()
+  res.sendFile(path.join(__dirname, "public", "_proto", req.params.file), { maxAge: "7d" }, (e) => { if (e) next() })
+})
+app.get("/dashboard/studio/atelier", requireAuth, requireStore, (req, res) => {
+  const d = DESIGN.read(req.store.id)
+  res.set("Cache-Control", "no-store")
+  res.send(atelierPage({
+    mode: "edit", slug: req.store.slug, name: req.store.name, shop: atelierShop(req.store),
+    savedAt: d.saved_at, publishedAt: d.published_at, state: d.draft, live: d.live,
+    home: !!(d.live && d.live.home === true),
+    versions: DESIGN.versions(req.store.id),
+  }))
+})
+/* La page d'accueil publique, quand le marchand a coché « faire de cette page ma
+   page d'accueil » et publié. Sans ce choix, la boutique garde exactement la page
+   qu'elle avait : on ne remplace jamais le travail de quelqu'un sans son accord. */
+app.get("/:slug", (req, res, next) => {
+  if (RESERVED.has(String(req.params.slug || ""))) return next()
+  const store = getStore(req.params.slug)
+  if (!store) return next()
+  let live = null
+  try { live = DESIGN.read(store.id).live } catch (_) { live = null }
+  if (!live || live.home !== true) return next()
+  res.set({ "Cache-Control": "no-store" })
+  res.type("html").send(atelierPage({
+    mode: "public", slug: store.slug, name: store.name, shop: atelierShop(store), state: live,
+    head: atelierHead(store, live),
+  }))
+})
+
+app.get("/dashboard/studio/design", requireAuth, requireStore, (req, res) => {
+  const d = DESIGN.read(req.store.id)
+  res.set("Cache-Control", "no-store")
+  res.json({ ok: true, draft: d.draft, live: d.live, saved_at: d.saved_at, published_at: d.published_at, versions: DESIGN.versions(req.store.id) })
+})
+app.post("/dashboard/studio/design", requireAuth, requireStore, (req, res) => {
+  const out = DESIGN.saveDraft(req.store.id, req.body && req.body.state)
+  if (out.ok) logRow("info", `atelier : brouillon enregistré (${req.store.slug})`, { bytes: JSON.stringify(req.body.state || "").length })
+  res.status(out.ok ? 200 : 400).json(out)
+})
+app.post("/dashboard/studio/design/publish", requireAuth, requireStore, (req, res) => {
+  const state = req.body && req.body.state
+  const out = DESIGN.publish(req.store.id, state, "Publication")
+  if (out.ok) {
+    try { applyAtelierLogo(req.store, state) } catch (_) {}
+    logRow("info", `atelier : publié (${req.store.slug})`)
+  }
+  res.status(out.ok ? 200 : 400).json(out)
+})
+app.post("/dashboard/studio/design/restore", requireAuth, requireStore, (req, res) => {
+  const out = DESIGN.restore(req.store.id, req.body && req.body.id)
+  res.status(out.ok ? 200 : 400).json(out)
+})
+app.post("/dashboard/studio/design/revert", requireAuth, requireStore, (req, res) => {
+  const out = DESIGN.revert(req.store.id)
+  res.status(out.ok ? 200 : 400).json(out)
+})
+app.post("/dashboard/studio/design/preview", requireAuth, requireStore, (req, res) => {
+  const out = DESIGN.preview(req.store.id, req.body && req.body.state)
+  if (!out.ok) return res.status(400).json(out)
+  res.json({ ok: true, url: "/apercu/" + out.token })
+})
+/* le lien d'aperçu : il s'ouvre sans compte, il montre le brouillon, il expire
+   au bout de 7 jours, et il n'est jamais repris par les moteurs de recherche. */
+app.get("/apercu/:token", (req, res, next) => {
+  const v = DESIGN.previewOf(req.params.token)
+  /* ce n'est pas un lien de l'atelier : c'est peut-être le lien d'aperçu d'une
+     boutique (même adresse depuis toujours), on le laisse passer */
+  if (!v) return next()
+  const store = db.prepare("SELECT * FROM stores WHERE id = ?").get(v.storeId)
+  if (!store) return res.status(404).send("Boutique introuvable.")
+  res.set({ "Cache-Control": "no-store", "X-Robots-Tag": "noindex" })
+  res.send(atelierPage({ mode: "preview", slug: store.slug, name: store.name, shop: atelierShop(store), state: v.state }))
 })
 
 /* pages supplémentaires du studio : /<boutique>/s/<page> */
@@ -1255,9 +2041,9 @@ app.post("/:slug/s-form", (req, res) => {
 /* Template « site complet » : on le charge dans le brouillon, la mise en ligne reste explicite. */
 app.post("/dashboard/design/site-template", requireAuth, requireStore, (req, res) => {
   const id = String((req.body && req.body.id) || "")
-  if (id && !SITES.isSite(id)) return res.redirect("/dashboard/design/themes")
+  if (id && !SITES.isSiteForStore(id, req.store)) return res.redirect("/dashboard/design/themes")
   const draft = readOwnDraft(req.store)
-  draft.design = SECTIONS.sanitizeDesign({ ...draft.design, siteTemplate: id })
+  draft.design = SECTIONS.sanitizeDesign({ ...draft.design, siteTemplate: id }, req.store)
   db.prepare("UPDATE stores SET draft = ? WHERE id = ?").run(JSON.stringify(draft), req.store.id)
   res.redirect(id ? "/dashboard/studio" : "/dashboard/design/themes")
 })
@@ -1268,7 +2054,8 @@ app.post("/dashboard/design/template/:id/apply", requireAuth, requireStore, (req
   let payload = {}
   try { payload = JSON.parse(row.payload) } catch (_) { payload = {} }
   const draft = {
-    design: SECTIONS.sanitizeDesign(payload.design || {}),
+    /* le logo du marchand n'appartient pas au modèle : il survit à l'application */
+    design: SECTIONS.sanitizeDesign({ ...(payload.design || {}), logo: req.store.logo || "" }, req.store),
     sections: SECTIONS.sanitize(payload.sections) || payload.sections || {},
     nav: SECTIONS.sanitizeNav(payload.nav) || payload.nav || [],
     theme: isTheme(payload.theme) ? payload.theme : req.store.theme,
@@ -1317,7 +2104,7 @@ app.post("/dashboard/design/theme/public", requireAuth, requireStore, (req, res)
     bg: row.bg,
     accent: row.accent,
     ink: row.ink,
-  })
+  }, req.store)
   draft.publicThemeId = row.id
   draft.publicThemeName = row.name
   draft.publicThemeTouched = false
@@ -1411,7 +2198,7 @@ app.post("/dashboard/discounts", requireAuth, requireStore, (req, res) => {
   const code = String(req.body.code || "").trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 24)
   const kind = req.body.kind === "amount" ? "amount" : "percent"
   const value = Math.max(1, Math.min(kind === "percent" ? 100 : 1000000, parseInt(req.body.value, 10) || 0))
-  const min = Math.max(0, Math.round(parseFloat(req.body.min || "0") * 100))
+  const min = parseDzdCents(req.body.min) || 0
   const max = Math.max(0, parseInt(req.body.max, 10) || 0)
   if (!code) return res.redirect("/dashboard/discounts?error=" + encodeURIComponent("Le code promo est obligatoire. Lettres et chiffres seulement."))
   {
@@ -1444,7 +2231,7 @@ app.get("/dashboard/orders/export.csv", requireAuth, requireStore, (req, res) =>
     "sous_total", "remise", "code_promo", "livraison", "total", "statut",
     "plateforme", "campagne", "contenu_annonce", "identifiant_clic", "page_arrivee", "appareil",
     "appels_sans_reponse", "commande_test"]
-  const esc = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'
+  const esc = csvCell
   const lines = [head.join(",")].concat(
     rows.map((o) => [o.ref, o.created_at, o.customer_name, o.phone, o.wilaya, o.commune,
       o.address, o.geo_lat != null ? `${o.geo_lat},${o.geo_lng}` : "",
@@ -1551,6 +2338,11 @@ app.post("/dashboard/settings", requireAuth, requireStore, (req, res) => {
 
 
   db.prepare("UPDATE stores SET domain = ? WHERE id = ?").run(domain || null, req.store.id)
+  db.prepare("UPDATE stores SET phone_strict = ?, commune_required = ? WHERE id = ?")
+    .run(req.body.phone_strict ? 1 : 0, req.body.commune_required ? 1 : 0, req.store.id)
+  db.prepare("UPDATE stores SET deposit_cents = ?, deposit_note = ? WHERE id = ?")
+    .run(Math.max(0, Math.min(100000, Math.round(Number(req.body.deposit || 0) * 100))),
+      String(req.body.deposit_note || "").slice(0, 80), req.store.id)
 
   res.redirect("/dashboard/settings?saved=1")
 })
@@ -1575,6 +2367,50 @@ app.post("/dashboard/equipe/:id", requireAuth, requireStore, (req, res) => {
   if (req.body.remove === "1") TEAM.remove(req.store.id, id)
   else TEAM.updatePerms(req.store.id, id, TEAM.fromBody(req.body))
   res.redirect("/dashboard/equipe?saved=1")
+})
+
+app.get("/dashboard/boutiques", requireAuth, requireStore, (req, res) => {
+  const rows = db.prepare("SELECT * FROM stores WHERE owner_id = ? ORDER BY id").all(req.user.id)
+  const shops = rows.map((r) => ({
+    id: r.id, name: r.name, slug: r.slug, site_kind: r.site_kind, owner: true,
+    products: db.prepare("SELECT COUNT(*) AS n FROM products WHERE store_id = ?").get(r.id).n,
+  }))
+  for (const m of TEAM.storesFor(req.user.id)) {
+    if (!shops.some((s) => s.id === m.id)) shops.push({ id: m.id, name: m.name, slug: m.slug, site_kind: m.site_kind, owner: false })
+  }
+  const asked = req.query && (req.query.error || req.query.err)
+  res.send(V.dashStores(req.user, req.store, shops, asked ? String(asked).slice(0, 300) : ""))
+})
+
+app.post("/dashboard/boutiques", requireAuth, requireStore, (req, res) => {
+  const back = (msg) => res.redirect("/dashboard/boutiques?error=" + encodeURIComponent(msg))
+  const name = String(req.body.name || "").trim().slice(0, 60)
+  if (name.length < 2) return back("Donne un nom à ce nouvel espace.")
+  const kind = req.body.kind === "vitrine" ? "vitrine" : "commerce"
+  const slug = uniqueSlug(slugify(name))
+  const theme = isTheme(req.store.theme) ? req.store.theme : DEFAULT_THEME
+  const info = db.prepare("INSERT INTO stores (owner_id, slug, name, tagline, theme, site_kind) VALUES (?, ?, ?, ?, ?, ?)")
+    .run(req.user.id, slug, name, "", theme, kind)
+  const created = db.prepare("SELECT * FROM stores WHERE id = ?").get(info.lastInsertRowid)
+  /* même allure que la boutique ouverte : le vendeur ne recommence pas de zéro */
+  if (req.body.same_look) {
+    const src = SECTIONS.readDesign(req.store)
+    const copy = SECTIONS.sanitizeDesign({ ...src, logo: "", logoInverse: "", favicon: "", siteTemplate: "", customCss: "" }, created)
+    db.prepare("UPDATE stores SET design = ? WHERE id = ?").run(JSON.stringify(copy), created.id)
+  }
+  /* un modèle de site complet, comme à l'inscription : le Studio s'ouvre tout de suite */
+  const first = (SITES.forStore(kind)[0] || {}).id || ""
+  if (first) {
+    const draft = readOwnDraft(created)
+    draft.design = SECTIONS.sanitizeDesign({ ...draft.design, siteTemplate: first }, created)
+    db.prepare("UPDATE stores SET draft = ? WHERE id = ?").run(JSON.stringify(draft), created.id)
+  }
+  if (req.session) {
+    req.session.storeId = created.id
+    saveSession(req.session.sid, req.session)
+  }
+  logRow("info", "nouvel espace", { user: req.user.id, slug, kind })
+  res.redirect("/dashboard")
 })
 
 app.post("/dashboard/utiliser-boutique", requireAuth, requireStore, (req, res) => {
@@ -1948,7 +2784,7 @@ app.get("/dashboard/stock/export.csv", requireAuth, requireStore, (req, res) => 
       lines.push([p.title, p.sku || "", r.label || "", r.stock, (price / 100).toFixed(2), ((price * r.stock) / 100).toFixed(2)])
     }
   }
-  const csv = lines.map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\r\n")
+  const csv = lines.map((l) => l.map(csvCell).join(",")).join("\r\n")
   res.setHeader("Content-Type", "text/csv; charset=utf-8")
   res.setHeader("Content-Disposition", `attachment; filename="stock-${req.store.slug}.csv"`)
   res.send("\uFEFF" + csv)
@@ -1964,6 +2800,17 @@ app.post("/dashboard/reviews/:id/approve", requireAuth, requireStore, (req, res)
   db.prepare("UPDATE reviews SET approved = 1 - approved WHERE id = ? AND store_id = ?").run(req.params.id, req.store.id)
   res.redirect("/dashboard/reviews")
 })
+app.post("/dashboard/reviews/:id/photo", requireAuth, requireStore, (req, res) => {
+  const row = db.prepare("SELECT id FROM reviews WHERE id = ? AND store_id = ?").get(req.params.id, req.store.id)
+  if (!row) return res.redirect("/dashboard/reviews")
+  const value = String(req.body.photo_url || "").trim()
+  let photo = ""
+  if (/^\/uploads\/[\w.-]+\.(jpe?g|png|webp|gif)$/i.test(value)) photo = value
+  else if (/^https:\/\/[^\s"']+$/i.test(value)) photo = value.slice(0, 300)
+  db.prepare("UPDATE reviews SET photo = ? WHERE id = ? AND store_id = ?").run(photo, row.id, req.store.id)
+  res.redirect("/dashboard/reviews")
+})
+
 app.post("/dashboard/reviews/:id/delete", requireAuth, requireStore, (req, res) => {
   db.prepare("DELETE FROM reviews WHERE id = ? AND store_id = ?").run(req.params.id, req.store.id)
   res.redirect("/dashboard/reviews")
@@ -1979,6 +2826,13 @@ app.get("/dashboard/customers", requireAuth, requireStore, (req, res) => {
 })
 
 /* ---------------------------- REMBOURSEMENT + FACTURE ---------------------------- */
+/* Le vendeur coche quand l'argent de l'acompte est bien arrivé. */
+app.post("/dashboard/orders/:id/acompte", requireAuth, requireStore, (req, res) => {
+  db.prepare("UPDATE orders SET deposit_paid = 1 - deposit_paid WHERE id = ? AND store_id = ?")
+    .run(req.params.id, req.store.id)
+  res.redirect(req.body.back === "detail" ? `/dashboard/orders/${req.params.id}` : "/dashboard/orders")
+})
+
 app.post("/dashboard/orders/:id/refund", requireAuth, requireStore, (req, res) => {
   const order = db.prepare("SELECT * FROM orders WHERE id = ? AND store_id = ?").get(req.params.id, req.store.id)
   if (order) {
@@ -1996,7 +2850,7 @@ app.get("/dashboard/orders/:id/invoice", requireAuth, requireStore, (req, res) =
   res.send(V.invoice(req.store, order, items, { mode: "merchant", doc: req.query.type === "bl" ? "bl" : "facture" }))
 })
 
-app.get("/:slug/order/:ref/invoice", (req, res, next) => {
+app.get("/:slug/order/:ref/invoice", rateLimit("track", 60, 10 * 60e3), (req, res, next) => {
   const store = getStore(req.params.slug)
   if (!store) return next()
   const order = db.prepare("SELECT * FROM orders WHERE store_id = ? AND ref = ?").get(store.id, req.params.ref)
@@ -2179,16 +3033,24 @@ const storefrontHandler = (req, res, next) => {
   const cart = cartFor(session, store.slug)
   const count = [...cart.values()].reduce((a, b) => a + b, 0)
 
-  if (!req.query.preview) {
+  if (!previewMode(req)) {
     db.prepare(`INSERT INTO visits (store_id, day, path, hits) VALUES (?, date('now'), ?, 1)`).run(store.id, "/")
   }
   const siteId = SECTIONS.readDesign(store).siteTemplate
   if (siteId && !q && !cat) {
-    const mine = req.query.preview === "1" && ownsStore(req, store)
-    const page = SITES.render(store, products, siteId, { cartCount: count, html: STUDIO.html(store.id, siteId, "home", mine ? "draft" : "live") })
+    const mine = previewMode(req) && (ownsStore(req, store) || req._apercu === true)
+    const saved = STUDIO.html(store.id, siteId, "home", mine ? "draft" : "live")
+    const page = SITES.render(store, products, siteId, {
+      cartCount: count,
+      contactSent: req.query.envoye === "1",
+      contactError: req.query.envoye === "0",
+      html: saved,
+      /* page déjà enregistrée : on n'y ajoute aucune grille de produits */
+      auto: !saved,
+    })
     if (page) { res.set("Content-Security-Policy", SITES.CSP); return res.send(page) }
   }
-  let html = V.storefront(store, products, count, req.query.preview === "1", {
+  let html = V.storefront(store, products, count, previewMode(req), {
     q, cat, sort, count: products.length, categories: SHOP.categories(store.id).filter((c) => c.n > 0),
     origin: req.protocol + "://" + req.get("host"),
     sent: req.query.envoye === "1",
@@ -2215,6 +3077,35 @@ app.get("/voir/:id", (req, res) => {
 app.get("/themes", (req, res) => {
   const { user } = auth(req)
   res.send(V.publicThemesPage(PT.publicList(), user))
+})
+
+/* Lien d'aperçu : « regarde ma boutique » avant la mise en ligne.
+   On peut l'envoyer sur WhatsApp à sa famille sans créer de compte.
+   Il montre le BROUILLON, ne compte pas dans les visites et reste hors
+   des moteurs de recherche. */
+const apercuBar = (store) => `<div id="ndz-apercu-bar" role="status" style="position:fixed;left:0;right:0;bottom:0;z-index:2147483000;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;padding:12px 16px;background:#111;color:#fff;font:500 13px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;box-shadow:0 -8px 24px rgba(0,0,0,.18)">
+  <span style="opacity:.75">Aperçu</span>
+  <b style="font-weight:600">Ce site n'est pas encore en ligne.</b>
+  <a href="/" style="color:#fff;text-decoration:underline">Créer le mien</a>
+</div>`
+
+app.get("/apercu/:token", (req, res, next) => {
+  const token = String(req.params.token || "")
+  const row = token.length >= 16
+    ? db.prepare("SELECT * FROM stores WHERE preview_token = ? AND status = 'active'").get(token)
+    : null
+  if (!row) return res.status(404).send(V.errorPage("Ce lien d'aperçu n'existe plus."))
+  req._apercu = true
+  req.params = { ...req.params, slug: row.slug }
+  res.set("X-Robots-Tag", "noindex, nofollow")
+  const send = res.send.bind(res)
+  res.send = (html) => {
+    let out = String(html)
+    if (/<head[^>]*>/i.test(out)) out = out.replace(/<head([^>]*)>/i, '<head$1><meta name="robots" content="noindex, nofollow">')
+    if (/<\/body>/i.test(out)) out = out.replace(/<\/body>/i, apercuBar(row) + "</body>")
+    return send(out)
+  }
+  return storefrontHandler(req, res, next)
 })
 
 app.get("/:slug/search", storefrontHandler)
@@ -2549,7 +3440,7 @@ app.get("/:slug/checkout", (req, res) => {
   }))
 })
 
-app.post("/:slug/checkout", async (req, res) => {
+app.post("/:slug/checkout", rateLimit("checkout", 30, 10 * 60e3), async (req, res) => {
   const store = getStore(req.params.slug)
   if (!store) return res.redirect("/")
   const { session } = auth(req)
@@ -2573,6 +3464,7 @@ app.post("/:slug/checkout", async (req, res) => {
   }
 
   let { customer_name, phone, note } = req.body
+  note = String(note || "").slice(0, 500)
   /* bureau de retrait choisi (bureaux importés depuis l'API du transporteur).
      Le champ vaut « identifiant|nom|commune » : l'API du transporteur a besoin
      de son propre identifiant de bureau, pas seulement du nom affiché. */
@@ -2630,6 +3522,12 @@ app.post("/:slug/checkout", async (req, res) => {
       "Vérification anti-robot échouée. Merci de réessayer ou de nous appeler.",
       { wilayas: SHOP.WILAYAS, shipping: SHOP.shippingTable(store.id), payments: PAY.list(store), delivery: types }))
   }
+  /* la commune fait partie de l'adresse : sans elle, le colis se perd */
+  if (store.commune_required && !String(commune || "").trim() && !hasGeo) {
+    return res.status(400).send(V.checkoutPage(store, items, totals, items.reduce((a, b) => a + b.qty, 0),
+      "Merci de choisir ta commune : c'est elle qui guide le livreur.",
+      { wilayas: SHOP.WILAYAS, shipping: SHOP.shippingTable(store.id), payments: PAY.list(store), delivery: types }))
+  }
   if (store.phone_strict && !SEC.phoneOk(phone)) {
     return res.status(400).send(V.checkoutPage(store, items, totals, items.reduce((a, b) => a + b.qty, 0),
       "Numéro de téléphone invalide. Format attendu : 0555 12 34 56.",
@@ -2668,9 +3566,9 @@ app.post("/:slug/checkout", async (req, res) => {
        ip, ua, risk_score, risk_flags, captcha_ok, geo_lat, geo_lng, geo_accuracy,
        payment, pay_fee_cents, delivery_type, commune,
        source, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
-       click_id, click_kind, landing, referrer, device)
+       click_id, click_kind, landing, referrer, device, deposit_cents)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(store.id, ref, formData.values.customer_name, formData.values.phone,
         formData.values.address, wilaya || "", note || "",
         totals.subtotal, totals.shipping, totals.discount || 0, totals.promo ? totals.promo.code : "",
@@ -2679,7 +3577,8 @@ app.post("/:slug/checkout", async (req, res) => {
         geo ? geo.lat : null, geo ? geo.lng : null, geo ? Math.round(geo.acc) : null,
         payMethod, payFee, delivery, commune,
         attr.source, attr.utm_source, attr.utm_medium, attr.utm_campaign, attr.utm_content, attr.utm_term,
-        attr.click_id, attr.click_kind, attr.landing, attr.referrer, attr.device)
+        attr.click_id, attr.click_kind, attr.landing, attr.referrer, attr.device,
+        Math.min(Number(store.deposit_cents || 0), totals.total))
     if (Object.keys(formData.extra).length) {
       db.prepare("UPDATE orders SET form = ? WHERE id = ?").run(JSON.stringify(formData.extra), info.lastInsertRowid)
     }
@@ -2688,6 +3587,8 @@ app.post("/:slug/checkout", async (req, res) => {
       db.prepare("UPDATE orders SET desk_id = ?, desk_name = ?, desk_commune = ? WHERE id = ?")
         .run(deskId || "", deskName || "", deskCommune || "", info.lastInsertRowid)
     }
+    /* une commande qui arrive a déjà quelqu'un : personne n'appelle deux fois */
+    ASSIGN.auto(store.id, info.lastInsertRowid)
     if (totals.promo) db.prepare("UPDATE discounts SET uses = uses + 1 WHERE id = ?").run(totals.promo.id)
 
     const addItem = db.prepare("INSERT INTO order_items (order_id, product_id, title, price_cents, qty, variant_id) VALUES (?, ?, ?, ?, ?, ?)")
@@ -2757,7 +3658,7 @@ app.post("/:slug/checkout", async (req, res) => {
 
 
 /* ---------------------------- AVIS CLIENT ---------------------------- */
-app.post("/:slug/p/:id/review", (req, res) => {
+app.post("/:slug/p/:id/review", rateLimit("review", 10, 3600e3), (req, res) => {
   const store = getStore(req.params.slug)
   if (!store) return res.redirect("/")
   const p = db.prepare("SELECT id FROM products WHERE id = ? AND store_id = ?").get(req.params.id, store.id)
@@ -2765,9 +3666,16 @@ app.post("/:slug/p/:id/review", (req, res) => {
   const name = String(req.body.name || "").trim().slice(0, 40)
   const body = String(req.body.body || "").trim().slice(0, 500)
   const note = Math.max(1, Math.min(5, parseInt(req.body.rating, 10) || 5))
+  /* photo de client : elle est réduite par le navigateur, puis vérifiée ici
+     (vraie image, 2,5 Mo max). Un avis avec photo inspire bien plus confiance. */
+  let photo = ""
+  if (req.body.photo) {
+    const out = UPLOADS.saveDataUrl(req.body.photo)
+    if (out.ok) photo = out.url
+  }
   if (name) {
-    db.prepare("INSERT INTO reviews (store_id, product_id, name, rating, body, approved) VALUES (?, ?, ?, ?, ?, 0)")
-      .run(store.id, p.id, name, note, body)
+    db.prepare("INSERT INTO reviews (store_id, product_id, name, rating, body, photo, approved) VALUES (?, ?, ?, ?, ?, ?, 0)")
+      .run(store.id, p.id, name, note, body, photo)
   }
   res.redirect(`/${store.slug}/p/${p.id}?avis=ok#avis`)
 })
@@ -2798,11 +3706,15 @@ app.post("/:slug/account/login", (req, res) => {
   if (!store) return res.redirect("/")
   const email = String(req.body.email || "").trim().toLowerCase()
   const password = String(req.body.password || "")
+  const who = `${store.slug}|${email}`
+  if (loginWaitSec(req, who) > 0) return res.status(429).send("Trop d'essais de connexion. Patiente quelques minutes, puis réessaie.")
   const row = db.prepare("SELECT * FROM customers WHERE store_id = ? AND email = ?").get(store.id, email)
   if (!row || !verifyPassword(password, row.password_hash)) {
+    loginFailed(req, who)
     return res.redirect(`/${store.slug}/account?error=1`)
   }
-  const { session } = auth(req)
+  loginSucceeded(req, who)
+  const session = regenerateSession(req, res)
   if (!session.customer) session.customer = new Map()
   session.customer.set(store.slug, row.id)
   saveSession(session.sid, session)
@@ -2821,7 +3733,7 @@ app.post("/:slug/account/register", (req, res) => {
   if (exists) return res.redirect(`/${store.slug}/account?error=3`)
   const info = db.prepare("INSERT INTO customers (store_id, email, password_hash, name, phone) VALUES (?, ?, ?, ?, ?)")
     .run(store.id, email, hashPassword(password), name, phone)
-  const { session } = auth(req)
+  const session = regenerateSession(req, res)
   if (!session.customer) session.customer = new Map()
   session.customer.set(store.slug, info.lastInsertRowid)
   saveSession(session.sid, session)
@@ -2837,7 +3749,7 @@ app.post("/:slug/account/logout", (req, res) => {
 })
 
 /* ---------------------------- SUIVI DE COMMANDE ---------------------------- */
-app.get("/:slug/order/:ref", async (req, res, next) => {
+app.get("/:slug/order/:ref", rateLimit("track", 60, 10 * 60e3), async (req, res, next) => {
   if (RESERVED.has(req.params.slug)) return next()
   const store = getStore(req.params.slug)
   if (!store) return next()
@@ -2859,6 +3771,10 @@ app.get("/:slug/order/:ref", async (req, res, next) => {
 })
 
 /* ---------------------------- SEO : sitemap & robots ---------------------------- */
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain").send(
+    "User-agent: *\nAllow: /\nDisallow: /dashboard\nDisallow: /login\nDisallow: /signup\n")
+})
 app.get("/:slug/sitemap.xml", (req, res, next) => {
   const store = getStore(req.params.slug)
   if (!store) return next()
@@ -3232,12 +4148,7 @@ app.get("/dashboard/orders/:id/bordereau", requireAuth, requireStore, (req, res)
 /* ---------------------------- 404 ---------------------------- */
 app.use((req, res) => res.status(404).send(landing(db.prepare("SELECT * FROM stores WHERE status='active'").all())))
 
-app.use((err, req, res, next) => {
-  if (err && (err.type === "entity.too.large" || err.status === 413)) {
-    return res.status(413).json({ ok: false, error: "Image trop lourde. Maximum 2,5 Mo — la compression automatique réduit déjà la photo." })
-  }
-  next(err)
-})
+/* (le 413 « envoi trop lourd » est traité juste après les parseurs, en haut) */
 
 app.use((err, req, res, next) => {
   const msg = messageOf(err)
@@ -3307,8 +4218,13 @@ const startAt = (port) => {
     console.log(`  Adresse      : ${url}`)
     console.log(`  SQLite       : ${SQLITE.which()}`)
     console.log(`  Base         : ${process.env.NOVADZ_DB || "data/novadz.db"}`)
-    console.log("  Marchand     : demo@novadz.dz / demo1234")
-    console.log("  Admin        : admin@novadz.dz / admin1234")
+    if (process.env.NOVADZ_DEMO === "1") {
+      console.log("  Marchand     : demo@novadz.dz / demo1234")
+      console.log("  Vitrine      : vitrine@novadz.dz / demo1234")
+      console.log("  Admin        : admin@novadz.dz / admin1234")
+    } else {
+      console.log("  Admin        : admin@novadz.dz (mot de passe affiche au premier demarrage)")
+    }
     console.log("  ------------------------------------------------")
     console.log("  Garde cette fenetre OUVERTE. Ctrl+C pour arreter.")
     console.log("")

@@ -83,12 +83,24 @@ const cookiesParser = (req, res, next) => {
     if (opts.maxAge) c += `; Max-Age=${Math.floor(opts.maxAge / 1000)}`
     if (opts.httpOnly) c += "; HttpOnly"
     if (opts.sameSite) c += `; SameSite=${opts.sameSite}`
-    /* derrière https (direct ou via le proxy), le cookie ne voyage jamais en clair */
+    /* Derrière https (direct ou via le proxy), le cookie ne voyage jamais en
+       clair. Mais en mode démo, un proxy qui annonce « x-forwarded-proto: https »
+       tout en servant la page en http fait rejeter le cookie par le navigateur :
+       la session est alors perdue à chaque requête (retour en boucle sur /login).
+       Le mode démo est local : on n'impose donc pas Secure, la variable
+       NOVADZ_FORCE_SECURE_COOKIE=1 permet de le rétablir (mise en démonstration
+       derrière un vrai https). */
     const isHttps = (req.socket && req.socket.encrypted)
       || String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim() === "https"
-    if (opts.secure || isHttps) c += "; Secure"
-    const prev = res.getHeader("Set-Cookie")
-    res.setHeader("Set-Cookie", prev ? [].concat(prev, c) : c)
+    const forceSecure = process.env.NOVADZ_FORCE_SECURE_COOKIE === "1"
+      || (isHttps && process.env.NOVADZ_DEMO !== "1")
+    if (opts.secure || forceSecure) c += "; Secure"
+    /* Un seul en-tête par cookie : deux « sid » dans la même réponse (session
+       créée puis régénérée à la connexion) et certains clients gardent le
+       mauvais, ce qui casse la session. On remplace donc l'ancien. */
+    const prev = [].concat(res.getHeader("Set-Cookie") || [])
+      .filter((x) => String(x).split("=")[0].trim() !== name)
+    res.setHeader("Set-Cookie", prev.concat(c))
   }
   next()
 }

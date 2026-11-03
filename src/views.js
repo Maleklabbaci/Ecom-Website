@@ -58,9 +58,16 @@ const parcelCard = (shipment, order) => {
 const storefront = (store, products, cartCount = 0, preview = false, meta = {}) => {
   const L = layoutFor(store.theme)
   const D = require("./sections").readDesign(store)
-  const home = store.site_kind === "vitrine"
+  /* recherche : dire ce qu'on a trouvé (et permettre d'effacer le filtre),
+     sinon le client ne sait pas si la page a compris son mot-clé */
+  const searchNote = meta.q
+    ? `<div class="wrap"><p class="ndz-search-count">${products.length
+      ? `${products.length} résultat${products.length > 1 ? "s" : ""} pour « ${esc(meta.q)} »`
+      : `Aucun résultat pour cette recherche.`} · <a href="/${esc(store.slug)}">Tout afficher</a></p></div>`
+    : ""
+  const home = searchNote + (store.site_kind === "vitrine"
     ? `${L.home(store, products, meta)}${leadForm(store, { sent: meta.sent })}`
-    : L.home(store, products, meta)
+    : L.home(store, products, meta))
   const page = meta.q || meta.cat ? { html: home, ownCode: false } : SECTIONS.renderPage(store, "home", home)
   return L.shell(store, page.html, {
     cartCount, preview, ownCode: page.ownCode,
@@ -81,6 +88,13 @@ const storefront = (store, products, cartCount = 0, preview = false, meta = {}) 
 }
 
 
+/* Dans le Studio, les parties vivantes d'une page (le bouton d'achat, le
+   panier, le formulaire, le récapitulatif) sont entourées d'un repère : le
+   marchand les voit, peut écrire autour, mais elles ne s'effacent pas. À
+   l'enregistrement, le repère redevient la variable {{achat}}, {{panier}}… */
+const keepCss = `<style data-ndz-keep-css>[data-ndz-keep]{position:relative;outline:2px dashed #C8A15A;outline-offset:6px;border-radius:14px}[data-ndz-keep]:before{content:attr(data-ndz-keep-label);position:absolute;top:-11px;left:12px;z-index:5;background:#FBF3E3;color:#8A4A0B;border:1px solid #E7C9A5;border-radius:99px;padding:2px 10px;font:600 11px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;direction:ltr}</style>`
+const keepZone = (name, label, html) => `<div data-ndz-keep="${name}" data-ndz-keep-label="${label}">${html}</div>`
+
 /** Sections propres à une page (produit, panier, compte, CGV…). */
 const pageSections = (store, page, products = []) => {
   const SECTIONS = require("./sections")
@@ -92,7 +106,8 @@ const pageSections = (store, page, products = []) => {
 const productPage = (store, p, cartCount = 0, related = [], extra = {}) => {
   const L = layoutFor(store.theme)
   const imgs = [p.image, ...(extra.gallery || []).map((g) => g.url)].filter(Boolean)
-  const buy = L.product(store, p, related, extra)
+  const buyRaw = L.product(store, p, related, extra)
+  const buy = extra.studio ? keepZone("achat", "Zone d'achat : photo, prix, bouton — protégée", buyRaw) : buyRaw
   const productBody = SECTIONS.renderPage(store, "product", buy + pageSections(store, "product", [p, ...(related || [])]), { achat: buy })
   return L.shell(store, productBody.html, {
     cartCount, title: p.title, preview: !!extra.preview, productId: p.id, ownCode: productBody.ownCode,
@@ -119,13 +134,15 @@ const productPage = (store, p, cartCount = 0, related = [], extra = {}) => {
 }
 const cartPage = (store, items, totals, cartCount = 0, promoMsg = null, preview = false) => {
   const L = layoutFor(store.theme)
-  const cartHtml = L.cart(store, items, totals, promoMsg)
+  const cartRaw = L.cart(store, items, totals, promoMsg)
+  const cartHtml = preview ? keepZone("panier", "Zone du panier — protégée", cartRaw) : cartRaw
   const cartBody = SECTIONS.renderPage(store, "cart", cartHtml + pageSections(store, "cart", []), { panier: cartHtml })
   return L.shell(store, cartBody.html, { cartCount, title: "Panier", preview, ownCode: cartBody.ownCode })
 }
 const checkoutPage = (store, items, totals, cartCount = 0, error = null, extra = {}) => {
   const L = layoutFor(store.theme)
-  const form = L.checkout(store, items, totals, error, extra)
+  const formRaw = L.checkout(store, items, totals, error, extra)
+  const form = extra.studio ? keepZone("formulaire", "Zone du formulaire de commande — protégée", formRaw) : formRaw
   const orderBody = SECTIONS.renderPage(store, "checkout", form + pageSections(store, "checkout", items), { formulaire: form })
   const html = L.shell(store, orderBody.html, { cartCount, title: "Commande", preview: !!extra.preview, ownCode: orderBody.ownCode })
   /* le formulaire de commande est reconnu par son action, quel que soit le thème */
@@ -200,10 +217,13 @@ const payScript = (store) => `<script>
 </script>`
 const orderDone = (store, order, opts = {}) => {
   const L = layoutFor(store.theme)
-  let html = L.shell(store, L.done(store, order, opts), { title: "Commande confirmée" })
+  const doneRaw = L.done(store, order, opts)
+  const doneBody = opts.studio ? keepZone("commande", "Zone du récapitulatif de commande — protégée", doneRaw) : doneRaw
+  let html = L.shell(store, doneBody, { title: "Commande confirmée" })
   const wa = String(store.phone || "").replace(/[^0-9]/g, "").replace(/^0/, "213")
   const next = `
 <div class="done-next">
+  ${Number(order.deposit_cents || 0) > 0 ? `<p class="done-deposit"><b>Acompte de ${SECTIONS.moneyOf(store, order.deposit_cents)}</b> à envoyer : ${esc(store.deposit_note || "la boutique vous donne le numéro au téléphone")}. Il est déduit du montant à la livraison.</p>` : ""}
   <p><b>Et maintenant ?</b> La boutique va vous appeler pour confirmer. Vous payez seulement quand vous recevez le colis.</p>
   <div class="done-next-actions">
     <a class="btn btn-primary" href="/${esc(store.slug)}/order/${esc(order.ref)}">Suivre ma commande</a>
@@ -222,19 +242,13 @@ const orderDone = (store, order, opts = {}) => {
 const authBolt = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 10-14h-7l1-6z"/></svg>`
 const authCart = `<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8.1 6.1h.55l.35 1.35h10.7a1.05 1.05 0 0 1 1.02 1.3l-1.25 4.7a1.7 1.7 0 0 1-1.64 1.25H9.55a1.7 1.7 0 0 1-1.64-1.25L6.85 6.1H4.35a1.05 1.05 0 1 1 0-2.1h2.85c.46 0 .86.3.99.74l.2 1.36z"/><circle cx="10.15" cy="18.55" r="1.55"/><circle cx="16.35" cy="18.55" r="1.55"/></svg>`
 
-const authPage = (mode, error, kind = "", theme = "", site = "") => {
-  const order = ["noir", "editorial", "galerie", "bureau", "mode", "audio", "atelier", "electro", "soin", "minimal", "bento", "mono"]
-  const all = require("./themes").THEMES
-  const pickedTheme = require("./themes").isTheme(theme) ? theme : ""
-  const themeList = order.map((id) => all.find((t) => t.id === id)).filter(Boolean)
-  if (pickedTheme) {
-    const i = themeList.findIndex((t) => t.id === pickedTheme)
-    if (i > 0) themeList.unshift(themeList.splice(i, 1)[0])
-  }
-  const themeName = pickedTheme ? ((all.find((t) => t.id === pickedTheme) || {}).name || "") : ""
-  const themeBtns = themeList.map((t) => `<button type="button" class="auth-theme${t.id === pickedTheme ? " on" : ""}" data-theme="${esc(t.id)}">${esc(t.name)}</button>`).join("")
+const authPage = (mode, error, kind = "", site = "") => {
   const signup = mode === "signup"
-  const picked = kind === "commerce" ? "commerce" : kind === "vitrine" ? "vitrine" : ""
+  /* Un template choisi dans la galerie appartient à une seule famille :
+     il présélectionne le bon formulaire et n'est transmis que par celui-ci. */
+  const siteKind = require("./site-templates").storeKindForSite(site)
+  const picked = siteKind || (kind === "commerce" ? "commerce" : kind === "vitrine" ? "vitrine" : "")
+  const siteFor = (k) => (siteKind === k ? site : "")
   return page(signup ? "Créer un site — NovaDZ" : "Connexion — NovaDZ", `
 <div class="auth-stage">
   <div class="auth-bg" aria-hidden="true"></div>
@@ -280,14 +294,9 @@ const authPage = (mode, error, kind = "", theme = "", site = "") => {
           <label class="auth-pick"><input type="radio" name="show" value="vitrine" ${picked === "vitrine" ? "checked" : ""}><i>${authBolt}</i>Vitrine</label>
           <label class="auth-pick"><input type="radio" name="show" value="commerce" ${picked === "commerce" ? "checked" : ""}><i>${authCart}</i>E-commerce</label>
         </div>
-        <div class="auth-themes">
-          <p>Thème${themeName ? ` · <b>${esc(themeName)}</b>` : ""}</p>
-          <div class="auth-theme-row">${themeBtns}</div>
-        </div>
         <form class="auth-pane pane-vitrine" method="post" action="/signup">
           <input type="hidden" name="kind" value="vitrine">
-          <input type="hidden" name="theme" value="${esc(pickedTheme)}">
-          <input type="hidden" name="site" value="${esc(site)}">
+          <input type="hidden" name="site" value="${esc(siteFor("vitrine"))}">
           <p class="auth-mode"><i></i>Vitrine</p>
           <label>Nom de la marque<input name="store" required placeholder="Atelier Lina"></label>
           <label>Votre nom<input name="name" required placeholder="Amine Benali"></label>
@@ -298,8 +307,7 @@ const authPage = (mode, error, kind = "", theme = "", site = "") => {
         </form>
         <form class="auth-pane pane-commerce" method="post" action="/signup">
           <input type="hidden" name="kind" value="commerce">
-          <input type="hidden" name="theme" value="${esc(pickedTheme)}">
-          <input type="hidden" name="site" value="${esc(site)}">
+          <input type="hidden" name="site" value="${esc(siteFor("commerce"))}">
           <p class="auth-mode"><i></i>E-commerce</p>
           <label>Nom de la boutique<input name="store" required placeholder="Amina Mode"></label>
           <label>Votre nom<input name="name" required placeholder="Amine Benali"></label>
@@ -315,24 +323,16 @@ const authPage = (mode, error, kind = "", theme = "", site = "") => {
       <p class="auth-alt">${signup
         ? `Vous avez déjà un compte ? <a href="/login">Se connecter</a>`
         : `Pas encore de boutique ? <a href="/signup">En créer une</a>`}</p>
-      <div class="auth-demo">
+      ${process.env.NOVADZ_DEMO === "1" ? `<div class="auth-demo">
         <b>Comptes de démo</b>
         <span>Marchand · demo@novadz.dz / demo1234</span>
+        <span>Vitrine · vitrine@novadz.dz / demo1234</span>
         <span>Admin · admin@novadz.dz / admin1234</span>
-      </div>
+      </div>` : ""}
     </div>
   </div>
 </div>
-<script>
-document.querySelectorAll(".auth-theme").forEach(function (btn) {
-  btn.addEventListener("click", function () {
-    document.querySelectorAll(".auth-theme").forEach(function (b) { b.classList.toggle("on", b === btn) })
-    document.querySelectorAll('input[name="theme"]').forEach(function (i) { i.value = btn.getAttribute("data-theme") })
-    var label = document.querySelector(".auth-themes p")
-    if (label) label.innerHTML = "Thème · <b>" + btn.textContent + "</b>"
-  })
-})
-</script>`, { bodyClass: "auth-body" })
+`, { bodyClass: "auth-body" })
 }
 
 const welcomePage = (user, store, error) => {
@@ -355,13 +355,14 @@ const welcomePage = (user, store, error) => {
     <section class="auth-pitch">
       <p class="auth-kicker">Encore un peu.</p>
       <h1>Ton contact.</h1>
-      <p>Téléphone, wilaya, adresse. Puis tu ouvres la boutique.</p>
+      <p>Téléphone, wilaya, adresse. Puis tu ouvres ${store && store.site_kind === "vitrine" ? "ton site" : "ta boutique"}.</p>
     </section>
     <div class="auth-card">
       <h2>${admin && !store ? "Admin" : "Tes infos"}</h2>
       <p class="muted">${admin && !store ? "Tu ouvres l'admin." : "Ce qu'il faut pour te joindre."}</p>
       ${error ? `<div class="alert">${esc(error)}</div>` : ""}
       ${store ? `<form method="post" action="/welcome">
+
         <label>Téléphone<input name="phone" required value="${esc(store.phone || "")}" placeholder="0555 12 34 56" inputmode="tel" autocomplete="tel"></label>
         <label>WhatsApp<input name="whatsapp" value="${esc(store.whatsapp || "")}" placeholder="0555 12 34 56" inputmode="tel" autocomplete="tel"></label>
         <label>Wilaya
@@ -371,12 +372,42 @@ const welcomePage = (user, store, error) => {
           </select>
         </label>
         <label>Adresse<input name="address" value="${esc(store.legal_address || "")}" placeholder="12 rue Didouche, Alger" autocomplete="street-address"></label>
-        <button class="btn btn-primary btn-block" type="submit">Ouvrir la boutique</button>
+        <button class="btn btn-primary btn-block" type="submit">Ouvrir ${store && store.site_kind === "vitrine" ? "mon site" : "la boutique"}</button>
       </form>` : `<a class="btn btn-primary btn-block" href="${admin ? "/admin" : "/dashboard"}">${admin ? "Ouvrir l'admin" : "Ouvrir la boutique"}</a>`}
     </div>
   </div>
 </div>`, { bodyClass: "auth-body" })
 }
+
+/* Confirmation de déconnexion : la vraie déconnexion est en POST,
+   pour qu'un lien ou une image d'un autre site ne puisse pas la déclencher. */
+const logoutPage = (user) => page("Déconnexion — NovaDZ", `
+<div class="auth-stage">
+  <div class="auth-bg" aria-hidden="true"></div>
+  <div class="auth-veil" aria-hidden="true"></div>
+  <div class="auth-nav">
+    <a class="auth-brand" href="/"><span class="auth-bolt">${authBolt}</span><b>templifica</b> <em>/ Création de site</em></a>
+    <div class="auth-nav-links">
+      <a href="/">Accueil</a>
+      <a class="auth-pill" href="/dashboard">${authBolt} Ma boutique</a>
+    </div>
+  </div>
+  <div class="auth-mix">
+    <section class="auth-pitch">
+      <p class="auth-kicker">À bientôt.</p>
+      <h1>Se déconnecter ?</h1>
+      <p>${esc(user.name || user.email || "")} — ta boutique reste en ligne, évidemment.</p>
+    </section>
+    <div class="auth-card">
+      <h2>Déconnexion</h2>
+      <p class="muted">Tu pourras te reconnecter à tout moment.</p>
+      <form method="post" action="/logout">
+        <button class="btn btn-primary btn-block" type="submit">Oui, me déconnecter</button>
+      </form>
+      <p class="auth-alt"><a href="/dashboard">Non, retour à ma boutique</a></p>
+    </div>
+  </div>
+</div>`, { bodyClass: "auth-body" })
 
 /* ======================================================================
    ÉDITEUR DE BOUTIQUE — sections déplaçables (drag & drop)
@@ -610,6 +641,56 @@ const dashDesign = (user, store, themeName, products = [], pages = [], meta = {}
 </div>`)
 }
 
+
+/* ========================= MES BOUTIQUES ========================= */
+/** Tout ce que le compte possède : boutiques et vitrines, sur un seul écran. */
+const dashStores = (user, store, shops, error) => dashLayout(user, store, `
+<header class="dash-head">
+  <div><h1>Mes boutiques</h1>
+  <p class="muted">Une boutique par marque, une vitrine pour présenter l'activité. Tout vit sous le même compte.</p></div>
+</header>
+${error ? `<div class="alert">${esc(error)}</div>` : ""}
+<section class="panel">
+  <div class="panel-head"><h2>${shops.length} espace(s)</h2><span class="muted">clique pour ouvrir</span></div>
+  <div class="shop-grid">
+    ${shops.map((sh) => `
+    <article class="shop-card${sh.id === store.id ? " on" : ""}">
+      <div class="shop-card-top">
+        <span class="shop-tile">${esc((sh.name || "?")[0].toUpperCase())}</span>
+        <div>
+          <b>${esc(sh.name)}</b>
+          <span class="muted">/${esc(sh.slug)} · ${sh.site_kind === "vitrine" ? "Vitrine" : "Boutique"}</span>
+        </div>
+        ${sh.id === store.id ? '<i class="pill ok">Ouverte</i>' : ""}
+      </div>
+      <div class="shop-card-foot">
+        ${sh.owner === false ? '<span class="muted">invité par le propriétaire</span>' : `<span class="muted">${sh.products || 0} produit(s)</span>`}
+        <span class="shop-card-acts">
+          <a class="btn btn-ghost btn-sm" href="/${esc(sh.slug)}" target="_blank" rel="noopener">Voir</a>
+          ${sh.id !== store.id && sh.owner !== false ? `<form method="post" action="/dashboard/utiliser-boutique" class="inline">
+            <input type="hidden" name="store_id" value="${sh.id}"><button class="btn btn-primary btn-sm">Ouvrir</button></form>` : ""}
+        </span>
+      </div>
+    </article>`).join("")}
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Créer un nouvel espace</h2><span class="muted">2 minutes, sans carte bancaire</span></div>
+  <form class="form" method="post" action="/dashboard/boutiques">
+    <div class="form-row two">
+      <label>Nom<input name="name" required maxlength="60" placeholder="Amina Mode, Atelier Lina…"></label>
+      <label>Type
+        <select name="kind">
+          <option value="commerce">Boutique — vendre avec panier et commandes</option>
+          <option value="vitrine">Vitrine — présenter l'activité, être contacté</option>
+        </select>
+      </label>
+    </div>
+    <label class="check"><input type="checkbox" name="same_look" checked> Reprendre l'allure de la boutique ouverte (thème et couleurs)</label>
+    <div class="form-actions"><button class="btn btn-primary">Créer cet espace</button></div>
+  </form>
+</section>`, "stores")
 
 /* ============================== PAGES ============================== */
 const dashPages = (user, store, pages) => dashLayout(user, store, `
@@ -1081,6 +1162,14 @@ const customerAccount = (store, customer, orders, error, preview = false) => {
 }
 
 /* ============================== SUIVI DE COMMANDE ============================== */
+/* Page publique (lien par référence) : jamais le numéro complet ni l'adresse
+   exacte — 0555 ** ** 33 et la commune suffisent à reconnaître sa commande. */
+const maskPhone = (p) => {
+  const d = String(p || "").replace(/\D/g, "")
+  if (d.length < 7) return "•••"
+  return `${d.slice(0, 4)} ** ** ${d.slice(-2)}`
+}
+
 const orderTrack = (store, order, items, parcel = null) => {
   const L = layoutFor(store.theme)
   const steps = [
@@ -1112,7 +1201,7 @@ const orderTrack = (store, order, items, parcel = null) => {
     </div>
     <div>
       <h2>Livraison</h2>
-      <p class="track-addr">${esc(order.customer_name)}<br>${esc(order.phone)}<br>${esc(order.address)}<br>${esc(order.wilaya)}</p>
+      <p class="track-addr">${esc(order.customer_name)}<br>${esc(maskPhone(order.phone))}<br>${esc([order.commune, order.wilaya].filter(Boolean).join(", ") || order.wilaya || "")}</p>
       <div class="track-tot">
         <div><span>Sous-total</span><span>${money(order.subtotal_cents, store.currency)}</span></div>
         ${order.discount_cents ? `<div><span>Remise ${esc(order.promo_code || "")}</span><span>−${money(order.discount_cents, store.currency)}</span></div>` : ""}
@@ -1289,12 +1378,17 @@ const dashReviews = (user, store, rows) => dashLayout(user, store, `
 <header class="dash-head"><div><h1>Avis clients</h1><p class="muted">${rows.filter((r) => !r.approved).length} en attente de validation.</p></div></header>
 <section class="panel">
   ${rows.length ? `<table class="table">
-    <thead><tr><th>Produit</th><th>Client</th><th>Note</th><th>Avis</th><th>Statut</th><th></th></tr></thead>
+    <thead><tr><th>Produit</th><th>Client</th><th>Note</th><th>Avis</th><th>Photo</th><th>Statut</th><th></th></tr></thead>
     <tbody>${rows.map((r) => `<tr>
       <td>${esc(r.title || "—")}</td>
       <td>${esc(r.name)}<br><small class="muted">${esc(String(r.created_at).slice(0, 10))}</small></td>
       <td>${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}</td>
       <td class="wrap-cell">${esc(r.body || "—")}</td>
+      <td><form method="post" action="/dashboard/reviews/${r.id}/photo" class="revs-photo-form">
+        ${r.photo ? `<a href="${esc(r.photo)}" target="_blank" rel="noopener"><img class="revs-mini" src="${esc(r.photo)}" alt=""></a>` : `<span class="muted">—</span>`}
+        <input name="photo_url" value="${esc(r.photo || "")}" placeholder="Lien de la photo">
+        <button class="btn btn-ghost btn-sm">OK</button>
+      </form></td>
       <td>${r.approved ? '<span class="pill ok">Publié</span>' : '<span class="pill nouvelle">En attente</span>'}</td>
       <td class="right">
         <form method="post" action="/dashboard/reviews/${r.id}/approve" class="inline">
@@ -1405,8 +1499,29 @@ const bellScript = () => `<script>
   if (!root || root.getAttribute("data-on")) return
   document.querySelectorAll("[data-bell]").forEach(function (el) { el.setAttribute("data-on", "1") })
   var seen = null
-  var ding = new Audio("/sons/shopify-sales.mp3")
-  ding.preload = "auto"
+  /* Petit carillon de notification, fabriqué par le navigateur : aucun
+     fichier à télécharger, donc aucune requête qui échoue. */
+  var audioCtx = null
+  function ding() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext
+      if (!AC) return null
+      audioCtx = audioCtx || new AC()
+      if (audioCtx.state === "suspended" && audioCtx.resume) audioCtx.resume()
+      var t0 = audioCtx.currentTime
+      ;[[880, 0], [1174, 0.11]].forEach(function (n) {
+        var osc = audioCtx.createOscillator(), gain = audioCtx.createGain()
+        osc.type = "sine"
+        osc.frequency.value = n[0]
+        gain.gain.setValueAtTime(0.0001, t0 + n[1])
+        gain.gain.exponentialRampToValueAtTime(0.13, t0 + n[1] + 0.02)
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + n[1] + 0.42)
+        osc.connect(gain); gain.connect(audioCtx.destination)
+        osc.start(t0 + n[1]); osc.stop(t0 + n[1] + 0.45)
+      })
+    } catch (e) {}
+    return null
+  }
   function nodes() { return Array.prototype.slice.call(document.querySelectorAll("[data-bell]")) }
   function placeDesk() {
     var desk = document.querySelector(".ndz-bell-desk")
@@ -1433,11 +1548,7 @@ const bellScript = () => `<script>
       void btn.offsetWidth
       btn.classList.add("ring")
     })
-    try {
-      ding.currentTime = 0
-      var p = ding.play()
-      if (p && p.catch) p.catch(function () {})
-    } catch (e) {}
+    ding()
   }
   var heard = {}
   var ticket = 0
@@ -1579,7 +1690,8 @@ const aiBall = (mode) => {
   <button type="button" class="ndz-ai-ball" id="ndzAiBall" aria-label="Ouvrir l'assistant" aria-expanded="false">${icon("robot", 30)}</button>
 </div>
 <style>
-.ndz-ai,.ndz-ai-ball,.ndz-ai-panel{position:fixed !important;z-index:2147483000 !important}
+.ndz-ai,.ndz-ai-panel{position:fixed !important;z-index:2147483000 !important}
+.ndz-ai-ball{position:fixed;z-index:2147483000}
 .ndz-ai-ball{right:18px;bottom:18px;width:68px;height:68px;border:3px solid #fff;border-radius:50%;background:#111;color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 0 0 4px #111, 0 16px 36px rgba(0,0,0,.35)}
 .ndz-ai-ball svg{display:block;width:32px;height:32px}
 .ndz-ai-panel{right:18px;bottom:100px;width:min(380px,calc(100vw - 28px));height:min(520px,calc(100vh - 130px));background:#fff;color:#111;border-radius:28px;box-shadow:0 22px 60px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden}
@@ -1596,8 +1708,21 @@ const aiBall = (mode) => {
 .ndz-ai-form input{flex:1;border:1px solid #e4e0d8;border-radius:999px;padding:10px 12px;font:inherit}
 .ndz-ai-form button{width:40px;height:40px;border:0;border-radius:50%;background:#111;color:#fff;font:inherit;cursor:pointer}
 @media (max-width:760px){
-  .ndz-ai-ball{right:14px !important;bottom:92px !important}
+  .ndz-ai{position:static !important}
+  .ndz-ai-ball{right:14px;bottom:96px;width:56px;height:56px;border-width:2px}
+  .ndz-ai-ball svg{width:26px;height:26px}
   .ndz-ai-panel{right:12px !important;left:12px !important;bottom:168px !important;width:auto !important;height:min(68vh,520px) !important}
+  /* l'assistant prend sa place dans la barre du haut : plus rien ne flotte sur les cartes */
+  .dash-mobile .ndz-ai-ball,
+  .ndz-ai-ball.in-head{position:static !important;z-index:auto !important;right:auto !important;bottom:auto !important;
+    width:38px !important;height:38px !important;border:1px solid #E4E4E7 !important;border-radius:50% !important;
+    background:#fff !important;color:#111 !important;box-shadow:none !important;display:grid !important;
+    place-items:center;flex:0 0 auto;margin:0 2px}
+  .dash-mobile .ndz-ai-ball svg,
+  .ndz-ai-ball.in-head svg{width:19px !important;height:19px !important}
+  .ndz-ai-panel{left:0 !important;right:0 !important;bottom:0 !important;top:auto !important;
+    width:auto !important;height:min(82vh,640px) !important;border-radius:18px 18px 0 0 !important}
+  .dash-main{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 }
 </style>
 <script>
@@ -1673,6 +1798,7 @@ const dashLayout = (user, store, content, active) => {
     landings: "Pages de vente", pages: "Pages", livraison: "Livraison",
     reviews: "Avis", customers: "Clients", marketing: "Marketing",
     mails: "E-mails", equipe: "Équipe", assistant: "Assistant", visits: "Visites", leads: "Reçus",
+    stores: "Mes boutiques",
   }
   const first = esc(String(user.name || "").split(" ")[0] || "")
   const barTitle = active === "home" ? `Bonjour, ${first}` : esc(PAGE[active] || store.name)
@@ -1681,6 +1807,22 @@ const dashLayout = (user, store, content, active) => {
     : `${store.name} — Tableau de bord`
   const tab = (id, href, ico, label, n, tone) =>
     `<a class="${active === id ? "on" : ""}" href="${href}">${icon(ico, 20)}<span>${label}</span>${n ? `<i class="${tone || ""}">${n}</i>` : ""}</a>`
+  /* Le Studio n'a de sens qu'avec un template « site complet » : on lit celui
+     du brouillon (essai en cours) puis celui en ligne. Rien d'autre à calculer
+     ici : la page Studio vérifie elle-même qu'un template existe. */
+  const STUDIO_TPL = (() => {
+    try {
+      const SITES = require("./site-templates")
+      const live = require("./sections").readDesign(store).siteTemplate
+      if (SITES.isSite(live)) return live
+      const draft = store.draft ? JSON.parse(store.draft) : null
+      const id = draft && draft.design && draft.design.siteTemplate
+      return SITES.isSite(id) ? id : ""
+    } catch (_) { return "" }
+  })()
+  const studioLink = (on) => (STUDIO_TPL
+    ? `<a class="${on ? "on" : ""}" href="/dashboard/studio">${icon("edit", 16)} Studio</a>`
+    : "")
   return page(
   docTitle,
   `
@@ -1704,8 +1846,9 @@ const dashLayout = (user, store, content, active) => {
       <div><b>${esc(store.name)}</b><span>${vitrine ? `<i class="dash-kind">Vitrine</i>` : ""}${user.support ? "vue admin" : (store.domain ? esc(store.domain) : "/" + esc(store.slug))}</span></div>
     </div>
     ${(user.stores || []).length > 1 ? `<form class="store-switch" method="post" action="/dashboard/utiliser-boutique">
-      <label>Boutique<select name="store_id" onchange="this.form.submit()">${user.stores.map((s) => `<option value="${s.id}"${s.id === store.id ? " selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>
+      <label>Espace<select name="store_id" onchange="this.form.submit()">${user.stores.map((s) => `<option value="${s.id}"${s.id === store.id ? " selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>
     </form>` : ""}
+    <a class="store-all${active === "stores" ? " on" : ""}" href="/dashboard/boutiques">${icon("grid", 15)} Mes boutiques${(user.stores || []).length > 1 ? ` <i>${(user.stores || []).length}</i>` : ""}</a>
     <nav class="dash-nav">
       ${vitrine ? `<p class="dash-group">Site</p>
       <a class="${active === "home" ? "on" : ""}" href="/dashboard">${icon("grid", 16)} Vue d'ensemble</a>
@@ -1713,6 +1856,7 @@ const dashLayout = (user, store, content, active) => {
       <p class="dash-group">Contenu</p>
       ${navIf(user, "design", `<a class="${active === "pages" ? "on" : ""}" href="/dashboard/pages">${icon("receipt", 16)} <span>Pages</span><b class="nav-count">${B.pages || 0}</b></a>`)}
       ${navIf(user, "design", `<a class="${active === "design" ? "on" : ""}" href="/dashboard/design/themes">${icon("palette", 16)} Design</a>`)}
+      ${navIf(user, "design", studioLink(false))}
       <p class="dash-group">Contact</p>
       <a class="${active === "leads" ? "on" : ""}" href="/dashboard/recus">${icon("chat", 16)} <span>Reçus</span>${BADGES.pill(B.leads)}</a>
       ${navIf(user, "shop", `<a class="${active === "social" ? "on" : ""}" href="/dashboard/reseaux">${icon("chat", 16)} Réseaux sociaux</a>`)}
@@ -1738,6 +1882,7 @@ const dashLayout = (user, store, content, active) => {
 
       ${(canSee(user, "design") || canSee(user, "shop") || canSee(user, "settings") || canSee(user, "team")) ? `<p class="dash-group">Boutique</p>` : ""}
       ${navIf(user, "design", `<a class="${active === "design" ? "on" : ""}" href="/dashboard/design/themes">${icon("palette", 16)} Design</a>`)}
+      ${navIf(user, "design", studioLink(active === "studio"))}
       ${navIf(user, "design", `<a class="${active === "form" ? "on" : ""}" href="/dashboard/formulaire">${icon("edit", 16)} Formulaire</a>`)}
       ${navIf(user, "shop", `<a class="${active === "transporteur" ? "on" : ""}" href="/dashboard/transporteur">${icon("truck", 16)} Transporteur</a>`)}
       ${navIf(user, "shop", `<a class="${active === "shipping" ? "on" : ""}" href="/dashboard/shipping">${icon("cash", 16)} Frais de livraison</a>`)}
@@ -1769,7 +1914,7 @@ const dashLayout = (user, store, content, active) => {
   <nav class="app-tab" aria-label="Navigation">
     ${tab("home", "/dashboard", "grid", "Accueil")}
     ${vitrine ? `${navIf(user, "design", tab("pages", "/dashboard/pages", "receipt", "Pages"))}
-    ${navIf(user, "design", tab("design", "/dashboard/design/themes", "palette", "Design"))}` : `${navIf(user, "orders", tab("orders", "/dashboard/orders", "receipt", "Commandes", B.toTreat))}
+    ${navIf(user, "design", tab("design", "/dashboard/design/themes", "palette", "Design"))}${STUDIO_TPL ? `<a class="${active === "studio" ? "on" : ""}" href="/dashboard/studio">${icon("edit", 20)}<span>Studio</span></a>` : ""}` : `${navIf(user, "orders", tab("orders", "/dashboard/orders", "receipt", "Commandes", B.toTreat))}
     ${navIf(user, "products", tab("products", "/dashboard/products", "box", "Produits"))}
     ${navIf(user, "products", tab("stock", "/dashboard/stock", "layers", "Stock", B.lowStock, "bad"))}
     ${active === "relances" ? tab("relances", "/dashboard/relances", "history", "Relances", B.relances, "warn") : ""}`}
@@ -1790,10 +1935,33 @@ const dashLayout = (user, store, content, active) => {
     burger.setAttribute('aria-expanded', on ? 'true' : 'false')
     if (scrim) scrim.hidden = !on
     document.body.style.overflow = on ? 'hidden' : ''
+    /* le bouton de l'assistant ne doit pas flotter par-dessus le menu ouvert */
+    var ball = document.getElementById('ndzAiBall')
+    if (ball) ball.style.display = on ? 'none' : ''
   }
   burger.addEventListener('click', function () { open(!dash.classList.contains('nav-open')) })
   var more = document.getElementById('appMore')
   if (more) more.addEventListener('click', function () { open(true) })
+  /* téléphone : l'assistant ne flotte plus par-dessus le contenu,
+     il prend sa place dans la barre du haut */
+  var ball = document.getElementById('ndzAiBall')
+  var phone = window.matchMedia('(max-width:760px)')
+  var head = document.querySelector('.dash-mobile')
+  var touchForm = document.querySelector('.dm-shop') || document.querySelector('.dm-search')
+  function placeBall() {
+    if (!ball) return
+    if (phone.matches && head) {
+      if (touchForm) head.insertBefore(ball, touchForm)
+      else head.appendChild(ball)
+      ball.classList.add('in-head')
+    } else {
+      ball.classList.remove('in-head')
+      if (ball.parentNode !== document.body) document.body.appendChild(ball)
+    }
+  }
+  placeBall()
+  if (phone.addEventListener) phone.addEventListener('change', placeBall)
+  else if (phone.addListener) phone.addListener(placeBall)
   if (close) close.addEventListener('click', function () { open(false) })
   if (scrim) scrim.addEventListener('click', function () { open(false) })
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') open(false) })
@@ -2149,6 +2317,9 @@ ${ok ? `<div class="alert ok">Formulaire enregistré. Il est déjà sur la bouti
 <script type="application/json" id="fmBoot">${boot}</script>
 <script src="/formulaire.js"></script>`, "form")
 }
+/* côté vendeur aussi : le prix s'affiche dans le format qu'il a choisi */
+const cashOf = (store, cents) => SECTIONS.moneyOf(store, cents)
+
 const dashStats = (user, store, d) => {
   const max = Math.max(1, ...d.daily.map((x) => x.cents))
   const confRate = d.counts.total ? Math.round((d.counts.confirmed / d.counts.total) * 100) : 0
@@ -2161,11 +2332,38 @@ const dashStats = (user, store, d) => {
 </header>
 
 <div class="kpis">
-  <div class="kpi"><span>Aujourd'hui</span><b>${money(d.today.cents, store.currency)}</b><i>${d.today.n} commande(s)</i></div>
-  <div class="kpi"><span>7 derniers jours</span><b>${money(d.week.cents, store.currency)}</b><i>${d.week.n} commande(s)</i></div>
-  <div class="kpi"><span>30 derniers jours</span><b>${money(d.month.cents, store.currency)}</b><i>${d.month.n} commande(s)</i></div>
-  <div class="kpi"><span>Panier moyen</span><b>${money(d.average, store.currency)}</b><i>sur ${d.all.n} commande(s)</i></div>
+  <div class="kpi"><span>Aujourd'hui</span><b>${cashOf(store, d.today.cents, store.currency)}</b><i>${d.today.n} commande(s)</i></div>
+  <div class="kpi"><span>7 derniers jours</span><b>${cashOf(store, d.week.cents, store.currency)}</b><i>${d.week.n} commande(s)</i></div>
+  <div class="kpi"><span>30 derniers jours</span><b>${cashOf(store, d.month.cents, store.currency)}</b><i>${d.month.n} commande(s)</i></div>
+  <div class="kpi"><span>Panier moyen</span><b>${cashOf(store, d.average, store.currency)}</b><i>sur ${d.all.n} commande(s)</i></div>
 </div>
+
+<section class="panel">
+  <div class="panel-head"><h2>Bénéfice net</h2><span class="muted">30 derniers jours · commandes livrées</span></div>
+  <div class="kpis">
+    <div class="kpi"><span>Argent livré</span><b>${cashOf(store, d.profit.delivered, store.currency)}</b><i>${d.profit.deliveredCount} commande(s) livrée(s)</i></div>
+    <div class="kpi"><span>Marchandise</span><b>−${cashOf(store, d.profit.goods, store.currency)}</b><i>prix d'achat des produits livrés</i></div>
+    <div class="kpi"><span>Publicité</span><b>−${cashOf(store, d.profit.ads, store.currency)}</b><i>${d.profit.adsRows.length ? d.profit.adsRows.map((r) => esc(r.channel)).join(" · ") : "aucune dépense saisie"}</i></div>
+    <div class="kpi${d.profit.net < 0 ? " kpi-warn" : ""}"><span>Il te reste</span><b>${cashOf(store, d.profit.net, store.currency)}</b><i>${d.profit.deliveredCount ? `soit ${cashOf(store, d.profit.perOrder, store.currency)} par commande livrée` : "aucune commande livrée sur la période"}</i></div>
+  </div>
+  <form class="form ad-form" method="post" action="/dashboard/stats/pub">
+    <div class="form-row two">
+      <label>Jour<input type="date" name="day" value="${new Date().toISOString().slice(0, 10)}"></label>
+      <label>Canal
+        <select name="channel">
+          <option value="meta">Facebook / Instagram</option>
+          <option value="tiktok">TikTok</option>
+          <option value="snap">Snapchat</option>
+          <option value="google">Google</option>
+          <option value="autre">Autre</option>
+        </select>
+      </label>
+    </div>
+    <label>Dépense du jour (${esc(store.currency)})<input name="amount" type="number" step="0.01" min="0" placeholder="3000.00" required></label>
+    <div class="form-actions"><button class="btn btn-primary">Enregistrer la dépense</button>
+      <span class="muted small">Remplacée si tu saisis deux fois le même jour et le même canal.</span></div>
+  </form>
+</section>
 
 <div class="kpis">
   <div class="kpi"><span>Taux de confirmation</span><b>${confRate}%</b><i>${d.counts.confirmed} confirmées / ${d.counts.total}</i></div>
@@ -2177,7 +2375,7 @@ const dashStats = (user, store, d) => {
 <section class="panel">
   <div class="panel-head"><h2>14 derniers jours</h2><span class="muted">chiffre d'affaires par jour</span></div>
   <div class="st-chart">
-    ${d.daily.map((x) => `<div class="st-col" title="${fmtDay(x.day)} — ${money(x.cents, store.currency)} · ${x.n} commande(s)">
+    ${d.daily.map((x) => `<div class="st-col" title="${fmtDay(x.day)} — ${cashOf(store, x.cents, store.currency)} · ${x.n} commande(s)">
       <span class="st-bar${x.cents ? "" : " off"}" style="height:${x.cents ? Math.max(4, Math.round((x.cents / max) * 100)) : 2}%"></span>
       <em>${fmtDay(x.day)}</em>
     </div>`).join("")}
@@ -2191,7 +2389,7 @@ const dashStats = (user, store, d) => {
       <span class="st-rank">${i + 1}</span>
       <b>${esc(p.title)}</b>
       <span class="muted">${p.qty} ×</span>
-      <span>${money(p.cents, store.currency)}</span></li>`).join("")}</ul>`
+      <span>${cashOf(store, p.cents, store.currency)}</span></li>`).join("")}</ul>`
       : `<div class="empty-state">${icon("chart", 22)}<h3>Pas encore de vente</h3><p>Les produits vendus apparaîtront ici, du plus vendu au moins vendu.</p></div>`}
   </section>
 
@@ -2200,7 +2398,7 @@ const dashStats = (user, store, d) => {
     ${d.topWilayas.length ? `<ul class="st-list">${d.topWilayas.map((w) => `<li>
       <span class="st-rank">${w.n}</span>
       <b>${esc(w.wilaya)}</b>
-      <span>${money(w.cents, store.currency)}</span></li>`).join("")}</ul>`
+      <span>${cashOf(store, w.cents, store.currency)}</span></li>`).join("")}</ul>`
       : `<div class="empty-state">${icon("truck", 22)}<h3>Aucune commande géolocalisée</h3><p>Dès les premières commandes, tu vois les wilayas qui rapportent.</p></div>`}
   </section>
 </div>`)
@@ -2256,6 +2454,65 @@ const dashLeads = (user, store, rows) => dashLayout(user, store, `
   <p>Quand quelqu'un écrit depuis le site, le message s'affiche ici.</p></div>`}
 </section>`, "leads")
 
+/** Aperçu du site dans le tableau de bord : ce que voit le visiteur,
+    en ordinateur ou en téléphone, sans quitter l'interface.
+    L'adresse ?preview=1 ne compte pas dans les visites. */
+const sitePreview = (store) => `
+<section class="panel prev-panel">
+  <div class="panel-head">
+    <h2>Aperçu du site</h2>
+    <div class="prev-tools">
+      <span class="prev-devices" role="group" aria-label="Taille de l'aperçu">
+        <button type="button" class="prev-dev on" data-prev="desk">${icon("monitor", 14)} Ordinateur</button>
+        <button type="button" class="prev-dev" data-prev="tel">${icon("smartphone", 14)} Téléphone</button>
+      </span>
+      <a href="/dashboard/design">Modifier le design</a>
+      <a href="/${esc(store.slug)}" target="_blank" rel="noopener">Ouvrir le site ${icon("external", 13)}</a>
+    </div>
+  </div>
+  <div class="prev-frame" data-prev-frame>
+    <iframe src="/${esc(store.slug)}?preview=1" title="Aperçu de votre site"></iframe>
+  </div>
+  ${store.preview_token ? `<div class="prev-share">
+    <span class="lbl"><b>Lien d'aperçu</b><small>À envoyer sur WhatsApp : la personne voit votre site, sans compte.</small></span>
+    <input readonly value="${esc(store.preview_url || "/apercu/" + store.preview_token)}" aria-label="Lien d'aperçu" data-share-input>
+    <button class="btn btn-ghost" type="button" data-share-copy>${icon("copy", 14)} Copier</button>
+    <span class="copied" data-share-done hidden>Copié</span>
+  </div>` : ""}
+  <p class="muted small">C'est ce que voient vos visiteurs sur <code>/${esc(store.slug)}</code> — vos passages ici ne sont pas comptés dans les visites.</p>
+  <script>
+  (function () {
+    var frame = document.querySelector("[data-prev-frame]");
+    if (!frame) return;
+    var btns = document.querySelectorAll(".prev-dev");
+    btns.forEach(function (b) {
+      b.addEventListener("click", function () {
+        btns.forEach(function (x) { x.classList.remove("on"); });
+        b.classList.add("on");
+        frame.classList.toggle("tel", b.getAttribute("data-prev") === "tel");
+      });
+    });
+  })();
+  (function () {
+    var input = document.querySelector("[data-share-input]");
+    var btn = document.querySelector("[data-share-copy]");
+    var done = document.querySelector("[data-share-done]");
+    if (!input || !btn) return;
+    btn.addEventListener("click", function () {
+      input.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(input.value).catch(function () {});
+        ok = true;
+      }
+      if (!ok) return;
+      if (done) { done.hidden = false; setTimeout(function () { done.hidden = true; }, 1800); }
+    });
+  })();
+  </script>
+</section>`
+
 const dashHome = (user, store, stats, recentOrders) => store.site_kind === "vitrine"
   ? dashLayout(user, store, `
 <header class="dash-head">
@@ -2269,6 +2526,7 @@ ${startGuide(store, stats)}
   <div class="kpi"><span>Pages</span>${icon("receipt", 16)}<b>${stats.pageCount}</b><i>${stats.published} en ligne</i></div>
   <div class="kpi"><span>Contact</span>${icon("chat", 16)}<b>${String(store.phone || "").trim() ? "Oui" : "Non"}</b><i>${esc(store.phone || "téléphone manquant")}</i></div>
 </div>
+${sitePreview(store)}
 <section class="panel">
   <div class="panel-head"><h2>Formulaires reçus</h2><a href="/dashboard/recus">Tout voir →</a></div>
   ${(stats.recentLeads || []).length ? `<table class="table">
@@ -2306,6 +2564,15 @@ ${startGuide(store, stats)}
   <div class="kpi"><span>Produits</span>${icon("box", 16)}<b>${stats.productCount}</b><i>${stats.lowStock} en stock faible</i></div>
   <div class="kpi"><span>Panier moyen</span>${icon("cart", 16)}<b>${money(stats.avgBasket, store.currency)}</b><i>par commande</i></div>
 </div>
+${sitePreview(store)}
+<section class="panel">
+  <div class="panel-head"><h2>Livraisons à suivre</h2><a href="/dashboard/orders">Toutes les commandes →</a></div>
+  <div class="suivi-tiles">
+    <a class="suivi-tile" href="/dashboard/orders?statut=nouvelle"><b>${(stats.newOrders || 0) + (stats.toCheck || 0)}</b><span>À traiter</span><i>commandes en attente d'appel</i></a>
+    <a class="suivi-tile" href="/dashboard/orders?statut=expediee"><b>${stats.shipped || 0}</b><span>Colis en route</span><i>confiés au transporteur</i></a>
+    <a class="suivi-tile ${(stats.lost || 0) > 0 ? "danger" : ""}" href="/dashboard/orders?statut=perdue"><b>${stats.lost || 0}</b><span>Colis perdus</span><i>à renvoyer ou rembourser</i></a>
+  </div>
+</section>
 <section class="panel">
   <div class="panel-head"><h2>Dernières commandes</h2><a href="/dashboard/orders">Tout voir →</a></div>
   ${recentOrders.length ? `<table class="table">
@@ -2385,6 +2652,14 @@ const productForm = (user, store, product, extra = {}) => {
     <label>Stock<input name="stock" type="number" min="0" value="${product?.stock ?? 10}"></label>
     <label>Prix barré (${esc(store.currency)})<input name="compare" type="number" step="0.01" min="0" value="${product && product.compare_cents ? (product.compare_cents / 100).toFixed(2) : ""}" placeholder="5000.00">
       <span class="field-hint">Facultatif : affiche l'ancien prix barré + un badge « Promo ». Laisser vide s'il n'y a pas de promo.</span></label>
+  </div>
+  <div class="form-row two">
+    <label>Prix d'achat (${esc(store.currency)})
+      <input name="cost" type="number" step="0.01" min="0" value="${product && product.cost_cents ? (product.cost_cents / 100).toFixed(2) : ""}" placeholder="1800.00">
+      <span class="field-hint">Ce que le produit te coûte. Jamais montré au client : sert au bénéfice net.</span></label>
+    <label>Vidéo du produit
+      <input name="video" type="text" value="${esc(product?.video || "")}" placeholder="/uploads/video.mp4">
+      <span class="field-hint">Un fichier MP4/WEBM de tes dossiers. Le client la lance depuis la photo.</span></label>
   </div>
   <div class="form-row two">
     <label>Catégorie
@@ -2783,8 +3058,13 @@ const orderActions = (store, o, big = false) => {
   const fakeBtn = post("fake", o.fake ? "N'est plus une commande de test" : "Marquer comme commande de test",
     "", o.fake ? "on test" : "test", "flask")
 
+  const depositBtn = Number(o.deposit_cents || 0) > 0
+    ? post("acompte", o.deposit_paid ? "Acompte reçu — cliquer pour annuler" : "Marquer l'acompte reçu",
+        "", o.deposit_paid ? "on ok" : "ok", "cash")
+    : ""
+
   return `<div class="ord-acts${big ? " big" : ""}">
-    ${wa}${confirmBtn}${waitBtn}${lateBtn}${callBtn}${cancelBtn}${fakeBtn}
+    ${wa}${confirmBtn}${waitBtn}${lateBtn}${callBtn}${depositBtn}${cancelBtn}${fakeBtn}
   </div>`
 }
 
@@ -2859,6 +3139,7 @@ ${(opts.sources && opts.sources.length) ? `<section class="panel ord-funnel">
   </select>
 </form>
 <button class="btn btn-ghost btn-sm" form="fakeOrder" type="submit" title="Créer une commande de test">Test</button>
+${opts.agents && opts.agents.length ? `<form method="post" action="/dashboard/orders/repartir" class="inline"><button class="btn btn-ghost btn-sm" title="Donner chaque commande en attente à une personne de l'équipe, à tour de rôle">${icon("users", 14)} Répartir</button></form>` : ""}
 <a class="btn btn-ghost btn-sm" href="/dashboard/orders/export.csv">CSV</a>
 </div>
 
@@ -2890,6 +3171,8 @@ ${shown.length ? shown.map((o) => `
     <span class="ord-prod">${esc(productLine(o) || "Article")}</span>
     <span class="ord-mini"><span class="ord-avatar av-${ORD.norm(o.status)}">${initials(o.customer_name)}</span><span class="ord-who">${esc(o.customer_name)}</span><span class="ord-status t-${ORD.tone(o.status)}">${esc(ORD.label(o.status))}</span></span>
     <span class="ord-price">${money(o.total_cents, store.currency)}</span>
+    ${Number(o.deposit_cents || 0) > 0 ? `<span class="ord-deposit ${o.deposit_paid ? "ok" : ""}" title="${o.deposit_paid ? "Acompte reçu" : "Acompte pas encore reçu"}">Acompte ${cashOf(store, o.deposit_cents)}${o.deposit_paid ? " ✓" : ""}</span>` : ""}
+    ${o.agent_name ? `<span class="ord-agent" title="Cette commande est suivie par ${esc(o.agent_name)}">${icon("user", 12)} ${esc(o.agent_name)}</span>` : ""}
     ${o.tracking ? `<span class="ord-track-m" title="${esc((o.carrier_name ? o.carrier_name + " · " : "") + o.tracking)}">${o.carrier_name ? esc(o.carrier_name) + " · " : ""}${esc(o.tracking)}</span>` : ""}
     <div class="ord-side">
       <button type="button" class="ord-more-btn" aria-label="Actions de la commande" aria-expanded="false">${icon("menuDots", 16)}</button>
@@ -3101,6 +3384,28 @@ ${error ? `<div class="alert">${esc(error)}</div>` : ""}
     <label>Registre de commerce<input name="legal_rc" value="${esc(store.legal_rc || "")}" placeholder="16/00-1234567B18"></label>
     <label>NIF<input name="legal_nif" value="${esc(store.legal_nif || "")}" placeholder="000116001234567"></label>
     <label>Délai de retour (jours)<input name="return_days" type="number" min="0" max="60" value="${store.return_days ?? 7}"></label>
+  </div>
+
+  <h3>Acompte avant l'envoi</h3>
+  <p class="muted">Un petit montant envoyé avant la livraison. Il écarte les commandes qui n'ont jamais eu l'intention d'acheter. Laisse 0 pour ne rien demander.</p>
+  <div class="form-row two">
+    <label>Acompte (DA)<input name="deposit" type="number" min="0" max="100000" step="50" value="${store.deposit_cents ? Math.round(store.deposit_cents / 100) : 0}"></label>
+    <label>Où envoyer l'acompte<input name="deposit_note" value="${esc(store.deposit_note || "")}" placeholder="Baridimob 007999… au nom de…" maxlength="80"></label>
+  </div>
+
+  <h3>Commande (anti-colis refusé)</h3>
+  <p class="muted">Trois réglages qui font baisser les retours : un numéro vérifié, une commune précise. Les deux sont activés par défaut dans une boutique neuve.</p>
+  <div class="form-row two">
+    <label>Numéro de téléphone
+      <select name="phone_strict">
+        <option value="0" ${!store.phone_strict ? "selected" : ""}>Souple — accepter tout</option>
+        <option value="1" ${store.phone_strict ? "selected" : ""}>Strict — 10 chiffres obligatoires</option>
+      </select></label>
+    <label>Commune
+      <select name="commune_required">
+        <option value="0" ${!store.commune_required ? "selected" : ""}>Facultative</option>
+        <option value="1" ${store.commune_required ? "selected" : ""}>Obligatoire</option>
+      </select></label>
   </div>
 
   <h3>Mesure d'audience</h3>
@@ -4359,11 +4664,59 @@ const dashThemes = (user, store, templates = []) => {
       </section>`
     }).join("")
 
+  const sitesBlock = (() => {
+    const SITES = require("./site-templates")
+    const SEC = require("./sections")
+    const live = SEC.readDesign(store).siteTemplate || ""
+    const trialSite = (draft.design && draft.design.siteTemplate) || ""
+    const isVitrine = store.site_kind === "vitrine"
+    const list = SITES.forStore(store)
+    /* un modèle importé n'a pas encore de capture : on affiche une vignette
+       lisible à son nom au lieu d'une image cassée */
+    const shotFor = (t) => {
+      const file = path.join(__dirname, "..", "public", "shots", t.id + ".jpg")
+      if (fs.existsSync(file)) return `/shots/${t.id}.jpg`
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="560"><rect width="100%" height="100%" fill="#111111"/><text x="50%" y="47%" fill="#ffffff" font-family="Georgia,serif" font-size="46" text-anchor="middle">${String(t.name).replace(/[<>&]/g, "")}</text><text x="50%" y="57%" fill="#8b8b96" font-family="system-ui,sans-serif" font-size="19" text-anchor="middle">aperçu à venir — ouvre le Studio pour l'éditer</text></svg>`
+      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg)
+    }
+    return `<section class="th-group">
+      <div class="th-group-head"><h2>${isVitrine ? "Templates vitrine complets" : "Templates e-commerce complets"}</h2>
+        <p class="muted" style="margin:2px 0 0">Ils s'ouvrent tous dans le Studio : les textes, les photos et toutes les pages se modifient au même endroit.</p>
+        <p>${live || trialSite ? `<a class="btn btn-primary btn-sm" href="/dashboard/studio" style="float:right">Ouvrir le studio</a>` : ""}${isVitrine
+          ? "Uniquement des pages pensées pour présenter une activité : services, réalisations et prise de contact. Ton nom et ton formulaire restent ceux de NovaDZ. Le choisir ouvre un brouillon : tes visiteurs ne voient rien avant Publier."
+          : "Uniquement des pages pensées pour vendre. Ton nom, tes produits, ton panier et la commande restent ceux de NovaDZ. Le choisir ouvre un brouillon : tes clients ne voient rien avant Publier."}</p></div>
+      <div class="th-grid">${list.map((t) => `<article class="th-card${t.id === live ? " is-now" : ""}${t.id === trialSite && t.id !== live ? " is-trial" : ""}">
+        <div class="th-shot"><img src="${esc(shotFor(t))}" alt="Aperçu ${esc(t.name)}" loading="lazy"></div>
+        <div class="th-body">
+          <div class="th-name"><b>${esc(t.name)}</b>
+            ${t.id === live ? `<span class="pill livree">publié</span>` : ""}
+            ${t.id === trialSite && t.id !== live ? `<span class="pill confirmee">essai</span>` : ""}
+          </div>
+          <p class="th-ideal">${icon("store", 13)} <span>${esc(t.niche)}</span></p>
+          <p class="th-desc">${esc(t.line)}</p>
+          <div class="th-actions">
+            <a class="btn btn-ghost btn-sm" href="/templates/${esc(t.id)}.html" target="_blank" rel="noopener">Aperçu</a>
+            <form method="post" action="/dashboard/design/site-template" class="inline">
+              <input type="hidden" name="id" value="${esc(t.id)}">
+              <button class="btn ${t.id === trialSite ? "btn-primary" : "btn-ghost"} btn-sm">${t.id === live ? "Déjà publié" : t.id === trialSite ? "Continuer l'essai" : "Choisir"}</button>
+            </form>
+          </div>
+        </div>
+      </article>`).join("")}</div>
+      ${live || trialSite ? `<form method="post" action="/dashboard/design/site-template" class="inline" style="margin-top:14px">
+        <input type="hidden" name="id" value="">
+        <button class="btn btn-ghost btn-sm">Revenir à un thème classique</button>
+      </form>` : ""}
+    </section>`
+  })()
+
   return dashLayout(user, store, `
 <header class="dash-head">
-  <div><h1>Thèmes</h1><p class="muted">Ton thème publié est en haut. En dessous, tu choisis un autre thème d'un clic : tu le vois avec tes produits, puis tu publies — ou tu annules.</p></div>
+  <div><h1>Thèmes</h1><p class="muted">Les modèles du haut s'ouvrent dans le <b>Studio</b> : c'est le seul endroit où l'on écrit, change les photos et les pages. Les thèmes classiques, plus bas, se règlent dans <b>Design</b>. Dans les deux cas, rien n'est visible par tes clients avant <b>Publier</b>.</p></div>
   <div class="head-actions"><a class="btn btn-ghost" href="/dashboard/design">${icon("palette", 15)} Modifier le design</a></div>
 </header>
+
+${sitesBlock}
 
 ${trialTh ? `<section class="th-trial">
   <div class="th-trial-txt">
@@ -4406,38 +4759,7 @@ ${trialTh ? `<section class="th-trial">
     </div>`).join("")}</div>` : ""}
 </section>
 
-${(() => {
-    const SITES = require("./site-templates")
-    const SEC = require("./sections")
-    const live = SEC.readDesign(store).siteTemplate || ""
-    const trialSite = (draft.design && draft.design.siteTemplate) || ""
-    return `<section class="th-group">
-      <div class="th-group-head"><h2>Templates sites complets</h2>
-        <p>${live || trialSite ? `<a class="btn btn-primary btn-sm" href="/dashboard/studio" style="float:right">Ouvrir le studio</a>` : ""}Des pages d'accueil entières, prêtes à l'emploi. Ton nom, tes produits, ton panier et la commande restent ceux de NovaDZ. Le choisir ouvre un brouillon : tes clients ne voient rien avant Publier.</p></div>
-      <div class="th-grid">${SITES.LIST.map((t) => `<article class="th-card${t.id === live ? " is-now" : ""}${t.id === trialSite && t.id !== live ? " is-trial" : ""}">
-        <div class="th-shot"><img src="/shots/${esc(t.id)}.jpg" alt="Aperçu ${esc(t.name)}" loading="lazy"></div>
-        <div class="th-body">
-          <div class="th-name"><b>${esc(t.name)}</b>
-            ${t.id === live ? `<span class="pill livree">publié</span>` : ""}
-            ${t.id === trialSite && t.id !== live ? `<span class="pill confirmee">essai</span>` : ""}
-          </div>
-          <p class="th-ideal">${icon("store", 13)} <span>${esc(t.niche)}</span></p>
-          <p class="th-desc">${esc(t.line)}</p>
-          <div class="th-actions">
-            <a class="btn btn-ghost btn-sm" href="/templates/${esc(t.id)}.html" target="_blank" rel="noopener">Aperçu</a>
-            <form method="post" action="/dashboard/design/site-template" class="inline">
-              <input type="hidden" name="id" value="${esc(t.id)}">
-              <button class="btn ${t.id === trialSite ? "btn-primary" : "btn-ghost"} btn-sm">${t.id === live ? "Déjà publié" : t.id === trialSite ? "Continuer l'essai" : "Choisir"}</button>
-            </form>
-          </div>
-        </div>
-      </article>`).join("")}</div>
-      ${live || trialSite ? `<form method="post" action="/dashboard/design/site-template" class="inline" style="margin-top:14px">
-        <input type="hidden" name="id" value="">
-        <button class="btn btn-ghost btn-sm">Revenir à un thème classique</button>
-      </form>` : ""}
-    </section>`
-  })()}
+${sitesBlock}
 
 ${(() => {
     let shared = []
@@ -4781,13 +5103,137 @@ const publicThemesPage = (rows, user) => {
   </main>`, { bodyClass: "pub-themes" })
 }
 
+/* ======================================================================
+   PREMIER ÉCRAN (/demarrer) — trois questions, en français de tous les jours.
+   Un débutant ne sait pas ce qu'est un « thème » : il sait ce qu'il vend.
+   On choisit donc la mise en page à sa place, et il corrige ensuite.
+   ====================================================================== */
+const startPage = (user, store, error) => {
+  const METIERS = require("./metiers")
+  const kind = store.site_kind === "vitrine" ? "vitrine" : "commerce"
+  const wilaya = store.wilaya || ""
+  const options = GEO.WILAYAS.map((w) => `<option ${w === wilaya ? "selected" : ""}>${esc(w)}</option>`).join("")
+  return dashLayout(user, store, `
+<style>
+  .start-wrap{max-width:820px}
+  .start-wrap[data-kind="commerce"] [data-k="vitrine"]{display:none}
+  .start-wrap[data-kind="vitrine"] [data-k="commerce"]{display:none}
+  .start-step{margin:0 0 14px}
+  .start-step .panel-head{padding-bottom:10px}
+  .start-step h2{font-size:16px}
+  .start-step .why{font-size:13px;color:var(--muted);margin:-4px 0 14px}
+  .pick-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pick-grid.metiers{grid-template-columns:1fr 1fr 1fr}
+  .pick{position:relative;display:block;cursor:pointer}
+  .pick input{position:absolute;opacity:0;pointer-events:none}
+  .pick-in{display:flex;align-items:center;gap:10px;height:100%;padding:13px 14px;border:1px solid var(--line);
+    border-radius:10px;background:#fff;transition:border-color .15s,box-shadow .15s,background .15s}
+  .pick-in b{display:block;font-size:13.5px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+  .pick-in small{display:block;font-size:12px;color:var(--muted);margin-top:2px;line-height:1.35}
+  .pick-in svg{color:var(--muted)}
+  .pick input:checked + .pick-in{border-color:var(--ink);box-shadow:0 0 0 3px rgba(17,17,17,.10);background:#fff}
+  .pick input:checked + .pick-in svg{color:var(--ink)}
+  .pick input:focus-visible + .pick-in{box-shadow:var(--ring)}
+  .pick-in .tick{margin-left:auto;width:16px;height:16px;border-radius:50%;border:1px solid var(--line);flex:0 0 auto}
+  .pick input:checked + .pick-in .tick{background:var(--ink);border-color:var(--ink)}
+  .start-contact{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .start-go{display:flex;align-items:center;gap:14px;margin:18px 0 40px}
+  .start-go .btn{height:44px;padding:0 26px;font-size:14px}
+  .start-go span{font-size:12.5px;color:var(--muted)}
+  @media(max-width:760px){
+    .pick-grid,.pick-grid.metiers,.start-contact{grid-template-columns:1fr}
+    .start-go{flex-direction:column;align-items:stretch}
+  }
+</style>
+<div class="start-wrap" data-kind="${kind}">
+<header class="dash-head">
+  <div>
+    <h1>Bonjour ${esc((user.name || "").split(" ")[0] || "")}</h1>
+    <p class="muted"><span data-k="commerce">Trois questions, et votre boutique est prête.</span><span data-k="vitrine">Trois questions, et votre site est prêt.</span> Rien n'est définitif : tout se change ensuite.</p>
+  </div>
+</header>
+${error ? `<div class="alert">${esc(error)}</div>` : ""}
+<form method="post" action="/demarrer">
+  <section class="panel start-step">
+    <div class="panel-head"><h2>1. Vous voulez…</h2><span class="muted small">choisissez une seule réponse</span></div>
+    <div class="pick-grid">
+      <label class="pick">
+        <input type="radio" name="kind" value="commerce" ${kind === "commerce" ? "checked" : ""} required>
+        <span class="pick-in">${icon("cart", 18)}
+          <span><b>Vendre en ligne</b><small>Un catalogue, un panier, des commandes à livrer.</small></span>
+          <span class="tick" aria-hidden="true"></span>
+        </span>
+      </label>
+      <label class="pick">
+        <input type="radio" name="kind" value="vitrine" ${kind === "vitrine" ? "checked" : ""} required>
+        <span class="pick-in">${icon("layout", 18)}
+          <span><b>Montrer ce que je fais</b><small>Un site avec vos réalisations et un formulaire à remplir.</small></span>
+          <span class="tick" aria-hidden="true"></span>
+        </span>
+      </label>
+    </div>
+  </section>
+
+  <section class="panel start-step">
+    <div class="panel-head">
+      <h2><span data-k="commerce">2. Qu'est-ce que vous vendez ?</span><span data-k="vitrine">2. Quel est votre métier ?</span></h2>
+      <span class="muted small"><span data-k="commerce">le produit que vous vendez</span><span data-k="vitrine">ce que vous montrez</span></span>
+    </div>
+    <p class="why" data-k="commerce">Ça choisit la mise en page de départ. Vous pourrez la changer autant de fois que vous voulez.</p>
+    <p class="why" data-k="vitrine">Ça choisit la présentation de départ : vos réalisations, votre présentation, et un formulaire pour vous écrire. Aucun produit, aucun panier.</p>
+    <div class="pick-grid metiers">
+      ${METIERS.LIST.map((m) => `<label class="pick">
+        <input type="radio" name="metier" value="${esc(m.id)}" required>
+        <span class="pick-in">${icon(m.icon, 17)}<span><b>${esc(m.label)}</b></span><span class="tick" aria-hidden="true"></span></span>
+      </label>`).join("")}
+    </div>
+  </section>
+
+  <section class="panel start-step">
+    <div class="panel-head">
+      <h2><span data-k="commerce">3. Comment un client vous joint ?</span><span data-k="vitrine">3. Où et comment vous joindre ?</span></h2>
+      <span class="muted small">obligatoire</span>
+    </div>
+    <p class="why" data-k="commerce">Le téléphone s'affiche sur la boutique et sert à confirmer les commandes. La wilaya sert à la livraison.</p>
+    <p class="why" data-k="vitrine">Le téléphone et la ville s'affichent sur votre site. Pas de commande ni de livraison à préparer.</p>
+    <div class="start-contact">
+      <label>Téléphone<input name="phone" required inputmode="tel" autocomplete="tel" value="${esc(store.phone || "")}" placeholder="0555 12 34 56"></label>
+      <label><span data-k="commerce">Wilaya (livraison)</span><span data-k="vitrine">Ville (wilaya)</span>
+        <select name="wilaya" required>
+          <option value="" ${wilaya ? "" : "selected"} disabled>Choisir</option>
+          ${options}
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <div class="start-go">
+    <button class="btn btn-primary" type="submit"><span data-k="commerce">C'est parti</span><span data-k="vitrine">Créer mon site</span></button>
+    <span data-k="commerce">Vous arrivez sur votre tableau de bord, avec un exemple prêt à corriger.</span>
+    <span data-k="vitrine">Vous arrivez dans le Studio, avec une page prête à corriger.</span>
+  </div>
+</form>
+<script>
+/* Changer « vendre / montrer » change les questions tout de suite : un site qui
+   montre n'a ni produit ni livraison, donc on ne lui demande pas de boutique. */
+(function () {
+  var w = document.querySelector('.start-wrap')
+  if (!w) return
+  w.querySelectorAll('input[name=kind]').forEach(function (r) {
+    r.addEventListener('change', function () { if (r.checked) w.setAttribute('data-kind', r.value) })
+  })
+})()
+</script>
+</div>`, "home")
+}
+
 module.exports = {
-  esc, money, dashPayments, dashSocial, dashThemes, authPage, welcomePage, storefront, productPage, cartPage,
+  esc, money, dashPayments, dashSocial, dashThemes, authPage, welcomePage, logoutPage, storefront, productPage, cartPage,
   checkoutPage, orderDone, contentPage, favPage, dashHome, dashProducts, productForm, dashOrders,
   dashSettings, dashDesign, dashPages, pageForm, dashDiscounts, dashOrderDetail, adminPage,
   legalPage, customerAccount, orderTrack, invoice, dashStats, dashForm, dashCategories, dashShipping, dashReviews, dashCustomers, adminHealth, adminLogs, dashStock,
   dashLandings, landingForm, dashMarketing, dashCarrier, carrierBlock,
   dashCarts, dashRelances, dashDeliveryStats,
   dashTeam, dashMails, joinPage, joinReady, noAccess, errorPage, dashHistory, dashAssistant, dashVisits, dashLeads,
-  publicThemesPage,
+  publicThemesPage, startPage, dashStores,
 }

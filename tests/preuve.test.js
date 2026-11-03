@@ -52,6 +52,14 @@ const field = (html, re) => {
 const h1 = (html) => field(html, /<h1[^>]*>([^<]*)<\/h1>/)
 const kicker = (html) => field(html, /class="sec-kicker"[^>]*>([^<]*)</)
 const sub = (html) => field(html, /class="sec-sub"[^>]*>([^<]*)</)
+/* le slogan de la boutique est repris dans le titre de la page : « Nom — slogan » */
+const pageTagline = (html) => {
+  const m = html.match(/<title>([^<]*)<\/title>/)
+  if (!m) return ""
+  const t = decode(m[1])
+  const i = t.lastIndexOf("—")
+  return i >= 0 ? t.slice(i + 1).trim() : ""
+}
 
 const SECTIONS = require("../src/sections")
 const { THEMES } = require("../src/themes")
@@ -128,7 +136,10 @@ test("titres : 4 cas sur chaque thème à bannière, texte de la boutique publiq
       assert.equal(got, expected, `${id} ${name} h1=${got}`)
       if (name === "vide") {
         assert.equal(kicker(html), "")
-        assert.equal(sub(html), "")
+        /* bannière sans texte : elle affiche le slogan de la boutique */
+        const slogan = pageTagline(html)
+        assert.ok(sub(html).length > 0, `${id} ${name} : la bannière reste vide`)
+        if (slogan) assert.equal(sub(html), slogan, `${id} ${name} sub=${sub(html)}`)
       }
       if (name === "vide+surtitre") assert.equal(kicker(html), "Sur-titre")
       if (name === "vide+soustitre") assert.equal(sub(html), "Sous-titre")

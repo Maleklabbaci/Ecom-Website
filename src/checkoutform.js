@@ -465,7 +465,11 @@ ${hasGeo ? geoBlock(store, lang, pieceText(store, "position", lang)) : ""}
  * réponses aux champs ajoutés par le marchand.
  */
 const collect = (store, body = {}) => {
-  const list = activeFields(store)
+  /* la commune peut être rendue obligatoire par la boutique : on l'ajoute au
+     contrôle sans réécrire la configuration du vendeur */
+  const strictCommune = Boolean(store && store.commune_required)
+  const list = activeFields(store).map((f) =>
+    strictCommune && f.key === "commune" ? { ...f, required: true } : f)
   const values = {}
   const extra = {}
   const missing = []

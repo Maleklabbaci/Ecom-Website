@@ -19,14 +19,29 @@ const ASSET_V = (() => {
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]))
 
-const money = (cents, currency = "DZD") =>
-  (cents / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " " + currency
+/**
+ * Montant affiché. `style` vient d'un réglage du vendeur :
+ *   complet (défaut) → « 4 500,00 DZD »
+ *   da               → « 4 500 DA »      (ce que lit un acheteur algérien)
+ *   court            → « 4 500 »         (quand la devise est évidente)
+ */
+const money = (cents, currency = "DZD", style = "") => {
+  const short = style === "da" || style === "court"
+  const amount = (Number(cents) || 0) / 100
+  const text = amount.toLocaleString("fr-FR", {
+    minimumFractionDigits: short ? 0 : 2,
+    maximumFractionDigits: short ? 0 : 2,
+  })
+  if (style === "court") return text
+  if (style === "da") return text + " DA"
+  return text + " " + currency
+}
 
 /** Prix affiché : le code devise est un span, pour pouvoir le masquer sans toucher au montant. */
-const moneyHtml = (cents, currency = "DZD") => {
-  const full = money(cents, currency)
-  const cur = String(currency || "DZD")
-  const amt = full.endsWith(" " + cur) ? full.slice(0, -(cur.length + 1)) : full
+const moneyHtml = (cents, currency = "DZD", style = "") => {
+  const full = money(cents, currency, style)
+  const cur = style === "da" ? "DA" : style === "court" ? "" : String(currency || "DZD")
+  const amt = cur && full.endsWith(" " + cur) ? full.slice(0, -(cur.length + 1)) : full
   return `<span class="ndz-money" data-cents="${Number(cents) || 0}"><span class="ndz-amt">${esc(amt)}</span> <span class="ndz-cur">${esc(cur)}</span></span>`
 }
 
@@ -53,7 +68,10 @@ const seoMeta = (o = {}) => {
   return out.join("\n")
 }
 
-const page = (title, body, { bodyClass = "", seo = null } = {}) => `<!DOCTYPE html>
+/* Coquille HTML. En arabe (tableau de bord, connexion, réglages), la page est
+   retournée en écriture de droite à gauche et traduite par `ui-ar.js` ; en
+   français, rien ne change. */
+const page = (title, body, { bodyClass = "", seo = null } = {}) => require("./ui-ar").wrap(`<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -70,7 +88,7 @@ ${seo ? seoMeta({ title, ...seo }) : ""}
 <body class="${bodyClass}">${body}
 <script>(function(){if(document.querySelector(".ndz-mnav"))return;var nav=document.querySelector("header nav,.tpx-nav,.mn-nav");var head=document.querySelector("header,.tpx-head,.tpx-hrow");if(!nav||!head)return;var d=document.createElement("details");d.className="ndz-mnav";d.innerHTML='<summary aria-label="Menu"><span></span><span></span><span></span></summary>';var box=document.createElement("div");box.className="ndz-mnav-box";box.appendChild(nav.cloneNode(true));d.appendChild(box);head.appendChild(d);})();</script>
 </body>
-</html>`
+</html>`)
 
 /* Script injecté en aperçu (?preview=1) : contour des sections + sélection au clic. */
 const PREVIEW_SCRIPT = `<script>
@@ -139,7 +157,46 @@ const PREVIEW_SCRIPT = `<script>
       ;['noir', 'gris', 'contour'].forEach(function (k) {
         themeEl.classList.toggle('d-btn-' + k, (d.button || 'noir') === k)
       })
+      ;['aere', 'serre'].forEach(function (k) {
+        themeEl.classList.toggle('d-dense-' + k, (d.density || 'normal') === k)
+      })
     }
+    /* bandeau d'annonce : ajouté, modifié ou retiré tout de suite */
+    ;(function () {
+      var box = document.querySelector('.theme')
+      var bar = document.querySelector('.ndz-ann')
+      var text = String(d.announceText == null ? '' : d.announceText).trim()
+      if (d.announceOn && text) {
+        if (!bar) {
+          bar = document.createElement('div')
+          bar.className = 'ndz-ann'
+          bar.setAttribute('role', 'status')
+          if (box) box.insertBefore(bar, box.firstChild)
+        }
+        bar.textContent = ''
+        var link = String(d.announceLink || '')
+        if (link) {
+          var a = document.createElement('a')
+          a.setAttribute('href', link)
+          a.textContent = text
+          bar.appendChild(a)
+        } else bar.textContent = text
+      } else if (bar) bar.parentNode.removeChild(bar)
+    })()
+    /* délai de livraison, collé au bouton d'achat.
+       Le point-virgule n'est pas décoratif : sans lui, ce bloc est avalé
+       comme un appel du précédent. */
+    ;(function () {
+      var old = document.querySelector('.ndz-eta')
+      var text = String(d.etaText == null ? '' : d.etaText).trim()
+      if (!text) { if (old && old.parentNode) old.parentNode.removeChild(old); return }
+      var buy = document.querySelector('.ndz-buy, .ndz-buyform')
+      if (!buy || !buy.parentNode) { if (old && old.parentNode) old.parentNode.removeChild(old); return }
+      var p = old || document.createElement('p')
+      p.className = 'ndz-eta'
+      p.textContent = text
+      if (!old) buy.parentNode.insertBefore(p, buy)
+    })()
     r.setAttribute('data-brandname', d.showName === false ? 'off' : 'on')
     r.setAttribute('data-brandlogo', d.showLogo === false ? 'off' : 'on')
     r.setAttribute('data-logoplace', d.logoPlace || 'gauche')

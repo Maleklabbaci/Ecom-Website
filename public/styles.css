@@ -1064,7 +1064,7 @@ code{background:var(--bg-sub2);padding:1px 6px;border-radius:4px;font-size:.92em
 .sec-hero.has-img{background:#F4F4F5}
 .theme-contrast .sec-hero.has-img{background:#111}
 .theme-contrast .sec-hero.has-img .sec-hero-bg{opacity:.35}
-.sec-hero-logo{height:46px;width:auto;margin:0 auto 18px;display:block}
+.sec-hero-logo{height:46px;width:auto;max-width:min(260px,64vw);object-fit:contain;margin:0 auto 18px;display:block}
 .sec-hero.a-left .sec-hero-logo{margin:0 0 18px}
 
 /* --- FAQ --- */
@@ -2037,7 +2037,8 @@ input[type=checkbox],input[type=radio]{width:15px;height:15px;flex:0 0 auto;marg
 
 :root{
   --r-xs:8px; --r-sm:11px; --r-md:14px; --r-lg:18px; --r-xl:24px; --r-pill:999px;
-  --y:#d6ff45; --y-600:#c6ef3a; --y-soft:#f4ffd4; --y-line:#d7ee86; --y-ink:#1c2408;
+  /* plus de vert fluo dans l'espace vendeur : des repères noirs, sur du blanc */
+  --y:#111111; --y-600:#000000; --y-soft:#F4F4F7; --y-line:#E7E7EC; --y-ink:#111111;
   --shadow-2:0 1px 2px rgba(24,24,27,.04),0 10px 30px -18px rgba(24,24,27,.18);
 }
 
@@ -2085,9 +2086,9 @@ input::placeholder,textarea::placeholder{color:#A1A19B}
 .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--y)}
 .kpi b{font-variant-numeric:tabular-nums}
 
-.dash-nav a.on{background:var(--y-soft);color:var(--ink);box-shadow:inset 3px 0 0 var(--y)}
+.dash-nav a.on{background:#F4F4F7;color:var(--ink);box-shadow:inset 3px 0 0 var(--ink)}
 .dash-nav a.on svg{color:var(--ink)}
-.dash-nav a:hover{background:#FAFAF6}
+.dash-nav a:hover{background:#FAFAFB}
 
 .start{border-left:3px solid var(--y)}
 .start-item.done .start-dot{background:#1C1C1C;border-color:#1C1C1C;color:var(--y)}
@@ -2096,12 +2097,12 @@ input::placeholder,textarea::placeholder{color:#A1A19B}
 
 .panel-head h2{position:relative;padding-left:11px}
 .panel-head h2::before{content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);
-  width:4px;height:14px;border-radius:var(--r-pill);background:var(--y)}
+  width:3px;height:13px;border-radius:var(--r-pill);background:var(--ink);opacity:.85}
 
 .alert.ok{background:#F7FBE9;border-color:#DCEBA8;color:#3F6212}
 .pill.ok{background:#F7FBE9;border-color:#DCEBA8;color:#3F6212}
-.table tbody tr:hover{background:#f7ffe4}
-a.link:hover,.link:hover{color:#8A7400}
+.table tbody tr:hover{background:#FAFAFA}
+a.link:hover,.link:hover{color:#3D3D45}
 .ed-top{border-bottom:2px solid var(--y)}
 
 .btn-primary{background:var(--ink);border-color:var(--ink)}
@@ -4487,7 +4488,7 @@ img#cropImg:not([src]), img#cropImg[src=""] { display: none !important; }
 .ph-tools button:disabled { opacity: .35; cursor: default; }
 .ph-tools button.ph-del:hover { background: #FDECEC; color: #9B1C1C; }
 .ph-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.ph-empty { margin: 4px 0 10px; }
+.ph-empty { margin: 4px 0 10px; grid-column: 1 / -1; }
 
 /* ---- produit : titres de variante ---- */
 .og-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
@@ -6973,6 +6974,18 @@ html[data-searchalign="droite"] .theme header .ndz-search-in { margin-left: auto
 .prev-frame.tel{width:390px;max-width:100%;margin:0 auto;border-radius:26px;box-shadow:0 18px 50px rgba(17,17,17,.14)}
 .prev-frame.tel iframe{height:700px}
 .prev-panel .muted.small{margin:10px 0 0}
+/* — lien d'aperçu : à envoyer sur WhatsApp avant la mise en ligne — */
+.prev-share{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg-sub)}
+.prev-share .lbl{display:flex;flex-direction:column;gap:1px;margin-right:4px}
+.prev-share .lbl b{font-size:13px;font-weight:600;color:var(--ink)}
+.prev-share .lbl small{font-size:12px;color:var(--muted)}
+.prev-share input{flex:1 1 320px;min-width:0;height:34px;padding:0 11px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:12.5px;color:var(--ink-2)}
+.prev-share .btn{height:34px}
+.prev-share .copied{font-size:12px;color:var(--ok);font-weight:600}
+@media(max-width:760px){
+  .prev-share{align-items:stretch}
+  .prev-share input{flex:1 1 100%}
+}
 .suivi-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .suivi-tile{display:flex;flex-direction:column;gap:2px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#fff}
 .suivi-tile:hover{border-color:#D4D4D8}
@@ -6986,3 +6999,257 @@ html[data-searchalign="droite"] .theme header .ndz-search-in { margin-left: auto
   .prev-frame iframe{height:460px}
   .prev-frame.tel iframe{height:600px}
 }
+/* ---------- filtres de commandes sur téléphone : deux colonnes, rien de coupé ---------- */
+@media (max-width:720px){
+  .ord-tools.ord-tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:stretch;flex-wrap:nowrap}
+  .ord-tools .ord-filter.ord-filter{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:8px;
+    margin:0 0 2px;flex:0 0 auto;align-items:stretch}
+  .ord-tools .ord-filter.ord-filter .ord-f-q{grid-column:1/-1;height:44px;min-height:44px;flex:0 0 auto;border-radius:12px}
+  .ord-tools .ord-filter.ord-filter select{width:100%;min-width:0;max-width:none !important;height:44px;
+    font-size:13.5px;flex:0 0 auto;border-radius:12px}
+  .ord-tools.ord-tools > .btn{height:44px;width:100%;justify-content:center;border-radius:12px}
+}
+
+/* ---------- pied de page + bandeau cookies : la touche premium ---------- */
+/* le pied : le nom et le contact en haut, les liens légaux en bas, deux hairlines */
+.mn-foot{border-top:1px solid var(--line);padding:30px 0 22px;margin-top:26px;background:#fff}
+.mn-frow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px 24px;flex-wrap:wrap;
+  font-size:12px;color:var(--faint);line-height:1.5}
+.mn-fbrand{font-size:13.5px;font-weight:600;letter-spacing:-.01em;color:var(--ink);
+  display:flex;flex-direction:column;gap:3px}
+.mn-fbrand span{font-weight:400;font-size:12px;color:var(--muted)}
+.mn-fphone{font-size:12px;color:var(--muted)}
+.mn-powered{font-size:11.5px;color:var(--faint);padding-top:2px}
+.mn-powered a{color:var(--ink-2);text-decoration:none;border-bottom:1px solid var(--line)}
+.mn-powered a:hover{border-color:var(--ink)}
+.legalbar{padding:15px 0}
+.legalbar-in{font-size:11.5px;align-items:center;gap:10px 18px}
+.legalbar nav{gap:16px;align-items:center}
+.legalbar a{text-decoration:none;letter-spacing:.01em}
+.legalbar a:hover{text-decoration:underline;text-underline-offset:3px}
+@media (max-width:640px){
+  .mn-foot{padding:24px 0 18px}
+  .mn-frow{flex-direction:column;gap:10px}
+  .mn-powered{padding-top:6px}
+  .legalbar-in{flex-direction:column;align-items:flex-start;gap:8px}
+  .legalbar nav{gap:14px;flex-wrap:wrap}
+}
+/* les cookies : une carte blanche discrète, pas un bloc noir */
+.cookies{background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 18px 44px -26px rgba(15,15,18,.45);padding:14px 16px}
+.cookies p{color:var(--muted);font-size:12px}
+.cookies a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line)}
+.cookies button{height:30px;padding:0 14px;border-radius:8px;border:1px solid var(--line);
+  background:#fff;color:var(--ink-2);font-size:11.5px}
+.cookies button:hover{border-color:#C9C9D2;color:var(--ink)}
+.cookies button[data-ck="yes"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.cookies button[data-ck="yes"]:hover{background:#000}
+
+/* ═══════════════════ finition boutique ═══════════════════
+   Mêmes tailles, mêmes arrondis, mêmes zones à toucher partout.
+   Ce bloc passe après tout le reste : il ne change pas le thème choisi par
+   le marchand (couleurs, polices, arrondi des cartes restent les siens). */
+
+/* --- le prix compte autant que le nom --- */
+.theme .p-price{font-size:15px;font-weight:650;letter-spacing:-.015em}
+.theme .p-price.big{font-size:28px;letter-spacing:-.025em}
+.theme .p-name{font-size:15px;line-height:1.35}
+.theme .p-desc{font-size:12px;line-height:1.5}
+/* le prix et son bouton restent ensemble, plus à deux bouts de la ligne */
+.theme .p-row{justify-content:flex-start;gap:14px}
+
+/* --- le bouton d'achat se voit et se touche --- */
+/* la taille et la forme du bouton : le noir/gris/contour reste le choix du thème */
+.theme .p-add{width:34px;height:34px;min-width:34px;display:grid;place-items:center;
+  font-size:17px;line-height:1;font-weight:500;transition:transform .12s ease,filter .12s ease}
+.theme .p-add:hover:not(:disabled){transform:translateY(-1px);filter:brightness(.94)}
+@media(max-width:640px){
+  .theme .p-add{width:44px;height:44px;min-width:44px;font-size:21px}
+}
+
+/* --- toute la carte mène au produit (plus seulement le petit nom) --- */
+.theme .p-item{position:relative}
+.theme .p-name::after{content:"";position:absolute;inset:0;z-index:1}
+.theme .p-item .ndz-buy,.theme .p-item .p-row,.theme .p-item .p-badge{position:relative;z-index:2}
+.theme .p-thumb{overflow:hidden}
+.theme .p-thumb img{transition:transform .4s cubic-bezier(.2,.7,.3,1)}
+.theme .p-item:hover .p-thumb img{transform:scale(1.035)}
+
+/* --- la photo garde ses proportions (3:2, comme l'appareil) --- */
+.theme .sec-grid .p-thumb,.theme .mn-grid .p-thumb{aspect-ratio:3/2!important;height:auto}
+.theme .sec-fig{aspect-ratio:3/2!important}
+.theme .p-thumb img,.theme .sec-fig img{width:100%!important;height:100%!important;object-fit:cover;display:block}
+
+/* --- les petits boutons du haut, un seul style --- */
+.theme .lang-switch{height:40px;min-width:40px;border-radius:999px;font-size:12px}
+.theme .mn-search{height:40px;border-radius:999px}
+/* le panier reste discret : le bouton noir est réservé à l'action d'achat */
+html[data-kind="commerce"] .theme header a[href$="/cart"],
+html[data-kind="commerce"] .theme > header a[href$="/cart"],
+html[data-kind="commerce"] .theme.d-btn-noir > header a[href$="/cart"]{
+  background:transparent!important;background-color:transparent!important;
+  color:inherit!important;border:1px solid rgba(127,127,127,.34)!important;
+  border-radius:999px!important;padding:0 14px!important;height:36px!important;min-height:36px!important;
+  font-weight:600!important;font-size:13px!important;box-shadow:none!important}
+html[data-kind="commerce"] .theme header a[href$="/cart"]:hover,
+html[data-kind="commerce"] .theme > header a[href$="/cart"]:hover{background:rgba(127,127,127,.1)!important}
+/* recherche et langue : même hauteur, même arrondi que le panier */
+html[data-kind="commerce"] .theme header .lang-switch,
+html[data-kind="commerce"] .theme header .ndz-search,
+html[data-kind="commerce"] .theme header .ndz-search input{height:36px!important;border-radius:999px!important}
+html[data-kind="commerce"] .theme header .ndz-search input{height:34px!important;font-size:13px!important}
+
+/* --- une seule échelle de tailles : 42 / 32 / 21 / 17 / 15 / 13 / 12 / 11 --- */
+.mn-nav a{font-size:13px}
+.mn-brand,.brand-name{font-size:15px}
+.sec-head span,.sec-figcap{font-size:11px}
+.sec-bitem b,.sec-bitem span{font-size:12px}
+.theme form.ndz-ask b,.theme form.ndz-ask label{font-size:15px}
+.mn-powered,.mn-powered a,.legalbar,.legalbar a,.legalbar span{font-size:11px}
+.legalbar a,.mn-powered a{padding:6px 2px;display:inline-block}
+.mn-fbrand{font-size:13px}
+.cookies p,.cookies p a{font-size:11px}
+.cookies button{font-size:11px}
+
+/* --- on voit ce qu'on survole, et où est le clavier --- */
+.theme a:focus-visible,.theme button:focus-visible,.theme input:focus-visible{outline:2px solid var(--s-ink,#111);outline-offset:2px;border-radius:4px}
+
+/* --- le bandeau cookies ne mange plus l'écran --- */
+.cookies{max-width:460px;padding:12px 14px;gap:12px;align-items:center;border-radius:12px;
+  box-shadow:0 12px 30px -14px rgba(15,15,18,.35)}
+.cookies p{font-size:11px;line-height:1.45;margin:0}
+.cookies button{height:30px;padding:0 13px;border-radius:999px;font-size:11px}
+@media(max-width:640px){
+  .cookies{left:10px;right:10px;bottom:10px;max-width:none;padding:8px 10px;
+    gap:8px;flex-wrap:nowrap;align-items:center;justify-content:space-between}
+  .cookies p{font-size:11px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cookies button{height:32px;padding:0 11px;font-size:11px;white-space:nowrap;flex:0 0 auto}
+  /* la page garde de la place sous le dernier bouton : rien n'est masqué */
+  body:has(.cookies:not([hidden])){padding-bottom:76px}
+  body:has(.cookies:not([hidden])):has(.sec-wabar){padding-bottom:132px}
+}
+
+/* les mêmes 8 crans sur téléphone, y compris le texte courant */
+.theme .sec .sec-sub{font-size:15px}
+.theme .sec .sec-kicker,.theme .sec .sec-figcap{font-size:11px}
+.theme .sec .sec-count{font-size:11px}
+@media(max-width:640px){
+  .sec-head h2,.sec-ftext h2 a{font-size:21px}
+}
+
+/* --- fiche produit et panier : les mêmes crans que la boutique --- */
+.mn-detail h1{font-size:32px;line-height:1.15}
+.pr-now .ndz-amt{font-size:21px;font-weight:650;letter-spacing:-.02em}
+.pr-now .ndz-cur{font-size:12px;font-weight:500;opacity:.7;margin-left:4px}
+.pr-old{font-size:17px}
+.pr-old .ndz-amt{font-size:17px;font-weight:400}
+.pr-old .ndz-cur{font-size:12px}
+.pr-off{font-size:13px}
+.theme .mn-detail .mn-stock{font-size:13px}
+.theme .mn-trust,.theme .mn-trust li,.theme .mn-trust li span{font-size:13px;line-height:1.5}
+.mn-price{font-size:21px}
+.mn-price .ndz-cur{font-size:12px}
+.ndz-buy .btn,.ndz-buy .ndz-paybtn{font-size:13px}
+.ndz-paybtn{font-size:13px!important}
+.ndz-bundle-t{font-size:13px}
+.ndz-bundle .pr-old .ndz-amt,.ndz-bundle .pr-old .ndz-cur{font-size:11px}
+.ndz-bundle .pr-off{font-size:11px;padding:0 5px}
+.ndz-bundle-foot .btn{font-size:13px}
+.revs-head h2{font-size:21px}
+.revs-head span{font-size:13px}
+.revs-form summary,.revs-form label,.revs-form option,.revs-form select,.revs-form input,.revs-form textarea{font-size:13px}
+.revs-form .btn{font-size:13px}
+.mn-title{font-size:32px}
+.mn-empty h3{font-size:17px}
+.theme .mn-empty p{font-size:15px}
+.mn-empty a,.mn-empty .btn{font-size:13px}
+
+/* --- sur téléphone, tout ce qui se touche fait au moins 40 px de haut --- */
+@media(max-width:640px){
+  html[data-kind="commerce"] .theme header a[href$="/cart"],
+  html[data-kind="commerce"] .theme header .lang-switch,
+  html[data-kind="commerce"] .theme header .ndz-search{height:40px!important;min-height:40px!important}
+  html[data-kind="commerce"] .theme header .ndz-search input{height:38px!important}
+  .theme .p-item .p-name{display:block;padding:2px 0 4px}
+}
+.theme .cookies p,.theme .cookies p a{font-size:11px}
+.theme .cookies button{font-size:11px}
+.legalbar nav{font-size:11px}
+/* la pièce en vedette occupe toute la colonne, sans marge morte */
+.theme .sec-fig{width:100%!important;max-width:none!important;margin:0}
+.theme .sec-fig img{width:100%!important;height:100%!important;object-fit:cover;object-position:center}
+
+/* ======================================================================
+   v25 — achat et finitions : chaque ligne est un choix du vendeur,
+   tout est éteint par défaut (aucune boutique déjà en ligne ne bouge).
+   ====================================================================== */
+/* bandeau d'annonce, en haut de chaque page */
+.ndz-ann{background:var(--s-accent,#111);color:var(--s-accent-ink,#fff);text-align:center;
+  font-size:13px;line-height:1.35;font-weight:500;letter-spacing:.01em;padding:10px 16px}
+.ndz-ann a{color:inherit;text-decoration:underline;text-underline-offset:3px}
+
+/* densité de la page : aérée, normale, serrée.
+   « Normale » ne touche à RIEN : chaque thème garde ses propres espacements. */
+.theme.d-dense-aere{--ndz-dpad:72px;--ndz-gap:30px}
+.theme.d-dense-serre{--ndz-dpad:34px;--ndz-gap:14px}
+.theme.d-dense-aere .sec-grid,.theme.d-dense-serre .sec-grid{padding:var(--ndz-dpad) 0}
+.theme.d-dense-aere .sec-items,.theme.d-dense-serre .sec-items{gap:var(--ndz-gap)}
+.theme.d-dense-aere .sec-featured,.theme.d-dense-serre .sec-featured{padding:calc(var(--ndz-dpad) * .9) 0}
+@media(max-width:600px){
+  .theme.d-dense-aere .sec-grid,.theme.d-dense-serre .sec-grid{padding:calc(var(--ndz-dpad) * .66) 0}
+  .theme.d-dense-aere .sec-items,.theme.d-dense-serre .sec-items{gap:calc(var(--ndz-gap) * .62)}
+}
+
+/* délai de livraison et guide des tailles, collés au bouton d'achat */
+.ndz-eta{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-size:13px;
+  line-height:1.4;color:inherit;opacity:.72}
+.ndz-eta svg{flex:0 0 auto}
+.ndz-guide{display:inline-flex;align-items:center;min-height:40px;margin-top:4px;font-size:13px;
+  color:inherit;opacity:.8;text-decoration:underline;text-underline-offset:3px}
+
+/* zoom sur la photo principale */
+.gal-zoom .gal-main{cursor:zoom-in;overflow:hidden}
+.gal-zoom .gal-main img{transition:transform .22s ease}
+.gal-zoom .gal-main.zoomed img{transform:scale(1.9);transition:none}
+@media(hover:none){.gal-zoom .gal-main{cursor:default}}
+
+/* barre d'achat collante : elle rejoue les boutons de la fiche */
+.ndz-bar{position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--s-bg,#fff);
+  border-top:1px solid rgba(127,127,127,.22);box-shadow:0 -6px 22px rgba(0,0,0,.06);
+  padding:10px 0 calc(10px + env(safe-area-inset-bottom))}
+.ndz-bar[hidden]{display:none}
+.ndz-bar-in{max-width:var(--s-container,1240px);margin:0 auto;padding:0 20px;
+  display:flex;align-items:center;gap:14px}
+.ndz-bar-p{font-size:17px;font-weight:650;letter-spacing:-.01em;white-space:nowrap}
+.ndz-bar-p .ndz-cur{font-size:11px;font-weight:500;opacity:.7;margin-left:3px}
+.ndz-bar-p .pr-old{display:none}
+.ndz-bar-btns{margin-left:auto;display:flex;gap:8px}
+.ndz-bar-btn{height:44px;padding:0 20px;border:1px solid var(--s-accent,#111);border-radius:var(--r-md,10px);
+  background:var(--s-accent,#111);color:var(--s-accent-ink,#fff);font:inherit;font-size:14px;
+  font-weight:600;cursor:pointer;white-space:nowrap}
+.ndz-bar-btn:hover{filter:brightness(1.08)}
+.ndz-bar-ghost{background:transparent;color:inherit;border-color:rgba(127,127,127,.4)}
+body:has(.ndz-bar:not([hidden])){padding-bottom:80px}
+body:has(.ndz-bar:not([hidden])):has(.cookies:not([hidden])){padding-bottom:150px}
+body:has(.cookies:not([hidden])) .ndz-bar{bottom:72px}
+/* le bouton WhatsApp remonte pour ne pas passer sous la barre */
+body:has(.ndz-bar:not([hidden])) .wa-float{bottom:96px}
+body:has(.ndz-bar:not([hidden])):has(.cookies:not([hidden])) .wa-float{bottom:168px}
+@media(max-width:720px){
+  body:has(.ndz-bar:not([hidden])) .wa-float{bottom:92px}
+  body:has(.ndz-bar:not([hidden])):has(.cookies:not([hidden])) .wa-float{bottom:164px}
+}
+@media(max-width:600px){
+  .ndz-bar-in{padding:0 12px;gap:10px}
+  .ndz-bar-p{font-size:16px}
+  .ndz-bar-btn{height:44px;padding:0 14px;font-size:13px}
+}
+
+/* titre de niveau 1 présent pour les lecteurs d'écran, invisible à l'œil */
+.ndz-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;
+  clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.revs-photo{display:block;margin-top:9px;width:88px;height:88px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.revs-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.revs-file{align-items:flex-start}
+.revs-file input[type=file]{height:auto;border:0;padding:0;font-size:12px;color:var(--muted)}
+.revs-prev img{width:70px;height:70px;object-fit:cover;border-radius:7px;border:1px solid var(--line);margin-top:6px;display:block}

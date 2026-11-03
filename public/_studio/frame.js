@@ -61,26 +61,46 @@
   var uiCss = D.createElement("style"); uiCss.setAttribute("data-studio-ui", "")
   uiCss.textContent =
     "[data-studio-ui]{font:12px/1.2 system-ui,sans-serif}.sf-hov,.sf-sel,.sf-drop{position:fixed;pointer-events:none;z-index:2147483000;display:none;box-sizing:border-box}" +
-    ".sf-hov{outline:1px dashed #6d5efc;background:rgba(109,94,252,.06)}.sf-sel{outline:2px solid #6d5efc}" +
-    ".sf-drop{background:#6d5efc;height:3px;border-radius:2px}.sf-drop.in{height:auto;background:rgba(109,94,252,.18);outline:2px dashed #6d5efc}" +
-    ".sf-tb{position:fixed;z-index:2147483001;display:none;gap:2px;background:#1c1b22;color:#fff;border-radius:8px;padding:3px;box-shadow:0 6px 20px rgba(0,0,0,.3);align-items:center;max-width:96vw}" +
+    ".sf-hov{outline:1px dashed #111111;background:rgba(17,17,17,.05)}.sf-sel{outline:2px solid #111111}" +
+    ".sf-drop{background:#111111;height:3px;border-radius:2px}.sf-drop.in{height:auto;background:rgba(17,17,17,.12);outline:2px dashed #111111}" +
+    ".sf-tb{position:fixed;z-index:2147483001;display:none!important;gap:2px;background:#111111;color:#fff;border-radius:8px;padding:3px;box-shadow:0 6px 20px rgba(0,0,0,.3);align-items:center;max-width:96vw}" +
     ".sf-tb b{font-weight:600;padding:0 8px;font-size:11px;opacity:.85;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
-    ".sf-tb button{all:unset;cursor:pointer;color:#fff;min-width:26px;height:26px;text-align:center;line-height:26px;border-radius:6px;font-size:13px}.sf-tb button:hover{background:#6d5efc}" +
-    ".sf-tb button.on{background:#6d5efc}.sf-tb i{width:1px;height:16px;background:#ffffff40;margin:0 2px}" +
+    ".sf-tb button{all:unset;cursor:pointer;color:#fff;min-width:26px;height:26px;text-align:center;line-height:26px;border-radius:6px;font-size:13px}.sf-tb button:hover{background:#111111}" +
+    ".sf-tb button.on{background:#111111}.sf-tb i{width:1px;height:16px;background:#ffffff40;margin:0 2px}" +
     ".sf-gv,.sf-gh{position:fixed;pointer-events:none;z-index:2147483000;display:none;background:#ff2d78}.sf-gv{width:1px;top:0;bottom:0}.sf-gh{height:1px;left:0;right:0}" +
-    ".sf-h{position:fixed;display:none;width:10px;height:10px;background:#fff;border:2px solid #6d5efc;border-radius:3px;z-index:2147483001;pointer-events:auto;box-sizing:border-box}" +
+    ".sf-h{position:fixed;display:none;width:10px;height:10px;background:#fff;border:2px solid #111111;border-radius:3px;z-index:2147483001;pointer-events:auto;box-sizing:border-box}" +
     ".sf-h[data-k=e]{cursor:ew-resize}.sf-h[data-k=s]{cursor:ns-resize}.sf-h[data-k=se]{cursor:nwse-resize}" +
     "[data-ndz-video] iframe{pointer-events:none}[data-ndz-video='']{min-height:220px;background:#14131a;display:flex;align-items:center;justify-content:center}[data-ndz-video='']::before{content:'▶ Vidéo YouTube : colle le lien dans le panneau de droite';color:#fff;font:600 14px system-ui,sans-serif;padding:20px;text-align:center}" +
-    "[contenteditable=true]{outline:2px solid #6d5efc!important;cursor:text!important}"
+    "[contenteditable=true]{outline:2px solid #111111!important;cursor:text!important}"
   H.appendChild(uiCss)
   var gv = ui.querySelector(".sf-gv"), gh = ui.querySelector(".sf-gh"), handles = [].slice.call(ui.querySelectorAll(".sf-h"))
   var hov = ui.querySelector(".sf-hov"), selBox = ui.querySelector(".sf-sel"), tb = ui.querySelector(".sf-tb"), dropEl = ui.querySelector(".sf-drop")
+
+  /* ---------- toutes les photos se chargent dans l'éditeur ----------
+     Une photo « loading=lazy » posée bas dans la page n'était chargée qu'en
+     défilant : dans l'atelier elle apparaissait grise, comme cassée. On la
+     charge tout de suite, et on remet « lazy » à l'enregistrement : la page
+     publique reste rapide. */
+  function eagerPhotos() {
+    D.querySelectorAll('img[loading="lazy"]').forEach(function (i) {
+      i.setAttribute("data-ndz-lz", "1"); i.setAttribute("loading", "eager")
+    })
+    D.querySelectorAll("video").forEach(function (v) { try { v.load() } catch (_) {} })
+  }
+  function lazyAgain(root) {
+    if (!root || !root.querySelectorAll) return
+    root.querySelectorAll("img[data-ndz-lz]").forEach(function (i) {
+      i.setAttribute("loading", "lazy"); i.removeAttribute("data-ndz-lz")
+    })
+  }
+  eagerPhotos()
 
   function isUI(t) { return !!(t && t.closest && t.closest("[data-studio-ui]")) }
   function norm(t) {
     if (!t || t.nodeType !== 1) t = t && t.parentElement
     if (!t || t === D.documentElement) return B
-    var p = t.closest('[data-ndz="produits"]'); if (p) return p
+    var p = t.closest('[data-ndz="produits"]')
+    if (p) return t.closest("[data-ndz-produit]") || p
     var sv = t.closest("svg"); if (sv && sv !== t) return sv
     return t
   }
@@ -154,7 +174,7 @@
     while (S.hist.length > 40) S.hist.shift()
     return true
   }
-  function commit(lbl) { prune(); writeCss(); push(); place(); buildTb(); if (S.on.change) S.on.change(lbl || "") }
+  function commit(lbl) { prune(); writeCss(); push(); place(); buildTb(); if (API.invalidate) API.invalidate(); if (S.on.change) S.on.change(lbl || "") }
   function restore(s) {
     if (S.editing) endEdit(true)
     B.innerHTML = s.b; cssEl.textContent = s.c; D.title = s.t
@@ -164,6 +184,7 @@
     S.sel = s.p ? atPath(s.p) : null
     buildTb(); place()
     if (S.on.select) S.on.select(S.sel)
+    if (API.invalidate) API.invalidate()
     if (S.on.change) S.on.change("history")
   }
   API.undo = function () { if (S.hist.length < 2) return; S.fut.push(S.hist.pop()); restore(S.hist[S.hist.length - 1]) }
@@ -201,18 +222,20 @@
     e.preventDefault(); e.stopPropagation()
     if (S.suppress) { S.suppress = false; return }
     if (S.editing) endEdit()
-    select(norm(e.target))
+    select(keepOf(e.target) || norm(e.target))
   }, true)
   D.addEventListener("auxclick", function (e) { if (!isUI(e.target)) e.preventDefault() }, true)
   D.addEventListener("submit", function (e) { e.preventDefault() }, true)
   D.addEventListener("dragstart", function (e) { if (!isUI(e.target)) e.preventDefault() }, true)
   D.addEventListener("dblclick", function (e) {
     if (isUI(e.target)) return
+    var z = keepOf(e.target)
+    if (z) { select(z); flashKeep(z); return } /* pas d'écriture dans une zone vivante */
     var el = norm(e.target); select(el); startEdit(el)
   }, true)
   D.addEventListener("mouseover", function (e) {
     if (isUI(e.target) || S.dragging) return
-    var el = norm(e.target)
+    var el = keepOf(e.target) || norm(e.target)
     if (el === S.sel || el === B) { hov.style.display = "none"; return }
     box(el, hov)
   }, true)
@@ -372,20 +395,40 @@
       if (n !== root || true) n.removeAttribute && n.removeAttribute("id")
     })
   }
+  /* Les zones protégées (bouton d'achat, panier, formulaire, récapitulatif)
+     ne se suppriment pas, ne se dupliquent pas : la page cesserait de marcher. */
+  function inKeep(el) { return !!(el && el.closest && el.closest("[data-ndz-keep]")) }
+  /* zone vivante : on sélectionne l'encadré entier (et non le texte cliqué
+     à l'intérieur), sinon le Studio proposerait de réécrire le prix ou le
+     bouton, qui viennent des produits. */
+  function keepOf(el) { return el && el.closest ? el.closest("[data-ndz-keep]") : null }
+  function touched(el) {
+    if (!inKeep(el)) return false
+    flashKeep(el.closest("[data-ndz-keep]"))
+    return true
+  }
+  function flashKeep(n) {
+    if (!n) return
+    n.style.outline = "3px solid #E0A32E"
+    setTimeout(function () { n.style.outline = "" }, 700)
+  }
   API.del = function () {
     var el = S.sel; if (!el || el === B) return
+    if (touched(el)) return
     var next = el.nextElementSibling || el.previousElementSibling || el.parentElement
     el.remove(); S.sel = next === D.documentElement ? B : next
     commit("Suppression"); select(S.sel)
   }
   API.dup = function () {
     var el = S.sel; if (!el || el === B) return
+    if (touched(el)) return
     var c = el.cloneNode(true); reid(c)
     el.parentNode.insertBefore(c, el.nextSibling)
     commit("Duplication"); select(c)
   }
   API.move = function (dir) {
     var el = S.sel; if (!el || el === B) return
+    if (touched(el)) return
     var p = el.parentNode
     if (dir === "up" && el.previousElementSibling) p.insertBefore(el, el.previousElementSibling)
     else if (dir === "down" && el.nextElementSibling) p.insertBefore(el, el.nextElementSibling.nextSibling)
@@ -394,6 +437,8 @@
   }
   API.moveTo = function (el, target, pos) {
     if (!el || !target || el === target || el.contains(target)) return
+    if (touched(el)) return
+    if (inKeep(target)) { flashKeep(keepOf(target)); return }
     if (pos === "before") target.parentNode.insertBefore(el, target)
     else if (pos === "after") target.parentNode.insertBefore(el, target.nextSibling)
     else if (!VOIDS.test(target.tagName)) target.appendChild(el)
@@ -441,6 +486,24 @@
   API.getText = function () { var el = S.sel; return el && editable(el) ? el.textContent : null }
   API.editable = function (el) { return editable(el || S.sel) }
 
+  /* ---------- produits (bloc « Nos produits ») ----------
+     Le nom et le prix viennent de la base : l'éditeur les modifie par le
+     panneau de droite, puis met à jour ce qui s'affiche ici. */
+  API.produit = function (el) {
+    var a = el && el.closest ? el.closest("[data-ndz-produit]") : null
+    if (!a) return null
+    return { id: Number(a.getAttribute("data-ndz-produit")), titre: a.getAttribute("data-titre") || "", prix: Number(a.getAttribute("data-prix") || 0) }
+  }
+  API.majProduit = function (id, titre, prix, prixTxt) {
+    D.querySelectorAll('[data-ndz-produit="' + Number(id) + '"]').forEach(function (a) {
+      a.setAttribute("data-titre", titre); a.setAttribute("data-prix", String(prix))
+      var t = a.querySelector(".ndzs-t"), p = a.querySelector(".ndzs-p")
+      if (t) t.textContent = titre
+      if (p && prixTxt) p.textContent = prixTxt
+    })
+    place()
+  }
+
   /* ---------- styles (par appareil) ---------- */
   API.setDevice = function (d) { S.dev = DEVS[d] || "d"; if (S.on.select) S.on.select(S.sel) }
   API.setStyle = function (prop, val, live) {
@@ -483,7 +546,19 @@
   }
   API.selected = function () { return S.sel }
   API.select = function (el) { select(el) }
+  /* survol d'une carte du panneau : on encadre la section dans la page */
+  API.preview = function (el) {
+    if (!el) return
+    var r = el.getBoundingClientRect()
+    hov.style.display = "block"
+    hov.style.left = r.left + "px"; hov.style.top = r.top + "px"
+    hov.style.width = r.width + "px"; hov.style.height = r.height + "px"
+  }
+  API.previewOff = function () { hov.style.display = "none" }
   API.win = window
+  /* recharger la page dans l'atelier (après un réglage qui vient du serveur,
+     par exemple la couleur des prix) */
+  API.reload = function () { location.reload() }
 
   /* ---------- blocs à ajouter ---------- */
   function ph(w, h, t) {
@@ -513,17 +588,138 @@
     { id: "form", g: "Boutique", l: "Formulaire contact", h: '<form data-ndz-form style="max-width:560px;margin:0 auto;padding:56px 24px;display:grid;gap:12px;box-sizing:border-box"><h2 style="font-size:32px;margin:0 0 8px">Écris-nous</h2><input name="name" placeholder="Ton nom" required style="padding:14px;border:1px solid #d9d7e2;border-radius:10px;font:inherit"><input name="phone" placeholder="Téléphone" style="padding:14px;border:1px solid #d9d7e2;border-radius:10px;font:inherit"><textarea name="message" rows="4" placeholder="Ton message" required style="padding:14px;border:1px solid #d9d7e2;border-radius:10px;font:inherit"></textarea><input name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px"><button type="submit" style="' + BTN + ';border:0;cursor:pointer">Envoyer</button></form>' },
     { id: "vid", g: "Médias", l: "Vidéo YouTube", h: '<div data-ndz-video="" style="position:relative;aspect-ratio:16/9;width:100%;max-width:900px;margin:32px auto;border-radius:16px;overflow:hidden"></div>' },
     { id: "prod", g: "Boutique", l: "Grille de produits", h: '<div data-ndz="produits"></div>', unique: true },
+
+    /* ---- prêts à l'emploi : trois blocs finis, à poser tels quels ----
+       Un débutant n'a pas à dessiner : il choisit, puis il remplace les mots.
+       Tout est en styles en ligne et se replie tout seul sur téléphone. */
+    { id: "bnr", g: "Prêts à l'emploi", l: "Bandeau d'annonce", h: '<div style="background:#111;color:#fff;padding:18px 22px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:center;text-align:center"><p style="margin:0;font-size:17px;line-height:1.4"><b>Livraison dans les 58 wilayas</b> — paiement à la livraison</p><a href="#produits" style="display:inline-block;padding:10px 20px;border-radius:999px;background:#fff;color:#111;text-decoration:none;font-weight:600;font-size:14px;white-space:nowrap">Commander</a></div>' },
+    { id: "avis", g: "Prêts à l'emploi", l: "Avis clients", h: '<section style="padding:72px 22px;max-width:1080px;margin:0 auto;box-sizing:border-box"><h2 style="font-size:clamp(26px,4vw,36px);line-height:1.2;margin:0 0 8px;text-align:center">Ils ont commandé</h2><p style="margin:0 auto 34px;max-width:520px;text-align:center;opacity:.7;font-size:16px;line-height:1.5">Trois clients, trois villes.</p><div style="display:flex;flex-wrap:wrap;gap:18px">' + [["Amina", "Blida", "Livraison en deux jours, la robe est exactement comme sur la photo."], ["Yacine", "Oran", "J'ai payé à la réception. Emballage soigné, rien à dire."], ["Nesrine", "Constantine", "Réponse rapide sur WhatsApp, échange fait sans discuter."]].map(function (a) { return '<figure style="flex:1 1 260px;min-width:0;margin:0;padding:24px;border:1px solid #e7e6ec;border-radius:16px;background:#fff"><div style="color:#f5a623;font-size:17px;letter-spacing:2px;margin-bottom:10px" aria-label="5 étoiles sur 5">★★★★★</div><blockquote style="margin:0 0 16px;font-size:16px;line-height:1.55">« ' + a[2] + ' »</blockquote><figcaption style="display:flex;align-items:center;gap:10px"><span style="width:34px;height:34px;border-radius:50%;background:#111;color:#fff;display:grid;place-items:center;font-size:14px;font-weight:600;flex:none">' + a[0].charAt(0) + '</span><span style="font-size:14px;line-height:1.3"><b>' + a[0] + '</b><br><span style="opacity:.65">' + a[1] + '</span></span></figcaption></figure>' }).join("") + "</div></section>" },
+    { id: "galp", g: "Prêts à l'emploi", l: "Galerie de 3 photos", h: '<section style="padding:72px 22px;max-width:1080px;margin:0 auto;box-sizing:border-box"><h2 style="font-size:clamp(26px,4vw,36px);line-height:1.2;margin:0 0 8px;text-align:center">En images</h2><p style="margin:0 auto 30px;max-width:520px;text-align:center;opacity:.7;font-size:16px;line-height:1.5">Cliquez sur une photo pour la remplacer.</p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">' + [1, 2, 3].map(function (n) { return '<img src="' + ph(800, 800, "Photo " + n) + '" alt="" style="width:100%;height:auto;aspect-ratio:1/1;object-fit:cover;border-radius:14px;display:block">' }).join("") + "</div></section>" },
   ]
   API.blocks = BLOCKS.map(function (b) { return { id: b.id, group: b.g, label: b.l } })
+  /* Poser une photo que le marchand vient de choisir : on crée un bloc image
+     avec SA photo (et non un cadre vide qu'il faudrait remplacer ensuite). */
+  API.insertImage = function (url) {
+    if (!url) return null
+    var n = API.insert("img")
+    if (n && n.tagName === "IMG") { n.setAttribute("src", url); n.setAttribute("alt", "") }
+    return n
+  }
+
   API.insert = function (id, inside) {
     var b = BLOCKS.filter(function (x) { return x.id === id })[0]; if (!b) return
-    if (b.unique && B.querySelector('[data-ndz="produits"]')) { var ex = B.querySelector('[data-ndz="produits"]'); select(ex); ex.scrollIntoView({ block: "center" }); return }
+    /* le bloc est unique et déjà là : on le montre au lieu d'en poser un second */
+    if (b.unique && B.querySelector('[data-ndz="produits"]')) {
+      var ex = B.querySelector('[data-ndz="produits"]')
+      select(ex); ex.scrollIntoView({ block: "center" })
+      if (S.on.insert) S.on.insert(ex)
+      return ex
+    }
     var t = D.createElement("div"); t.innerHTML = b.h; var n = t.firstElementChild
     var s = S.sel
     if (!s || s === B) B.appendChild(n)
     else if (inside && !VOIDS.test(s.tagName)) s.appendChild(n)
     else s.parentNode.insertBefore(n, s.nextSibling)
+    /* on ne pose pas un bloc « dans le vide » : la page se met à jour, le bloc
+       est sélectionné, et le panneau de gauche montre tout de suite la partie
+       qui vient d'arriver (sinon le marchand croit que rien ne s'est passé). */
     commit("Ajout"); select(n); n.scrollIntoView({ block: "center", behavior: "smooth" })
+    if (S.on.insert) S.on.insert(n)
+    return n
+  }
+
+  /* ---------- l'assistant écrit la page ----------
+     Trois réponses du marchand deviennent les textes du haut de page : le
+     grand titre, la phrase juste en dessous, le bouton, puis la première
+     partie qui suit. On ne touche à rien d'autre, et tout passe par commit :
+     Ctrl+Z rend la page exactement comme avant. */
+  API.fill = function (plan) {
+    if (!plan || !plan.hero) return 0
+    var n = 0
+    /* Un texte remplaçable : une seule suite de mots, sans image ni bouton
+       dedans — sinon on effacerait la mise en page du modèle. */
+    var leafText = function (el) {
+      if (!el || el.nodeType !== 1 || el.children.length) return false
+      if (isUI(el) || (el.closest && el.closest("[data-ndz]"))) return false
+      var cs = getComputedStyle(el)
+      if (cs.display === "none" || cs.visibility === "hidden" || +cs.opacity < 0.05) return false
+      if (cs.position === "fixed") return false
+      var r = el.getBoundingClientRect()
+      return !!r.width && !!r.height && (el.textContent || "").trim().length > 1
+    }
+    var put = function (el, txt) {
+      if (!el || !txt || (el.textContent || "").trim() === String(txt).trim()) return false
+      el.textContent = txt; n++; return true
+    }
+    /* Le grand titre : le plus gros texte visible de la page, quel que soit le
+       modèle (tous n'utilisent pas <h1>). C'est ce que le client voit en premier. */
+    var all = [].slice.call(B.querySelectorAll("h1,h2,h3,p,div,span,a,strong,b")).filter(leafText)
+    var score = all.map(function (el) {
+      var cs = getComputedStyle(el)
+      return { el: el, fs: parseFloat(cs.fontSize) || 0, y: el.getBoundingClientRect().top + scrollY, txt: (el.textContent || "").trim() }
+    }).filter(function (o) { return o.txt.length > 2 })
+    var titles = score.filter(function (o) { return o.fs >= 22 }).sort(function (a, b) { return a.y - b.y || b.fs - a.fs })
+    var top = titles[0]
+    if (top) put(top.el, plan.hero.title)
+    /* La phrase juste en dessous du grand titre. */
+    if (top) {
+      var under = score.filter(function (o) {
+        return o.el !== top.el && o.y > top.y - 2 && o.y < top.y + 420 && o.fs >= 13 && o.fs < 22 && o.txt.length > 12
+      }).sort(function (a, b) { return a.y - b.y })[0]
+      if (under) put(under.el, plan.hero.text)
+      /* Le premier bouton de ce haut de page. */
+      var cta = [].slice.call(B.querySelectorAll("a,button")).filter(function (a) {
+        if (isUI(a) || !(a.textContent || "").trim()) return false
+        if (a.closest && a.closest("[data-ndz]")) return false
+        var r = a.getBoundingClientRect()
+        return r.width > 20 && r.height > 14 && r.top + scrollY < top.y + 520
+      })[0]
+      if (cta) put(cta, plan.hero.cta)
+    }
+    /* La première grande partie qui suit : « Pourquoi commander ici ». */
+    if (plan.about && top) {
+      var next = titles.filter(function (o) { return o.y > top.y + 120 })[0]
+      if (next) {
+        put(next.el, plan.about.title)
+        var p2 = score.filter(function (o) {
+          return o.el !== next.el && o.y > next.y - 2 && o.y < next.y + 320 && o.fs >= 12 && o.fs < 22 && o.txt.length > 20
+        }).sort(function (a, b) { return a.y - b.y })[0]
+        if (p2) put(p2.el, plan.about.text)
+      }
+    }
+    /* Page sans texte (modèle fait d'images) : on pose un vrai haut de page
+       plutôt que de ne rien faire. Le marchand a alors des mots à lui, qu'il
+       peut corriger mot par mot. */
+    if (!n) {
+      var sec = D.createElement("section")
+      sec.setAttribute("style", "padding:64px 22px 56px;max-width:960px;margin:0 auto;box-sizing:border-box;text-align:center")
+      var h1 = D.createElement("h1")
+      h1.setAttribute("style", "font-size:clamp(30px,4.6vw,52px);line-height:1.12;margin:0 0 14px;font-weight:700")
+      h1.textContent = plan.hero.title
+      var sub = D.createElement("p")
+      sub.setAttribute("style", "font-size:clamp(16px,2vw,20px);line-height:1.55;margin:0 auto 26px;max-width:620px;opacity:.8")
+      sub.textContent = plan.hero.text
+      var btn = D.createElement("a")
+      btn.setAttribute("href", "#produits")
+      btn.setAttribute("style", "display:inline-block;padding:14px 28px;border-radius:999px;background:#111;color:#fff;text-decoration:none;font-weight:600;font-size:16px")
+      btn.textContent = plan.hero.cta
+      sec.appendChild(h1); sec.appendChild(sub); sec.appendChild(btn)
+      /* on le pose en haut du contenu : juste après l'en-tête du modèle, ou au
+         début de <main> quand il y en a un. Jamais à la fin de la page. */
+      var head = B.querySelector("header")
+      var main = B.querySelector("main")
+      if (head && head.parentNode === B) B.insertBefore(sec, head.nextElementSibling)
+      else if (main) main.insertBefore(sec, main.firstElementChild)
+      else if (head && head.parentNode) head.parentNode.insertBefore(sec, head.nextElementSibling)
+      else B.insertBefore(sec, B.firstElementChild)
+      n = 3
+      commit("Haut de page écrit par l'assistant")
+      select(sec)
+      sec.scrollIntoView({ block: "center" })
+      return n
+    }
+    commit("Textes écrits par l'assistant")
+    return n
   }
 
   /* ---------- couleurs et polices du site entier ---------- */
@@ -550,9 +746,331 @@
     each(function (t) { var m; FNT.lastIndex = 0; while ((m = FNT.exec(t))) { var f = fam(m[1]); if (f && !/^(inherit|initial|var\(|unset)/.test(f)) c[f] = (c[f] || 0) + 1 } return t })
     return Object.keys(c).sort(function (a, b) { return c[b] - c[a] }).slice(0, 12).map(function (k) { return { f: k, n: c[k] } })
   }
+  /* Une seule police pour tout le site : on remplace d'un coup toutes les
+     polices du modèle, sauf les polices d'icônes (sinon les petits symboles
+     deviennent des lettres). L'historique enregistre l'état d'avant, donc le
+     bouton « Annuler » ramène les polices d'origine. */
+  var ICON_FONT = /icon|swiper|awesome|glyph|material/i
+  API.setSiteFont = function (name) {
+    if (!name) return
+    each(function (t) {
+      return t.replace(FNT, function (m, v) {
+        var f = fam(v)
+        if (!f || ICON_FONT.test(f)) return m
+        return "font-family:'" + name + "',system-ui,sans-serif"
+      })
+    })
+    parseRules(); commit("Police du site")
+  }
   API.replaceFont = function (a, b) {
     each(function (t) { return t.replace(FNT, function (m, v) { return fam(v) === a ? "font-family:'" + b + "',system-ui,sans-serif" : m }) })
     parseRules(); commit("Police du site")
+  }
+
+  /* ---------- découpe en sections, et calques de chaque section ----------
+     Sert à l'onglet « Sections » : quel que soit le thème (les 16 modèles
+     fournis ou un modèle importé), la page est découpée ici, une seule fois,
+     et le panneau ne fait qu'afficher. Deux familles de thèmes existent :
+       - ceux qui balisent leurs blocs (<section>, <header>, <footer>) ;
+       - ceux qui empilent des <div> : on descend les conteneurs jusqu'au
+         niveau où la page se découpe vraiment. */
+  var INLINE_EL = /^(SPAN|B|I|EM|STRONG|A|BR|SMALL|SUB|SUP|U|MARK|S|CODE|WBR|TIME|FONT)$/
+  var SKIP_EL = /^(SCRIPT|STYLE|LINK|META|NOSCRIPT|TEMPLATE|IFRAME|SVG|CANVAS|VIDEO|AUDIO|SOURCE|INPUT|SELECT|TEXTAREA|HR)$/
+  var TEXTY_EL = /^(H1|H2|H3|H4|H5|H6|P|LI|BLOCKQUOTE|FIGCAPTION|ADDRESS|CITE|LABEL|SPAN|SMALL|STRONG|EM|B|I|TD|TH|DT|DD|SUMMARY|DIV|TIME|HGROUP)$/
+  var dynEl = function (el) { return !!(el.closest && el.closest("[data-ndz]")) }
+  /* un bloc « visible » : ni overlay fixe, ni panneau hors écran, ni aria-hidden */
+  function vis(el, parent) {
+    if (!el || el.nodeType !== 1) return false
+    if (el.hasAttribute("hidden") || el.getAttribute("aria-hidden") === "true") return false
+    var cs = getComputedStyle(el)
+    if (cs.display === "none" || cs.visibility === "hidden" || +cs.opacity < 0.05) return false
+    if (cs.position === "fixed") return false
+    var r = el.getBoundingClientRect()
+    if (r.height < 60 || r.width < 80) return false
+    if (r.left < -80 || r.right < 80) return false
+    /* un tiroir latéral hors flux (position absolute collée à droite) n'est pas une section */
+    if (cs.position === "absolute" && parent) {
+      var pr = parent.getBoundingClientRect()
+      if (r.height > pr.height * 1.5) return false
+    }
+    return true
+  }
+  function innerOf(el) {
+    return [].slice.call(el.children).filter(function (c) {
+      return !SKIP_EL.test(c.tagName) && !c.hasAttribute("data-studio-ui") && !dynEl(c)
+    })
+  }
+  /* texte lisible d'un bloc : on ignore les doublons aria-hidden (Wix, Shopify…) */
+  function plain(el) {
+    if (!el) return ""
+    var hid = el.querySelectorAll ? el.querySelectorAll('[aria-hidden="true"]') : []
+    if (!hid.length) return (el.textContent || "").replace(/\s+/g, " ").trim()
+    var c = el.cloneNode(true)
+    c.querySelectorAll('[aria-hidden="true"]').forEach(function (n) { n.remove() })
+    return (c.textContent || "").replace(/\s+/g, " ").trim()
+  }
+  /* enveloppes : on descend tant qu'il n'y a qu'un seul enfant qui occupe le bloc */
+  function unwrap(el) {
+    for (var i = 0; i < 12; i++) {
+      var ks = innerOf(el).filter(function (c) { return vis(c, el) })
+      if (ks.length !== 1) return el
+      var r = el.getBoundingClientRect(), kr = ks[0].getBoundingClientRect()
+      if (kr.height < (r.height || 1) * 0.9 || kr.width < (r.width || 1) * 0.6) return el
+      el = ks[0]
+    }
+    return el
+  }
+  API.text = plain
+  /* cache : la découpe et les calques sont recalculés seulement quand la page
+     change (commit), pas à chaque re-rendu du panneau */
+  var secCache = null, layerCache = new WeakMap()
+  function invalidate() { secCache = null; layerCache = new WeakMap() }
+  API.invalidate = invalidate
+  API.sections = function () {
+    if (secCache) return secCache
+    /* 1. les blocs balisés (<section>, <header>, <footer>) les plus externes */
+    var tagged = [].slice.call(B.querySelectorAll("section, header, footer")).filter(function (el) {
+      return !dynEl(el) && !isUI(el) && vis(el, el.parentElement)
+    })
+    tagged = tagged.filter(function (el) {
+      return !tagged.some(function (o) { return o !== el && o.contains(el) })
+    })
+    /* 2. descente dans les conteneurs (thèmes sans balises de section) */
+    var walk = function () {
+      var el = B
+      for (var i = 0; i < 12; i++) {
+        var ks = innerOf(el).filter(function (c) { return vis(c, el) })
+        if (ks.length >= 2) return ks.map(unwrap)
+        if (!ks.length) return innerOf(B).filter(function (c) { return vis(c, B) })
+        el = ks[0]
+      }
+      return [el]
+    }
+    var list = tagged
+    /* une <img> n'est pas une section : si la descente aboutit à des images ou
+       des vidéos nues, c'est qu'on est allé trop bas — on remonte d'un cran. */
+    var voids = function (ls) {
+      return ls.length && ls.filter(function (el) { return /^(IMG|VIDEO|PICTURE)$/.test(el.tagName) }).length >= ls.length / 2
+    }
+    /* moins de 3 blocs balisés : c'est souvent une enveloppe (en-tête + contenu + pied).
+       On garde alors la descente si elle découpe plus finement. */
+    if (list.length < 3) {
+      var d = walk()
+      if (d.length > list.length || voids(list)) list = d
+    }
+    if (voids(list)) {
+      /* on prend les enfants du parent commun, qui sont de vrais blocs */
+      var par = list[0] && list[0].parentElement
+      if (par && par !== B) {
+        var up = innerOf(par).filter(function (c) { return vis(c, par) })
+        if (up.length >= 2 && !voids(up)) list = up
+      }
+    }
+    /* 3. blocs de repli remplis de CSS (fréquents dans les thèmes importés) */
+    list = list.filter(function (el) {
+      var t = (el.textContent || "").trim()
+      return !(/\{[^{}]*:[^{}]*\}/.test(t.slice(0, 200)) && t.length < 400)
+    })
+    if (!list.length) list = innerOf(B)
+    /* 3 bis. couverture : si les blocs trouvés ne représentent qu'une petite
+       partie de la hauteur de la page (thèmes où le contenu vit dans un
+       conteneur positionné, exports d'éditeurs en ligne), on cherche le
+       niveau du DOM qui contient le plus de contenu et on prend ses enfants. */
+    var cover = function (ls) {
+      var h = document.documentElement.scrollHeight || 1
+      return ls.reduce(function (a, el) { return a + el.getBoundingClientRect().height }, 0) / h
+    }
+    if (cover(list) < 0.55) {
+      var best = null, bestTxt = -1
+      ;[].slice.call(B.querySelectorAll("div,main,section,article")).slice(0, 4000).forEach(function (el) {
+        if (dynEl(el) || isUI(el)) return
+        var ks = innerOf(el).filter(function (c) { return vis(c, el) })
+        if (ks.length < 3 || ks.length > 30) return
+        var txt = ks.reduce(function (a, c) { return a + (c.textContent || "").trim().length }, 0)
+        if (txt > bestTxt && cover(ks) > cover(list)) { bestTxt = txt; best = ks }
+      })
+      if (best) list = best.map(unwrap)
+    }
+    /* 4. un bloc plus haut que 2,5 écrans (page entière dans un seul div) est
+       redécoupé en ses enfants visibles : le marchand retrouve des sections
+       utilisables même sur un thème très long. */
+    var vh = innerHeight || 800
+    for (var pass = 0; pass < 3; pass++) {
+      var finer = []
+      list.forEach(function (el) {
+        var r = el.getBoundingClientRect()
+        var ks = r.height > vh * 2.5 ? innerOf(el).filter(function (c) { return vis(c, el) }) : []
+        if (ks.length >= 2) ks.forEach(function (k) { finer.push(unwrap(k)) })
+        else finer.push(el)
+      })
+      if (finer.length === list.length) break
+      list = finer
+    }
+    /* 5. nettoyage : une section vide de calques est redécoupée en ses enfants,
+       une bande minuscule est rattachée à sa voisine, et un bloc encore trop
+       grand est découpé si ses enfants couvrent l'essentiel de sa hauteur. */
+    var count = function (el) {
+      var L = API.layers(el)
+      return L.texts.length + L.imgs.length + L.links.length
+    }
+    /* une liste mêlant images nues et vrais blocs : on garde les blocs, les
+       images restant accessibles comme calques de leur voisin */
+    var solids = list.filter(function (el) { return !/^(IMG|VIDEO|PICTURE)$/.test(el.tagName) })
+    if (solids.length >= 2 && solids.length < list.length) list = solids
+    /* plusieurs blocs empilés au même endroit (position: sticky, étapes d'une
+       animation) : on ne garde que celui qui porte le contenu visible */
+    var seen = {}
+    list = list.filter(function (el) {
+      var r = el.getBoundingClientRect()
+      if (getComputedStyle(el).position === "sticky") return true
+      var k = [Math.round(r.top), Math.round(r.left), Math.round(r.width), Math.round(r.height)].join(":")
+      if (seen[k] && count(el) <= seen[k]) return false
+      if (!seen[k] || count(el) > seen[k]) seen[k] = count(el)
+      return true
+    })
+    var clean = []
+    for (var i = 0; i < list.length; i++) {
+      var el = list[i]
+      if (count(el) === 0) {
+        var ks = innerOf(el).filter(function (c) { return vis(c, el) })
+        var withLayers = ks.filter(function (c) { return count(c) > 0 })
+        if (withLayers.length >= 2) { withLayers.forEach(function (k) { clean.push(k) }); continue }
+        if (withLayers.length === 1) { clean.push(withLayers[0]); continue }
+        /* rien à éditer là-dedans : on ne montre pas une carte morte, sauf
+           pour l'en-tête et le pied de page (on y garde les réglages de style) */
+        if (el.tagName !== "HEADER" && el.tagName !== "FOOTER") continue
+      }
+      clean.push(el)
+    }
+    /* bandes trop courtes : on les rattache à la section suivante (ou précédente) */
+    var merged = []
+    clean.forEach(function (el) {
+      var r = el.getBoundingClientRect()
+      var short = r.height < 90 && el.tagName !== "HEADER" && el.tagName !== "FOOTER"
+      if (short && merged.length) return            /* avalée par la précédente */
+      if (short && !merged.length) { merged.push(el); return }
+      merged.push(el)
+    })
+    /* blocs encore plus hauts que 2,5 écrans : on découpe si les enfants
+       couvrent au moins 60 % de la hauteur du bloc */
+    var vh2 = innerHeight || 800, final = []
+    merged.forEach(function (el) {
+      var r = el.getBoundingClientRect()
+      if (r.height > vh2 * 2.5) {
+        var ks = innerOf(el).filter(function (c) { return vis(c, el) })
+        var cover = ks.reduce(function (a, c) { return a + c.getBoundingClientRect().height }, 0) / (r.height || 1)
+        if (ks.length >= 2 && cover >= 0.6) { ks.forEach(function (k) { final.push(k) }); return }
+        /* un seul enfant : on descend dedans tant qu'il porte le contenu */
+        if (ks.length === 1) {
+          var deep = unwrap(ks[0])
+          if (deep !== el) { final.push(deep); return }
+        }
+      }
+      final.push(el)
+    })
+    secCache = final.sort(function (a, b) { return a.compareDocumentPosition(b) & 4 ? -1 : 1 })
+    return secCache
+  }
+  /* un texte caché pour les lecteurs d'écran n'est pas un calque utile */
+  function srOnly(el) {
+    var r = el.getBoundingClientRect()
+    if (r.width < 3 || r.height < 3) return true
+    var cs = getComputedStyle(el)
+    return cs.clipPath === "inset(50%)" || (cs.position === "absolute" && cs.overflow === "hidden" && r.width <= 2)
+  }
+  /* les calques d'une section : textes, photos, boutons et liens */
+  API.layers = function (sec) {
+    var hit = layerCache.get(sec)
+    if (hit) return hit
+    var all = [].slice.call(sec.querySelectorAll("*")).filter(function (el) {
+      return !dynEl(el) && !isUI(el)
+    })
+    var texts = [], keep = []
+    all.forEach(function (el) {
+      if (texts.length >= 90 || !TEXTY_EL.test(el.tagName)) return
+      if (el.getAttribute("aria-hidden") === "true") return
+      /* un lien « pur libellé » est déjà dans « Boutons et liens » : pas de doublon.
+         Mais dans une carte produit, le lien enveloppe une image et des textes :
+         ces textes doivent rester éditables (sinon le titre du produit n'a pas
+         de calque, comme sur le modèle VOID). */
+      var lien = el.closest("a,button")
+      if (lien && [].slice.call(lien.children).every(function (c) { return INLINE_EL.test(c.tagName) })) return
+      if (el.querySelector("a,button")) return
+      for (var i = 0; i < el.children.length; i++) if (!INLINE_EL.test(el.children[i].tagName)) return
+      if (!plain(el) || srOnly(el)) return
+      texts.push(el); keep.push(el)
+    })
+    texts = texts.filter(function (el) {
+      for (var p = el.parentElement; p && p !== sec; p = p.parentElement) if (keep.indexOf(p) >= 0) return false
+      return true
+    })
+    var links = all.filter(function (el) {
+      return (el.tagName === "A" || el.tagName === "BUTTON") && plain(el) && plain(el).length < 60 && !srOnly(el)
+    }).slice(0, 24)
+    var imgs = all.filter(function (el) {
+      return el.tagName === "IMG" && (el.getAttribute("src") || el.currentSrc)
+    }).slice(0, 24)
+    /* Les photos posées en fond (très fréquent dans les modèles importés) ne
+       sont pas des <img> : sans cette liste, le marchand ne pouvait ni les
+       voir ni les remplacer — « des images ne s'affichent pas ». */
+    var bgs = []
+    if (sec && sec !== B) {
+      var NOBG = /^(SPAN|B|I|EM|STRONG|SMALL|SUB|SUP|U|MARK|CODE|WBR|TIME|FONT|LABEL|BR|SCRIPT|STYLE|LINK|META|NOSCRIPT|TEMPLATE|SVG|PATH|IMG|SOURCE|VIDEO|AUDIO|INPUT|TEXTAREA|SELECT|OPTION|HR)$/
+      /* Dans les modèles importés, la photo de fond est souvent posée sur
+         l'enveloppe qui entoure la section, pas sur la section elle-même :
+         on la regarde aussi, mais seulement si cette enveloppe ne contient
+         qu'elle (sinon la même photo apparaîtrait dans dix sections). */
+      var around = [sec].concat([].slice.call(sec.querySelectorAll("*")))
+      var par = sec.parentElement
+      if (par && par !== B && par !== D.documentElement && innerOf(par).length === 1 && vis(sec, par)) around.unshift(par)
+      around.forEach(function (el) {
+        if (bgs.length >= 12 || NOBG.test(el.tagName) || isUI(el) || dynEl(el)) return
+        if (el.getAttribute("aria-hidden") === "true") return
+        var bi = getComputedStyle(el).backgroundImage
+        if (!bi || bi === "none" || !/url\(/.test(bi)) return
+        var r = el.getBoundingClientRect()
+        if (r.width < 40 || r.height < 40) return
+        bgs.push(el)
+      })
+    }
+    var out = { texts: texts.slice(0, 60), imgs: imgs, bgs: bgs, links: links }
+    layerCache.set(sec, out)
+    return out
+  }
+  /* photo de fond : adresse lue dans le style calculé, remplacement en style
+     en ligne (donc enregistré avec la page, et visible sur le site public) */
+  function bgUrl(el) {
+    var m = /url\(\s*["']?([^"')]+)["']?\s*\)/.exec(getComputedStyle(el).backgroundImage || "")
+    return m ? m[1] : ""
+  }
+  API.bgUrl = function (el) { return el ? bgUrl(el) : "" }
+  API.clearBg = function (el) {
+    if (!el) return
+    select(el)
+    var id = ensureId(el), r = S.rules[id] || (S.rules[id] = { d: {}, t: {}, m: {} })
+    /* « none » et non « supprimé » : la photo vient souvent de la feuille du
+       modèle, qu'on ne réécrit pas. Le réglage du Studio passe au-dessus. */
+    r[S.dev]["background-image"] = "none"
+    if (!r[S.dev]["background-size"]) r[S.dev]["background-size"] = "auto"
+    writeCss(); commit("Photo de fond retirée")
+  }
+  API.setBg = function (el, url) {
+    if (!el || !url) return
+    select(el)
+    var id = ensureId(el), r = S.rules[id] || (S.rules[id] = { d: {}, t: {}, m: {} })
+    r[S.dev]["background-image"] = "url(\"" + String(url).replace(/[()"']/g, "") + "\")"
+    if (!r[S.dev]["background-size"]) r[S.dev]["background-size"] = "cover"
+    if (!r[S.dev]["background-position"]) r[S.dev]["background-position"] = "center"
+    writeCss(); commit("Photo de fond")
+  }
+  /* supprimer l'élément choisi, depuis le panneau de gauche */
+  API.delEl = function (el) {
+    if (!el) return false
+    if (el === B || S.editing) return false
+    if (touched(el)) return false
+    select(el)
+    API.del()
+    return true
   }
 
   /* ---------- page : titre, description, document ---------- */
@@ -563,6 +1081,27 @@
     if (!m) { m = D.createElement("meta"); m.setAttribute("name", "description"); H.appendChild(m) }
     m.setAttribute("content", o.desc || ""); commit("Page")
   }
+  /* Version pour les pages « de la boutique » (fiche produit, panier, commande,
+     confirmation) : les zones protégées redeviennent des variables {{achat}},
+     {{panier}}, {{formulaire}}, {{commande}}. La page garde donc son bouton
+     d'achat et son formulaire, même après avoir été retouchée. */
+  API.htmlWithKeep = function () {
+    if (S.editing) endEdit()
+    prune(); writeCss()
+    var c = D.documentElement.cloneNode(true)
+    c.querySelectorAll("[data-studio-ui],script[src*='/_studio/']").forEach(function (n) { n.remove() })
+    c.querySelectorAll("[contenteditable],[spellcheck]").forEach(function (n) { n.removeAttribute("contenteditable"); n.removeAttribute("spellcheck") })
+    c.querySelectorAll('[data-ndz="produits"],[data-ndz-video]').forEach(function (n) { n.innerHTML = "" })
+    c.querySelectorAll("[data-ndz-keep]").forEach(function (n) {
+      var varName = n.getAttribute("data-ndz-keep") || ""
+      if (!varName) { n.remove(); return }
+      var t = D.createTextNode("{{" + varName + "}}")
+      if (n.parentNode) n.parentNode.replaceChild(t, n)
+    })
+    lazyAgain(c)
+    c.removeAttribute("data-ndz-slug")
+    return "<!doctype html>\n" + c.outerHTML
+  }
   API.getHtml = function () {
     if (S.editing) endEdit()
     prune(); writeCss()
@@ -570,6 +1109,7 @@
     c.querySelectorAll("[data-studio-ui],script[src*='/_studio/']").forEach(function (n) { n.remove() })
     c.querySelectorAll("[contenteditable],[spellcheck]").forEach(function (n) { n.removeAttribute("contenteditable"); n.removeAttribute("spellcheck") })
     c.querySelectorAll('[data-ndz="produits"],[data-ndz-video]').forEach(function (n) { n.innerHTML = "" })
+    lazyAgain(c)
     c.removeAttribute("data-ndz-slug")
     return "<!doctype html>\n" + c.outerHTML
   }

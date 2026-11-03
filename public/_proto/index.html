@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nouveau Studio — aperçu</title>
+<style>
+/* polices : les deux familles utilisées par les thèmes, servies par la plateforme */
+@font-face{font-family:'Jost';src:url('/fonts/jost-400.woff2') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Jost';src:url('/fonts/jost-500.woff2') format('woff2');font-weight:500;font-display:swap}
+@font-face{font-family:'Jost';src:url('/fonts/jost-600.woff2') format('woff2');font-weight:600;font-display:swap}
+@font-face{font-family:'Bodoni Moda';src:url('/fonts/bodoni-400.woff2') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Bodoni Moda';src:url('/fonts/bodoni-600.woff2') format('woff2');font-weight:600;font-display:swap}
+</style>
+<style>
+/* ============================================================
+   APERÇU — le nouveau Studio, en 4 écrans.
+   Ce fichier est une maquette cliquable : elle utilise les mêmes
+   photo et textes que la boutique de démonstration, pour qu'on voie
+   à quoi ça ressemblera. Rien n'est envoyé au serveur.
+   ============================================================ */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#111111; --ink2:#3a3a40; --mut:#8a8a92; --line:#e6e6e9; --bg:#f6f6f7;
+  --lime:#d6ff45; --rad:12px;
+  --f-ui:"Jost",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+html,body{height:100%}
+body{font-family:var(--f-ui);background:var(--bg);color:var(--ink);font-size:14.5px;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+img{display:block;max-width:100%}
+
+/* ---------- barre du haut ---------- */
+.bar{position:sticky;overflow:hidden;top:0;z-index:40;height:64px;background:#fff;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:20px;padding:0 22px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:-.02em;font-size:15.5px}
+.brand i{width:10px;height:10px;border-radius:50%;background:var(--lime);box-shadow:0 0 0 4px rgba(214,255,69,.25)}
+.steps{display:flex;gap:6px;flex:0 0 auto;margin-left:8px}
+.st{display:flex;align-items:center;gap:8px;height:32px;padding:0 13px;border-radius:99px;font-size:12.8px;color:#8a8a92;line-height:1;white-space:nowrap}
+.st b{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#eeeef1;color:#7c7c86;font-size:11px;line-height:1;overflow:hidden;flex:0 0 auto}
+.st.on{background:var(--ink);color:#fff}
+.st.on b{background:var(--lime);color:#111}
+.st.done{color:var(--ink)}
+.st.done b{background:var(--ink);color:#fff}
+.st.done b{font-size:0}
+.st.done b::after{content:"\2713";font-size:10px;line-height:1}
+.btn{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 18px;border-radius:10px;
+  border:1px solid var(--line);background:#fff;font-weight:650;font-size:13.2px;transition:.15s}
+.btn:hover{border-color:#c9c9d0}
+.btn.dark{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.dark:hover{background:#000}
+.btn.lime{background:var(--lime);border-color:var(--lime);color:#111;font-size:14px;height:46px;padding:0 26px;border-radius:12px}
+.btn.lime:hover{filter:brightness(.96)}
+.btn.sm{height:32px;padding:0 13px;font-size:12.4px;border-radius:8px}
+.btn:disabled{opacity:.45;pointer-events:none}
+.alone{margin-left:auto}
+
+/* ---------- pages ---------- */
+main{padding:30px 26px 120px;max-width:1240px;margin:0 auto}
+h1{font-size:27px;letter-spacing:-.025em;margin-bottom:8px}
+.lead{color:#6d6d76;font-size:14px;line-height:1.55;max-width:68ch;margin-bottom:26px}
+.hide{display:none !important}
+
+/* ---------- 1. thèmes ---------- */
+.themes{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.th{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;text-align:left;
+  transition:.16s;padding:0}
+.th:hover{border-color:#c6c6ce;transform:translateY(-1px)}
+.th.on{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink)}
+.th .pv{height:168px;position:relative;overflow:hidden}
+.th .nm{display:flex;align-items:center;gap:10px;padding:11px 13px;font-weight:700;font-size:13.4px}
+.th .nm span{font-weight:500;color:#8a8a92;font-size:12.2px}
+.th.on .nm::after{content:"choisi";margin-left:auto;background:var(--lime);border-radius:99px;padding:3px 10px;font-size:11px;font-weight:800}
+/* vignette vide : que des cadres gris et les mots de remplissage */
+.pv .hd{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:7.6px}
+.pv .hero{display:grid;place-items:center;height:88px;font-size:11px}
+.pv .row{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:7px 10px}
+.pv .row i{height:26px;border-radius:2px;display:block}
+.pv .lb{font-size:6.6px;margin-top:3px;display:block}
+
+/* ---------- 2. photos ---------- */
+.cols{display:grid;grid-template-columns:1.05fr .95fr;gap:26px;align-items:start}
+.label{font-size:11.5px;letter-spacing:.11em;text-transform:uppercase;color:#8a8a92;margin:20px 0 9px;font-weight:650}
+.field{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.drop{position:relative;height:250px;background:#fafafa;display:grid;place-items:center;text-align:center;
+  border:1.5px dashed #d2d2d9;border-radius:12px;cursor:pointer;transition:.15s}
+.drop:hover{border-color:#a9a9b3;background:#f7f7f8}
+.drop.filled{border-style:solid;border-color:var(--line);background:#f1ede7;overflow:hidden;padding:0}
+.drop img{width:100%;height:100%;object-fit:cover}
+.drop .hint{position:absolute;inset:auto 0 0 0;background:linear-gradient(transparent,rgba(0,0,0,.55));color:#fff;
+  font-size:12px;padding:22px 12px 9px;text-align:center;opacity:0;transition:.15s}
+.drop.filled:hover .hint{opacity:1}
+.drop .empty b{display:block;font-size:14.5px;margin-bottom:4px}
+.drop .empty span{color:#8a8a92;font-size:12.2px}
+.logo{width:74px;height:74px;border-radius:14px;border:1.5px dashed #d2d2d9;background:#fff;display:grid;
+  place-items:center;color:#b0b0b8;font-size:20px;cursor:pointer;overflow:hidden}
+.logo img{width:100%;height:100%;object-fit:cover}
+.prods{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.pr{background:#fff;border:1px solid var(--line);border-radius:11px;overflow:hidden;cursor:pointer;position:relative}
+.pr .im{height:104px;background:#fafafa;display:grid;place-items:center;color:#c2c2ca;font-size:18px;overflow:hidden}
+.pr .im img{width:100%;height:100%;object-fit:cover}
+.pr .lbl{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:8px 9px;font-size:11.6px;color:#5c5c65;border-top:1px solid #f1f1f3}
+.pr .lbl b{font-weight:600;color:#2a2a30;font-size:11.8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pr.empty{border-style:dashed;border-color:#d2d2d9}
+.pr.empty .im{background:#fff}
+
+/* ---------- 3. textes ---------- */
+.f{display:block;margin-bottom:18px}
+.f>span{display:flex;align-items:baseline;gap:8px;font-size:13.2px;font-weight:700;margin-bottom:7px}
+.f>span em{font-style:normal;font-weight:500;color:#8a8a92;font-size:12px}
+.f input,.f textarea{width:100%;border:1px solid #e2e2e7;border-radius:10px;padding:12px 13px;font:inherit;
+  font-size:14px;background:#fff;transition:.15s}
+.f input:focus,.f textarea:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 3px rgba(17,17,17,.07)}
+.f textarea{height:96px;resize:vertical;line-height:1.5}
+.count{float:right;color:#a5a5ad;font-size:11.5px;font-weight:500}
+
+/* ---------- le mini-site (aperçu à droite) ---------- */
+.mini{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;position:sticky;top:84px}
+.mini #miniSite{overflow:hidden}
+.mini .site .grid{grid-template-columns:repeat(2,1fr)}
+.mini .site .hero{height:190px}
+.mini .site .hero h2{font-size:20px}
+.mini .bar2{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid #f1f1f3;font-size:11px;color:#9a9aa2}
+.mini .bar2 b{color:#3a3a40;font-size:11.5px}
+/* le site lui-même : 6 ambiances, une seule structure */
+.site{--s-bg:#fff;--s-ink:#111;--s-mut:#8a8a92;--s-acc:#111;--s-ph:#f4f4f5;--s-rad:0px;--s-f:"Jost",sans-serif;
+  --s-pad:26px;--s-gap:14px;--s-hero:260px;background:var(--s-bg);color:var(--s-ink);font-family:var(--s-f);overflow:hidden}
+.site .top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px var(--s-pad);
+  border-bottom:1px solid rgba(0,0,0,.07)}
+.site.night .top{border-color:rgba(255,255,255,.14)}
+.site .top b{font-size:15px;letter-spacing:-.01em}
+.site .top nav{display:flex;gap:14px;font-size:11.5px;color:var(--s-mut)}
+.site .hero{position:relative;height:var(--s-hero);background:var(--s-ph);display:grid;place-items:center;overflow:hidden}
+.site .hero img{width:100%;height:100%;object-fit:cover}
+.site .hero .t{position:relative;z-index:2;text-align:center;padding:0 20px}
+.site.over .hero .t{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:26px;background:linear-gradient(transparent 40%,rgba(0,0,0,.42));color:#fff}
+.site .hero h2{font-size:clamp(18px,2.4vw,30px);letter-spacing:-.02em;line-height:1.15}
+.site .hero p{margin-top:8px;font-size:12.5px;opacity:.9}
+.site .hero .ph{color:var(--s-mut);font-size:11.5px;text-align:center}
+.site .wrap{padding:var(--s-pad)}
+.site .intro{font-size:13px;color:var(--s-mut);line-height:1.6;max-width:60ch}
+.site .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s-gap);margin-top:20px}
+.site .card .im{height:120px;background:var(--s-ph);border-radius:var(--s-rad);overflow:hidden;display:grid;place-items:center;color:var(--s-mut);font-size:11px}
+.site .card .im img{width:100%;height:100%;object-fit:cover}
+.site .card b{display:block;margin-top:9px;font-size:11.8px;font-weight:650}
+.site .card span{display:block;margin-top:2px;font-size:11.8px;color:var(--s-acc);font-weight:600}
+.site .foot{border-top:1px solid rgba(0,0,0,.08);padding:13px var(--s-pad);display:flex;justify-content:space-between;
+  font-size:11.2px;color:var(--s-mut)}
+.site.night .foot{border-color:rgba(255,255,255,.14)}
+/* ambiance 1 · Épuré */
+.site.p1{--s-bg:#fff;--s-ink:#111;--s-mut:#8a8a92;--s-acc:#111;--s-ph:#f4f4f5;--s-rad:0;--s-pad:26px;--s-gap:14px}
+/* 2 · Chaleureux */
+.site.p2{--s-bg:#f7f1e8;--s-ink:#2e2620;--s-mut:#8a7a68;--s-acc:#b4643c;--s-ph:#e8ddcc;--s-rad:12px;--s-pad:30px;--s-gap:16px;
+  --s-f:"Bodoni Moda",Georgia,serif}
+.site.p2 .top{justify-content:center;flex-wrap:wrap;gap:10px}
+.site.p2 .hero{height:calc(var(--s-hero) - 40px);margin:16px var(--s-pad) 0;border-radius:12px}
+/* 3 · Nuit */
+.site.p3{--s-bg:#111;--s-ink:#fff;--s-mut:#9a9aa2;--s-acc:#d6ff45;--s-ph:#1e1e1e;--s-rad:0;--s-pad:26px;--s-gap:14px}
+.site.p3 .top{justify-content:center;gap:10px}
+/* 4 · Doux */
+.site.p4{--s-bg:#fbf3f5;--s-ink:#4a2a33;--s-mut:#a37e89;--s-acc:#b3577a;--s-ph:#f0dde3;--s-rad:18px;--s-pad:34px;--s-gap:18px;
+  --s-f:"Bodoni Moda",Georgia,serif}
+.site.p4 .hero{height:calc(var(--s-hero) - 30px);margin:18px var(--s-pad) 0;border-radius:18px}
+/* 5 · Nature */
+.site.p5{--s-bg:#f5f7ef;--s-ink:#2c3a22;--s-mut:#7c886f;--s-acc:#5f7d33;--s-ph:#e3e9d5;--s-rad:10px;--s-pad:28px;--s-gap:15px}
+.site.p5 .hero{height:calc(var(--s-hero) - 34px);margin:16px var(--s-pad) 0;border-radius:10px}
+/* 6 · Contrasté */
+.site.p6{--s-bg:#fff;--s-ink:#0b0b0b;--s-mut:#7a7a82;--s-acc:#0b0b0b;--s-ph:#ededed;--s-rad:0;--s-pad:22px;--s-gap:12px}
+.site.p6 .hero h2{font-size:clamp(24px,3.4vw,42px);font-weight:900;letter-spacing:-.03em}
+.site.p6 .top{justify-content:center;gap:10px}
+
+/* ---------- 4. publier ---------- */
+.final{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.final .head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid #f1f1f3}
+.final .head b{font-size:13px}
+.tip{display:flex;align-items:center;gap:10px;background:#fffbe9;border:1px solid #f2e6bd;color:#6b5a1f;
+  border-radius:11px;padding:11px 14px;font-size:12.8px;margin-bottom:16px}
+.tip i{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#f0d98a;color:#5c4a10;font-style:normal;font-size:11px;font-weight:800;flex:0 0 auto}
+/* zones cliquables sur la page finale */
+.zone{position:relative;cursor:pointer;transition:.15s}
+.zone:hover{outline:2px solid var(--lime);outline-offset:-2px}
+.zone .tag{position:absolute;z-index:5;left:10px;top:10px;background:var(--lime);color:#111;border-radius:99px;
+  padding:4px 10px;font-size:11px;font-weight:800;opacity:0;transform:translateY(-3px);transition:.15s;pointer-events:none}
+.zone:hover .tag{opacity:1;transform:none}
+
+/* ---------- barre du bas ---------- */
+.foot{position:fixed;left:0;right:0;bottom:0;z-index:50;height:68px;background:#fff;border-top:1px solid var(--line);
+  display:flex;align-items:center;gap:14px;padding:0 22px}
+.foot .note{color:#8a8a92;font-size:12.5px}
+.foot .note b{color:#3a3a40;font-weight:650}
+.foot .right{margin-left:auto;display:flex;align-items:center;gap:12px}
+/* carte de démarrage */
+.start{display:grid;grid-template-columns:1.05fr .95fr;gap:26px;align-items:center;margin:6px 0 10px}
+.start .box{background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px}
+.start .box h1{font-size:30px;margin-bottom:10px}
+.start .box p{color:#6d6d76;line-height:1.55;margin-bottom:18px}
+.start .pick{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}
+.start .pick button{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;text-align:left;transition:.15s}
+.start .pick button:hover{border-color:#c2c2cb}
+.start .pick button.on{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink)}
+.start .pick b{display:block;font-size:14px;margin-bottom:3px}
+.start .pick span{color:#8a8a92;font-size:12.2px;line-height:1.4}
+.start .go{display:flex;gap:10px;align-items:center;margin-top:6px}
+.start .go .btn.lime{height:44px;font-size:14px}
+
+/* ---------- fin ---------- */
+.done{max-width:720px;margin:60px auto;text-align:center}
+.done .tick{width:64px;height:64px;border-radius:50%;background:var(--lime);display:grid;place-items:center;
+  font-size:30px;margin:0 auto 20px}
+.done h1{font-size:30px;margin-bottom:10px}
+.done p{color:#6d6d76;line-height:1.6;margin-bottom:22px}
+.done .url{display:inline-flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);
+  border-radius:11px;padding:12px 16px;font-size:13.5px;margin-bottom:22px}
+.done .url b{font-weight:700}
+.badge-live{background:var(--lime);border-radius:99px;padding:2px 9px;font-size:11px;font-weight:800}
+
+/* mobile */
+@media(max-width:900px){
+  .themes{grid-template-columns:repeat(2,1fr)}
+  .cols{grid-template-columns:1fr}
+  .mini{position:static}
+  .steps{overflow:auto}
+}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="brand"><i></i>Templifica</div>
+  <div id="steps" style="display:flex;align-items:center;gap:6px;margin-left:8px"></div>
+  <button class="btn sm" id="peek">Voir le site</button>
+</div>
+
+<!-- ============================ 0. DEMARRAGE ============================ -->
+<main id="step0">
+  <div class="start">
+    <div class="box">
+      <h1>Qu'est-ce que vous créez ?</h1>
+      <p>Deux possibilités, et on ne vous pose ensuite que les questions utiles. Rien n'est publié avant que vous appuyiez sur « Publier ».</p>
+      <div class="pick">
+        <button data-kind="commerce" class="on">
+          <b>Une boutique</b>
+          <span>Des produits, un panier, des commandes à livrer.</span>
+        </button>
+        <button data-kind="vitrine">
+          <b>Un site qui présente</b>
+          <span>Vos réalisations, votre présentation, un formulaire de contact.</span>
+        </button>
+      </div>
+      <div class="go">
+        <button class="btn lime" id="begin">Commencer</button>
+        <span style="color:#8a8a92;font-size:12.4px">2 minutes · gratuit pour créer</span>
+      </div>
+    </div>
+    <div class="mini">
+      <div class="bar2"><b>Ce que vous allez obtenir</b><span>exemple</span></div>
+      <div id="demoSite"></div>
+    </div>
+  </div>
+</main>
+
+<!-- ============================ 1. THEME ============================ -->
+<main id="step1">
+  <h1>Choisissez un thème</h1>
+  <p class="lead">Six thèmes, tous vides : des cadres gris et des mots à remplacer. Ils ont la même disposition — une grande photo, vos produits, votre texte. Seules la police, les couleurs et le cadrage changent, donc vos photos ne bougent jamais si vous changez d'avis.</p>
+  <div class="themes" id="themes"></div>
+</main>
+
+<!-- ============================ 2. PHOTOS ============================ -->
+<main id="step2" class="hide">
+  <h1>Mettez vos photos</h1>
+  <p class="lead">Une grande photo pour l'accueil, et une par produit. Cliquez sur un cadre pour choisir une photo : on la range nous-mêmes. Les photos affichées sont celles de la démonstration — remplacez-les par les vôtres.</p>
+  <div class="cols">
+    <div>
+      <div class="label">La grande photo de l'accueil</div>
+      <div class="drop filled" id="heroDrop">
+        <img id="heroImg" alt="">
+        <span class="hint">Changer la photo</span>
+      </div>
+      <div class="label">Votre logo <em style="text-transform:none;letter-spacing:0;font-weight:500">facultatif</em></div>
+      <div class="logo" id="logoBox"><img id="logoImg" alt="" style="display:none"><span id="logoPlus">+</span></div>
+    </div>
+    <div>
+      <div class="label">Vos produits — <span id="prCount">4 sur 6</span></div>
+      <div class="prods" id="prods"></div>
+      <p class="lead" style="margin:16px 0 0;font-size:12.6px">Un produit sans photo garde un cadre propre : rien ne casse sur le site.</p>
+    </div>
+  </div>
+</main>
+
+<!-- ============================ 3. TEXTES ============================ -->
+<main id="step3" class="hide">
+  <h1>Écrivez vos textes</h1>
+  <p class="lead">Quatre choses à remplir, rien d'autre. À droite, votre site s'écrit en même temps.</p>
+  <div class="cols">
+    <div>
+      <label class="f"><span>Le nom de votre site</span>
+        <input id="fName" maxlength="40" value="Amina Mode"></label>
+      <label class="f"><span>Une phrase qui dit ce que vous faites <em>facultatif</em></span>
+        <input id="fTag" maxlength="70" value="Des pièces choisies, livrées chez vous."></label>
+      <label class="f"><span>Présentez-vous en quelques lignes <em>facultatif</em></span>
+        <textarea id="fAbout" maxlength="300">Une sélection de vêtements pour tous les jours. Livraison dans toute l'Algérie, paiement à la réception.</textarea></label>
+      <label class="f"><span>Votre téléphone</span>
+        <input id="fPhone" maxlength="24" value="0555 12 34 56">
+        <em style="display:block;font-style:normal;color:#8a8a92;font-size:11.8px;margin-top:6px">Un client vous appelle ou vous écrit dessus.</em></label>
+    </div>
+    <div class="mini">
+      <div class="bar2"><b id="miniName">Amina Mode</b><span>Accueil · Boutique · Contact</span></div>
+      <div id="miniSite"></div>
+    </div>
+  </div>
+</main>
+
+<!-- ============================ 4. PUBLIER ============================ -->
+<main id="step4" class="hide">
+  <div class="tip"><i>i</i><span>Cliquez sur une photo ou un texte pour le changer. Quand tout vous plaît, un seul bouton.</span></div>
+  <div class="final">
+    <div class="head"><b>Votre site, tel que vos clients le verront</b><span style="color:#8a8a92;font-size:12px" id="addr">/amina-mode</span></div>
+    <div id="finalSite"></div>
+  </div>
+</main>
+
+<!-- ============================ FIN ============================ -->
+<main id="step5" class="hide">
+  <div class="done">
+    <div class="tick">✓</div>
+    <h1>Votre site est en ligne</h1>
+    <p>Il est visible par tout le monde, sur téléphone comme sur ordinateur.<br>Vous pouvez encore changer une photo ou un texte : le site se met à jour tout de suite.</p>
+    <div class="url"><b>templifica.dz/amina-mode</b><button class="btn sm" id="copy">Copier</button></div>
+    <div><button class="btn dark" data-go="4">Retour au site</button>
+      <button class="btn" data-go="1" style="margin-left:8px">Changer de thème</button></div>
+  </div>
+</main>
+
+<div class="foot">
+  <button class="btn" id="back">← Retour</button>
+  <div class="note" id="footNote">Rien n'est en ligne. Vous pouvez changer de thème quand vous voulez, sans rien perdre.</div>
+  <div class="right"><button class="btn dark" id="next">Continuer →</button></div>
+</div>
+
+<script>
+/* ---------------- l'état : ce que le client a rempli ---------------- */
+const D = {
+  p: 'p1',
+  hero: '/_proto/hero.jpg',
+  logo: '',
+  prods: [
+    { t: 'Robe d\u2019été fleurie', price: '4 500', img: '/demo/demo-robe.jpg' },
+    { t: 'Sac à main camel', price: '6 200', img: '/demo/demo-sac.jpg' },
+    { t: 'Sandales tressées', price: '3 800', img: '/demo/demo-sandales.jpg' },
+    { t: 'Foulard en soie', price: '2 200', img: '/demo/demo-foulard.jpg' },
+  ],
+  name: 'Amina Mode',
+  tag: 'Des pièces choisies, livrées chez vous.',
+  about: "Une sélection de vêtements pour tous les jours. Livraison dans toute l'Algérie, paiement à la réception.",
+  phone: '0555 12 34 56',
+  step: 0,
+  kind: 'commerce',
+}
+
+/* ---------------- les six ambiances ---------------- */
+const THEMES = [
+  { id: 'p1', n: 'Épuré', s: 'sans · photo bord à bord · coins nets', bg: '#ffffff', ink: '#111111', mut: '#9a9aa2', ph: '#f2f2f4', acc: '#111111', rad: '0px', font: 'Jost, sans-serif', hero: 'edge' },
+  { id: 'p2', n: 'Chaleureux', s: 'serif · photo encadrée · coins doux', bg: '#f7f1e8', ink: '#2e2620', mut: '#8a7a68', ph: '#e8ddcc', acc: '#b4643c', rad: '12px', font: '"Bodoni Moda", Georgia, serif', hero: 'inset' },
+  { id: 'p3', n: 'Nuit', s: 'sans · fond noir · coins nets', bg: '#111111', ink: '#ffffff', mut: '#9a9aa2', ph: '#1e1e1e', acc: '#d6ff45', rad: '0px', font: 'Jost, sans-serif', hero: 'edge' },
+  { id: 'p4', n: 'Doux', s: 'serif · coins très doux · beaucoup d’air', bg: '#fbf3f5', ink: '#4a2a33', mut: '#a37e89', ph: '#f0dde3', acc: '#b3577a', rad: '18px', font: '"Bodoni Moda", Georgia, serif', hero: 'inset' },
+  { id: 'p5', n: 'Nature', s: 'sans · vert doux · photo encadrée', bg: '#f5f7ef', ink: '#2c3a22', mut: '#7c886f', ph: '#e3e9d5', acc: '#5f7d33', rad: '10px', font: 'Jost, sans-serif', hero: 'inset' },
+  { id: 'p6', n: 'Contrasté', s: 'titre très grand · noir et blanc · coins nets', bg: '#ffffff', ink: '#0b0b0b', mut: '#7a7a82', ph: '#ededed', acc: '#0b0b0b', rad: '0px', font: 'Jost, sans-serif', hero: 'edge' },
+]
+const th = (id) => THEMES.find((t) => t.id === id) || THEMES[0]
+
+/* vignette vide du sélecteur */
+const vignette = (t) => `
+  <div class="hd" style="color:${t.ink};background:${t.bg};font-family:${t.font};border-bottom:1px solid rgba(0,0,0,.06)">
+    <span style="font-weight:800">Votre nom</span><span style="color:${t.mut}">Accueil · Boutique</span></div>
+  <div class="hero" style="background:${t.ph};color:${t.mut};font-family:${t.font};${t.hero === 'inset' ? `margin:8px 8px 0;border-radius:${t.rad};height:80px` : ''}">
+    + Votre photo</div>
+  <div class="row" style="background:${t.bg}">
+    ${[1, 2, 3].map(() => `<div><i style="background:${t.ph};border-radius:${t.rad}"></i><span class="lb" style="color:${t.mut}">Votre produit</span></div>`).join('')}
+  </div>`
+
+/* le site complet, construit à partir de l'état */
+const siteHTML = (opts = {}) => {
+  const t = th(D.p), zone = !!opts.edit
+  const hero = D.hero
+    ? `<img src="${D.hero}" alt="">`
+    : `<div class="ph">Votre grande photo<br><span style="opacity:.7">2600 × 1400 conseillé</span></div>`
+  const cards = D.prods.map((p) => `
+    <div class="card">
+      <div class="im">${p.img ? `<img src="${p.img}" alt="">` : '+ Photo'}</div>
+      <b>${esc(p.t) || 'Votre produit'}</b>
+      <span>${p.price ? esc(p.price) + ' DZD' : 'Votre prix'}</span>
+    </div>`).join('')
+  const about = D.about || "Votre présentation : ce que vous faites, en quelques lignes."
+  return `
+  <div class="site ${t.id}${t.n === 'Nuit' ? ' night' : ''}">
+    <div class="top"><b>${esc(D.name) || 'Votre nom'}</b><nav>Accueil · Boutique · Contact</nav></div>
+    <div class="hero ${zone ? 'zone' : ''}">${hero}<div class="t">
+      <h2>${esc(D.tag) || 'Votre titre ici'}</h2>
+      <p>${esc(D.name) || 'Votre nom'}</p></div>${zone ? '<span class="tag">Changer la photo</span>' : ''}</div>
+    <div class="wrap">
+      <div class="intro ${zone ? 'zone' : ''}">${esc(about)}${zone ? '<span class="tag">Écrire ici</span>' : ''}</div>
+      <div class="grid">${cards}</div>
+    </div>
+    <div class="foot"><span>${esc(D.phone) || 'Votre téléphone'}</span><span>${esc(D.name) || ''}</span></div>
+  </div>`
+}
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+
+const $ = (s) => document.querySelector(s)
+const $$ = (s) => [...document.querySelectorAll(s)]
+
+/* ---------------- 1. la galerie ---------------- */
+function drawThemes() {
+  $('#themes').innerHTML = THEMES.map((t) => `
+    <button class="th${t.id === D.p ? ' on' : ''}" data-p="${t.id}">
+      <div class="pv" style="background:${t.bg}">${vignette(t)}</div>
+      <div class="nm">${t.n}<span>${t.s}</span></div>
+    </button>`).join('')
+  $$('.th').forEach((b) => b.addEventListener('click', () => { D.p = b.dataset.p; drawThemes(); drawSites() }))
+}
+
+/* ---------------- 2. les photos ---------------- */
+function drawProds() {
+  $('#prCount').textContent = `${D.prods.filter((p) => p.img).length} sur 6`
+  $('#prods').innerHTML = D.prods.map((p, i) => `
+    <div class="pr" data-pr="${i}">
+      <div class="im">${p.img ? `<img src="${p.img}" alt="">` : '+'}</div>
+      <div class="lbl"><b>${esc(p.t) || 'Votre produit'}</b><span>${p.price ? esc(p.price) : '—'}</span></div>
+    </div>`).join('') +
+    (D.prods.length < 6 ? `<div class="pr empty" data-add="1"><div class="im">+</div><div class="lbl"><b style="color:#8a8a92">Ajouter</b></div></div>`.repeat(6 - D.prods.length) : '')
+  $$('#prods .pr').forEach((el) => el.addEventListener('click', () => {
+    if (el.dataset.add) { D.prods.push({ t: 'Votre produit', price: '', img: '' }); drawProds(); drawSites(); return }
+    pickFile((url) => { D.prods[+el.dataset.pr].img = url; drawProds(); drawSites() })
+  }))
+  $('#heroImg').src = D.hero
+  $('#heroDrop').classList.toggle('filled', !!D.hero)
+  const lg = $('#logoImg')
+  lg.style.display = D.logo ? 'block' : 'none'; $('#logoPlus').style.display = D.logo ? 'none' : 'inline'
+  if (D.logo) lg.src = D.logo
+}
+
+/* ---------------- 3. les textes ---------------- */
+function bindFields() {
+  const pairs = [['#fName', 'name'], ['#fTag', 'tag'], ['#fAbout', 'about'], ['#fPhone', 'phone']]
+  pairs.forEach(([sel, key]) => $(sel).addEventListener('input', (e) => {
+    D[key] = e.target.value; $('#miniName').textContent = D.name || 'Votre nom'; drawSites()
+  }))
+}
+
+/* ---------------- dessiner les sites ---------------- */
+function drawSites() {
+  $('#miniSite').innerHTML = siteHTML()
+  $('#finalSite').innerHTML = siteHTML({ edit: true })
+  $('#miniName').textContent = D.name || 'Votre nom'
+  $$('#finalSite .zone').forEach((z) => z.addEventListener('click', () => {
+    const isHero = z.classList.contains('hero')
+    if (isHero) pickFile((url) => { D.hero = url; drawProds(); drawSites() })
+    else { go(3); setTimeout(() => $('#fAbout').focus(), 260) }
+  }))
+}
+
+/* ---------------- choisir un fichier ---------------- */
+function pickFile(cb) {
+  const inp = document.createElement('input')
+  inp.type = 'file'; inp.accept = 'image/*'
+  inp.addEventListener('change', () => { if (inp.files && inp.files[0]) cb(URL.createObjectURL(inp.files[0])) })
+  inp.click()
+}
+
+/* ---------------- les étapes, dessinées à la main ---------------- */
+const STEPS = [[1, 'Thème'], [2, 'Photos'], [3, 'Textes'], [4, 'Publier']]
+function drawSteps(n) {
+  const box = $('#steps')
+  box.innerHTML = STEPS.map(([i, label]) => {
+    const on = i === n || (n === 5 && i === 4)
+    const done = i < n || n === 5
+    const bg = on ? '#111111' : 'transparent'
+    const fg = on ? '#ffffff' : (done ? '#111111' : '#8a8a92')
+    const dot = on ? '#d6ff45' : (done ? '#111111' : '#eeeef1')
+    const dotInk = on ? '#111111' : (done ? '#ffffff' : '#7c7c86')
+    return `<button data-go="${i}" style="display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 13px;border-radius:99px;border:0;cursor:pointer;font:inherit;font-size:12.8px;line-height:1;white-space:nowrap;background:${bg};color:${fg}">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;font-size:10.5px;line-height:1;background:${dot};color:${dotInk}">${done ? '\u2713' : i}</span>${label}</button>`
+  }).join('')
+  box.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => go(+b.dataset.go)))
+}
+
+/* ---------------- naviguer ---------------- */
+const NOTES = {
+  1: "Rien n'est en ligne. Vous pouvez changer de thème quand vous voulez, sans rien perdre.",
+  2: '4 photos ajoutées · tout est enregistré tout seul.',
+  3: 'Tout est enregistré au fur et à mesure.',
+  4: 'Votre adresse : /amina-mode',
+  5: '',
+}
+function go(n) {
+  D.step = n
+  ;[0, 1, 2, 3, 4, 5].forEach((i) => $('#step' + i).classList.toggle('hide', i !== n))
+  $('#steps').style.visibility = n === 0 ? 'hidden' : 'visible'
+  $('#peek').style.visibility = n === 0 ? 'hidden' : 'visible'
+  drawSteps(n)
+  $('#footNote').textContent = NOTES[n] || ''
+  $('#back').style.visibility = n <= 1 || n === 5 ? 'hidden' : 'visible'
+  const next = $('#next')
+  if (n === 0) {
+    next.className = 'btn dark'; next.textContent = 'Commencer'; next.style.display = 'none'
+  } else if (n === 4) {
+    next.className = 'btn lime'; next.textContent = 'Publier mon site'
+  } else if (n === 5) {
+    next.className = 'btn dark'; next.textContent = 'Voir mon site'; next.style.display = 'none'
+  } else {
+    next.className = 'btn dark'; next.textContent = 'Continuer →'; next.style.display = ''
+  }
+  window.scrollTo({ top: 0 })
+  drawSites()
+}
+
+/* ---------------- boutons ---------------- */
+$('#next').addEventListener('click', () => { if (D.step === 4) go(5); else go(Math.min(5, D.step + 1)) })
+$('#back').addEventListener('click', () => go(Math.max(1, D.step - 1)))
+$$('[data-go]').forEach((b) => b.addEventListener('click', () => go(+b.dataset.go)))
+$('#copy').addEventListener('click', () => { $('#copy').textContent = 'Copié' })
+$('#peek').addEventListener('click', () => { $('#finalSite').scrollIntoView({ behavior: 'smooth', block: 'start' }) })
+$('#heroDrop').addEventListener('click', () => pickFile((url) => { D.hero = url; drawProds(); drawSites() }))
+$('#logoBox').addEventListener('click', () => pickFile((url) => { D.logo = url; drawProds() }))
+
+/* ---------------- écran de démarrage ---------------- */
+$$('.start .pick button').forEach((b) => b.addEventListener('click', () => {
+  $$('.start .pick button').forEach((x) => x.classList.toggle('on', x === b))
+  D.kind = b.dataset.kind
+}))
+$('#begin').addEventListener('click', () => go(1))
+$('#demoSite').innerHTML = siteHTML()
+
+/* ---------------- départ ---------------- */
+drawThemes(); drawProds(); bindFields(); go(0)
+</script>
+</body>
+</html>
