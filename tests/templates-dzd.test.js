@@ -17,6 +17,11 @@ test("aucun modèle de site n'affiche des prix en euros", () => {
   assert.deepEqual(coupables, [], "modèles avec des prix en euros : " + coupables.join(", "))
 })
 
+test("aucun modèle n'affiche des prix en dollars", () => {
+  const coupables = files.filter((f) => /\$\d/.test(fs.readFileSync(path.join(DIR, f), "utf8")))
+  assert.deepEqual(coupables, [], "modèles avec des prix en dollars : " + coupables.join(", "))
+})
+
 test("les prix d'exemple des modèles sont en dinars", () => {
   const avecDzd = files.filter((f) => /DZD/.test(fs.readFileSync(path.join(DIR, f), "utf8")))
   assert.ok(avecDzd.length > 0, "au moins un modèle doit afficher ses prix en DZD")

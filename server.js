@@ -1598,7 +1598,10 @@ const ownsStore = (req, store) => {
    brouillon d'un thème ne se mélange pas avec celui d'un modèle. */
 const THEMES_LIST = require("./src/themes").THEMES
 const themeTplOf = (store) => {
-  const id = require("./src/themes").isTheme(String(store.theme || "")) ? String(store.theme) : require("./src/themes").DEFAULT_THEME
+  /* le thème du brouillon d'abord : si le marchand essaie un thème, le Studio
+     doit ouvrir celui qu'il regarde, pas celui encore en ligne */
+  const asked = String((readOwnDraft(store) || {}).theme || store.theme || "")
+  const id = require("./src/themes").isTheme(asked) ? asked : require("./src/themes").DEFAULT_THEME
   const t = THEMES_LIST.find((x) => x.id === id) || {}
   return {
     id: "theme:" + id,
@@ -2139,6 +2142,13 @@ app.post("/dashboard/design/theme", requireAuth, requireStore, (req, res) => {
   draft.publicThemeId = null
   draft.publicThemeName = ""
   draft.publicThemeTouched = false
+  /* Un thème classique et un modèle de site ne se cumulent pas : choisir un
+     thème retire le modèle du brouillon, sinon l'aperçu montre le modèle et le
+     marchand croit que son choix n'a rien changé. « Annuler » remet le
+     brouillon à zéro, donc le modèle revient tout seul. */
+  if (draft.design && draft.design.siteTemplate) {
+    draft.design = SECTIONS.sanitizeDesign({ ...draft.design, siteTemplate: "" }, req.store)
+  }
   /* les blocs de l'ancien thème n'ont pas la même structure : on repart des
      blocs du nouveau thème, SANS toucher à la boutique en ligne (brouillon).
      Les couleurs, polices, textes et réglages du marchand sont conservés. */
@@ -2162,6 +2172,8 @@ app.post("/dashboard/design/theme/public", requireAuth, requireStore, (req, res)
     bg: row.bg,
     accent: row.accent,
     ink: row.ink,
+    /* même règle que pour un thème du catalogue : le modèle de site s'efface */
+    siteTemplate: "",
   }, req.store)
   draft.publicThemeId = row.id
   draft.publicThemeName = row.name
