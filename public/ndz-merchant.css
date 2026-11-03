@@ -527,6 +527,17 @@ html[data-wide="on"] .tp :is(.tpx-wrap,.wrap,.tpx-pwrap,.tpx-cartwrap) {
   font-weight:700;font-size:15px;flex:0 0 auto}
 .shop-card-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px}
 .shop-card-acts{display:flex;gap:6px;align-items:center}
+/* les chiffres de chaque boutique : dix secondes pour voir où en est chacune */
+.shop-nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;margin-top:12px;
+  padding-top:12px;border-top:1px solid #F0F0F3}
+.shop-nums span{min-width:0}
+.shop-nums b{display:block;font-size:14px;letter-spacing:-.01em;font-variant-numeric:tabular-nums;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shop-nums i{display:block;font-style:normal;font-size:11px;color:#6B7280;line-height:1.25;margin-top:1px}
+.shop-nums .hot b{color:#B42318}
+.shop-nums .warn b{color:#B45309}
+.shop-nums-empty{margin:10px 0 0;font-size:12px}
+@media(max-width:760px){.shop-nums{grid-template-columns:1fr 1fr}}
 /* bénéfice net : le chiffre qui compte, un peu plus fort que les autres */
 .kpi-warn b{color:#B42318}
 .ad-form{margin-top:14px;border-top:1px solid #E7E7EC;padding-top:14px}

@@ -11,7 +11,7 @@ const { mark } = require("./icons")
    de servir leur cache (le serveur annonce max-age=3600 sur ces fichiers). */
 const ASSET_V = (() => {
   try {
-    const files = ["styles.css", "ndz-merchant.css", "horizon-panel.css", "inter-font.css", "horizon-panel.js", "upimg.js"]
+    const files = ["styles.css", "ndz-merchant.css", "horizon-panel.css", "inter-font.css", "horizon-panel.js", "upimg.js", "pwa.js", "sw.js"]
     return String(Math.round(Math.max(...files.map((f) => fs.statSync(path.join(__dirname, "..", "public", f)).mtimeMs))))
   } catch (_) { return "1" }
 })()
@@ -71,7 +71,7 @@ const seoMeta = (o = {}) => {
 /* Coquille HTML. En arabe (tableau de bord, connexion, réglages), la page est
    retournée en écriture de droite à gauche et traduite par `ui-ar.js` ; en
    français, rien ne change. */
-const page = (title, body, { bodyClass = "", seo = null } = {}) => require("./ui-ar").wrap(`<!DOCTYPE html>
+const page = (title, body, { bodyClass = "", seo = null, head = "" } = {}) => require("./ui-ar").wrap(`<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -84,6 +84,7 @@ ${seo ? seoMeta({ title, ...seo }) : ""}
 <link rel="stylesheet" href="/horizon-panel.css?v=${ASSET_V}">
 <script src="/horizon-panel.js?v=${ASSET_V}"></script>
 <script src="/upimg.js?v=${ASSET_V}" defer></script>
+${head}
 </head>
 <body class="${bodyClass}">${body}
 <script>(function(){if(document.querySelector(".ndz-mnav"))return;var nav=document.querySelector("header nav,.tpx-nav,.mn-nav");var head=document.querySelector("header,.tpx-head,.tpx-hrow");if(!nav||!head)return;var d=document.createElement("details");d.className="ndz-mnav";d.innerHTML='<summary aria-label="Menu"><span></span><span></span><span></span></summary>';var box=document.createElement("div");box.className="ndz-mnav-box";box.appendChild(nav.cloneNode(true));d.appendChild(box);head.appendChild(d);})();</script>

@@ -18,6 +18,7 @@ const GEO = require("./geo")
 const { esc, money, moneyHtml, WILAYAS, page, PREVIEW_SCRIPT } = require("./ui")
 const { readSections, renderSections, readDesign, readDraft, storeStyle, designClass, img, readNav } = require("./sections")
 const db = require("./db")
+const PWA = require("./pwa")
 
 /** Lien de navigation : "" = accueil, sinon page interne ou URL externe. */
 const navHref = (store, url) => {
@@ -3424,6 +3425,10 @@ Object.keys(LAYOUTS).forEach((key) => {
     const fontHref = SECTIONS.fontHref(D)
     if (fontHref) {
       html = html.replace("</head>", `<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n<link id="ndzGf" rel="stylesheet" href="${esc(fontHref)}"></head>`)
+    }
+    /* application installable : manifeste, couleur d'écran, icône du téléphone */
+    if (html.indexOf('rel="manifest"') === -1) {
+      html = html.replace("</head>", `${PWA.storeHead(store, D)}\n</head>`)
     }
     if (D.htmlFooter) html = html.replace("</body>", `${D.htmlFooter}</body>`)
     html = html.replace("<html ", `<html data-drawer="${esc(D.cartType || "page")}" data-drawer-open="${D.cartOpenDrawer ? "1" : "0"}" data-parts="${D.installOn ? String(D.installN || 3) : "0"}" data-accel="${D.payDirect ? "1" : "0"}" data-swatch="${D.swatchImg ? "1" : "0"}" `)

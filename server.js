@@ -35,6 +35,9 @@ const REFS = require("./src/refs")
 const CARRIERS = require("./src/carriers")
 const REL = require("./src/relance")
 const PAYOUTS = require("./src/payouts")
+const PWA = require("./src/pwa")
+const BADGES = require("./src/badges")
+const APPICON = require("./src/appicon")
 const STATS = require("./src/stats")
 const PAY = require("./src/payments")
 const SOCIAL = require("./src/social")
@@ -272,7 +275,10 @@ app.use("/estedad.css", express.static(path.join(__dirname, "public", "estedad.c
 app.use("/arabic-fonts.css", express.static(path.join(__dirname, "public", "arabic-fonts.css"), CACHE_MEDIA)) /* polices arabes au choix */
 app.use("/fonts", express.static(path.join(__dirname, "public", "fonts"), CACHE_MEDIA))
 app.use("/sons", express.static(path.join(__dirname, "public", "sons"), CACHE_MEDIA))
-app.use("/favicon.ico", express.static(path.join(__dirname, "public", "favicon.ico"), CACHE_MEDIA))/* temps de chaque page : mémoire pour le passage, base seulement si erreur ou lenteur */
+app.use("/favicon.ico", express.static(path.join(__dirname, "public", "favicon.ico"), CACHE_MEDIA))
+app.use("/pwa.js", express.static(path.join(__dirname, "public", "pwa.js"), CACHE_CODE))
+/* le service worker doit toujours venir du réseau : sinon une nouvelle version n'arrive jamais */
+app.get("/sw.js", (req, res) => res.set("Cache-Control", "no-cache").sendFile(path.join(__dirname, "public", "sw.js")))/* temps de chaque page : mémoire pour le passage, base seulement si erreur ou lenteur */
 app.use(JOURNAL.observe)
 
 /* ------------------------------- helpers ------------------------------- */
@@ -2370,17 +2376,54 @@ app.post("/dashboard/equipe/:id", requireAuth, requireStore, (req, res) => {
   res.redirect("/dashboard/equipe?saved=1")
 })
 
+/* Les chiffres d'une boutique, pour la vue « toutes mes boutiques » :
+   ce sont exactement ceux du tableau de bord de cette boutique. */
+const shopNumbers = (row) => {
+  try {
+    const b = STATS.business(row.id)
+    const B = BADGES.counts(row)
+    let due = 0
+    try { due = PAYOUTS.dueTotal(row.id) } catch (_) { due = 0 }
+    return {
+      month: b.month.cents, monthOrders: b.month.n,
+      toTreat: B.toTreat, shipped: B.shipped, carts: B.carts,
+      lowStock: B.lowStock, due, visits: b.visits,
+    }
+  } catch (_) {
+    return { month: 0, monthOrders: 0, toTreat: 0, shipped: 0, carts: 0, lowStock: 0, due: 0, visits: 0 }
+  }
+}
+
 app.get("/dashboard/boutiques", requireAuth, requireStore, (req, res) => {
   const rows = db.prepare("SELECT * FROM stores WHERE owner_id = ? ORDER BY id").all(req.user.id)
   const shops = rows.map((r) => ({
     id: r.id, name: r.name, slug: r.slug, site_kind: r.site_kind, owner: true,
+    currency: r.currency,
     products: db.prepare("SELECT COUNT(*) AS n FROM products WHERE store_id = ?").get(r.id).n,
+    numbers: shopNumbers(r),
   }))
   for (const m of TEAM.storesFor(req.user.id)) {
-    if (!shops.some((s) => s.id === m.id)) shops.push({ id: m.id, name: m.name, slug: m.slug, site_kind: m.site_kind, owner: false })
+    if (!shops.some((s) => s.id === m.id)) {
+      const full = db.prepare("SELECT * FROM stores WHERE id = ?").get(m.id)
+      shops.push({
+        id: m.id, name: m.name, slug: m.slug, site_kind: m.site_kind, owner: false,
+        currency: m.currency,
+        numbers: full ? shopNumbers(full) : null,
+      })
+    }
   }
+  /* le total de toutes les boutiques : ce que la personne gagne vraiment */
+  const total = shops.reduce((a, s) => {
+    const n = s.numbers || {}
+    a.month += n.month || 0
+    a.toTreat += n.toTreat || 0
+    a.shipped += n.shipped || 0
+    a.lowStock += n.lowStock || 0
+    a.due += n.due || 0
+    return a
+  }, { month: 0, toTreat: 0, shipped: 0, lowStock: 0, due: 0 })
   const asked = req.query && (req.query.error || req.query.err)
-  res.send(V.dashStores(req.user, req.store, shops, asked ? String(asked).slice(0, 300) : ""))
+  res.send(V.dashStores(req.user, req.store, shops, asked ? String(asked).slice(0, 300) : "", total))
 })
 
 app.post("/dashboard/boutiques", requireAuth, requireStore, (req, res) => {
@@ -3769,6 +3812,78 @@ app.get("/:slug/order/:ref", rateLimit("track", 60, 10 * 60e3), async (req, res,
   }
   const items = db.prepare("SELECT * FROM order_items WHERE order_id = ?").all(order.id)
   res.send(V.orderTrack(store, order, items, parcel))
+})
+
+/* ---------------------------- APPLICATION (PWA) : manifeste et icônes ---------------------------- */
+/** Les icônes sont dessinées une fois par (boutique, taille, couleur) puis
+    gardées en mémoire : ce sont de petits fichiers, jamais des photos. */
+const ICON_CACHE = new Map()
+const iconOf = (key, size, color, maskable) => {
+  if (!ICON_CACHE.has(key)) ICON_CACHE.set(key, APPICON.icon(size, color, maskable))
+  return ICON_CACHE.get(key)
+}
+const sendIcon = (res, buf) => {
+  res.set({ "Content-Type": "image/png", "Cache-Control": "public, max-age=604800" })
+  res.send(buf)
+}
+const storeIcon = (req, res, next, size, maskable) => {
+  const store = getStore(req.params.slug)
+  if (!store) return next()
+  const color = PWA.storeColor(SECTIONS.readDesign(store), store)
+  const key = `s${store.id}-${size}-${maskable ? "m" : "a"}-${color}`
+  sendIcon(res, iconOf(key, size, color, maskable))
+}
+
+app.get("/:slug/manifest.webmanifest", (req, res, next) => {
+  const store = getStore(req.params.slug)
+  if (!store) return next()
+  const manifest = PWA.storeManifest(store, SECTIONS.readDesign(store))
+  res.type("application/manifest+json")
+  res.set("Cache-Control", "public, max-age=300")
+  res.send(JSON.stringify(manifest))
+})
+app.get("/:slug/app-icon-192.png", (req, res, next) => storeIcon(req, res, next, 192, false))
+app.get("/:slug/app-icon-512.png", (req, res, next) => storeIcon(req, res, next, 512, false))
+app.get("/:slug/app-icon.png", (req, res, next) => storeIcon(req, res, next, 192, false))
+app.get("/:slug/app-icon-maskable.png", (req, res, next) => storeIcon(req, res, next, 512, true))
+
+/* le tableau de bord a sa propre application : même plateforme pour tous */
+app.get("/dashboard/manifest.webmanifest", (req, res) => {
+  res.type("application/manifest+json")
+  res.set("Cache-Control", "public, max-age=3600")
+  res.send(JSON.stringify(PWA.dashboardManifest()))
+})
+const dashIcon = (res, size, maskable) => sendIcon(res, iconOf(`app-${size}-${maskable ? "m" : "a"}`, size, "#111111", maskable))
+app.get("/dashboard/app-icon-192.png", (req, res) => dashIcon(res, 192, false))
+app.get("/dashboard/app-icon-512.png", (req, res) => dashIcon(res, 512, false))
+app.get("/dashboard/app-icon.png", (req, res) => dashIcon(res, 192, false))
+app.get("/dashboard/app-icon-maskable.png", (req, res) => dashIcon(res, 512, true))
+
+/* la page montrée quand il n'y a plus de réseau */
+app.get("/hors-ligne", (req, res) => {
+  res.type("html").set("Cache-Control", "public, max-age=86400").send(`<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pas de connexion — NovaDZ</title>
+<style>
+  :root{--ink:#111;--muted:#6B7280;--line:#E4E4E7}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:grid;place-items:center;padding:28px;
+    font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:#FAFAFA}
+  .card{max-width:420px;text-align:center;background:#fff;border:1px solid var(--line);border-radius:18px;padding:34px 26px}
+  .dot{width:64px;height:64px;margin:0 auto 18px;border-radius:50%;background:#111;display:grid;place-items:center}
+  .dot svg{width:30px;height:30px;stroke:#fff;fill:none;stroke-width:1.8}
+  h1{font-size:20px;margin:0 0 8px}
+  p{font-size:14px;line-height:1.55;color:var(--muted);margin:0 0 8px}
+  button{margin-top:16px;height:44px;padding:0 22px;border:0;border-radius:999px;background:#111;color:#fff;
+    font:inherit;font-size:14px;cursor:pointer}
+</style></head>
+<body><div class="card">
+  <div class="dot"><svg viewBox="0 0 24 24"><path d="M3 3l18 18M8.5 8.5a5 5 0 0 1 7 7M5 12.5a8 8 0 0 1 2.2-1.7M12 19.5h.01"/></svg></div>
+  <h1>Pas de connexion</h1>
+  <p>La page n'a pas pu être chargée. Tes commandes déjà envoyées, elles, sont bien arrivées : rien n'est perdu.</p>
+  <p>Vérifie le réseau, puis réessaie.</p>
+  <button onclick="location.reload()">Réessayer</button>
+</div></body></html>`)
 })
 
 /* ---------------------------- SEO : sitemap & robots ---------------------------- */

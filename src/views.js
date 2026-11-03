@@ -644,14 +644,41 @@ const dashDesign = (user, store, themeName, products = [], pages = [], meta = {}
 
 /* ========================= MES BOUTIQUES ========================= */
 /** Tout ce que le compte possède : boutiques et vitrines, sur un seul écran. */
-const dashStores = (user, store, shops, error) => dashLayout(user, store, `
+const dashStores = (user, store, shops, error, total = {}) => {
+  const nb = (n, one, many) => `${n} ${n > 1 ? many : one}`
+  /* même rendu de montant que partout : la devise de la boutique concernée */
+  const dzd = (cents, currency) => cashOf({ currency: currency || store.currency, price_style: store.price_style }, cents || 0)
+  /* la ligne de chiffres d'une boutique : 30 jours, à traiter, colis, à réclamer */
+  const numbers = (sh) => {
+    const n = sh.numbers
+    if (!n) return `<p class="muted shop-nums-empty">Les chiffres de cet espace ne sont pas accessibles.</p>`
+    const bits = [
+      `<span><b>${dzd(n.month, sh.currency)}</b><i>30 derniers jours · ${nb(n.monthOrders, "commande", "commandes")}</i></span>`,
+      n.toTreat ? `<span><b>${n.toTreat}</b><i>${n.toTreat > 1 ? "commandes à traiter" : "commande à traiter"}</i></span>` : "",
+      n.shipped ? `<span><b>${n.shipped}</b><i>${n.shipped > 1 ? "colis en route" : "colis en route"}</i></span>` : "",
+      n.due ? `<span class="hot"><b>${dzd(n.due, sh.currency)}</b><i>à réclamer au transporteur</i></span>` : "",
+      n.lowStock ? `<span class="warn"><b>${n.lowStock}</b><i>${n.lowStock > 1 ? "produits en rupture" : "produit en rupture"}</i></span>` : "",
+      sh.site_kind === "vitrine" && n.visits ? `<span><b>${n.visits}</b><i>visites (30 j)</i></span>` : "",
+    ].filter(Boolean)
+    return `<div class="shop-nums">${bits.join("")}</div>`
+  }
+
+  return dashLayout(user, store, `
 <header class="dash-head">
   <div><h1>Mes boutiques</h1>
-  <p class="muted">Une boutique par marque, une vitrine pour présenter l'activité. Tout vit sous le même compte.</p></div>
+  <p class="muted">Tout ce que tu vends, en un seul écran : l'argent, les commandes à traiter, ce que les transporteurs doivent.</p></div>
 </header>
 ${error ? `<div class="alert">${esc(error)}</div>` : ""}
+
+${shops.length > 1 ? `<div class="kpis">
+  <div class="kpi"><span>Chiffre d'affaires</span>${icon("chart", 16)}<b>${dzd(total.month)}</b><i>toutes boutiques · 30 derniers jours</i></div>
+  <div class="kpi${total.toTreat ? " kpi-warn" : ""}"><span>À traiter</span>${icon("receipt", 16)}<b>${total.toTreat || 0}</b><i>${nb(total.toTreat || 0, "commande à appeler", "commandes à appeler")}</i></div>
+  <div class="kpi"><span>Colis en route</span>${icon("truck", 16)}<b>${total.shipped || 0}</b><i>${nb(total.shipped || 0, "colis confié au transporteur", "colis confiés au transporteur")}</i></div>
+  <div class="kpi${total.due ? " kpi-warn" : ""}"><span>À réclamer</span>${icon("cash", 16)}<b>${dzd(total.due)}</b><i>chez les transporteurs</i></div>
+</div>` : ""}
+
 <section class="panel">
-  <div class="panel-head"><h2>${shops.length} espace(s)</h2><span class="muted">clique pour ouvrir</span></div>
+  <div class="panel-head"><h2>${shops.length} ${shops.length > 1 ? "espaces" : "espace"}</h2><span class="muted">clique pour ouvrir</span></div>
   <div class="shop-grid">
     ${shops.map((sh) => `
     <article class="shop-card${sh.id === store.id ? " on" : ""}">
@@ -663,8 +690,9 @@ ${error ? `<div class="alert">${esc(error)}</div>` : ""}
         </div>
         ${sh.id === store.id ? '<i class="pill ok">Ouverte</i>' : ""}
       </div>
+      ${numbers(sh)}
       <div class="shop-card-foot">
-        ${sh.owner === false ? '<span class="muted">invité par le propriétaire</span>' : `<span class="muted">${sh.products || 0} produit(s)</span>`}
+        ${sh.owner === false ? '<span class="muted">invité par le propriétaire</span>' : `<span class="muted">${sh.products || 0} ${sh.products > 1 ? "produits" : "produit"}</span>`}
         <span class="shop-card-acts">
           <a class="btn btn-ghost btn-sm" href="/${esc(sh.slug)}" target="_blank" rel="noopener">Voir</a>
           ${sh.id !== store.id && sh.owner !== false ? `<form method="post" action="/dashboard/utiliser-boutique" class="inline">
@@ -691,6 +719,7 @@ ${error ? `<div class="alert">${esc(error)}</div>` : ""}
     <div class="form-actions"><button class="btn btn-primary">Créer cet espace</button></div>
   </form>
 </section>`, "stores")
+}
 
 /* ============================== PAGES ============================== */
 const dashPages = (user, store, pages) => dashLayout(user, store, `
@@ -1912,6 +1941,7 @@ const dashLayout = (user, store, content, active) => {
     </div>
   </aside>
   ${bellHtml(true)}
+  ${require("./pwa").installButton()}
   <main class="dash-main">${user.support ? `<div class="support-bar"><span class="support-ico">${icon("shield", 15)}</span><p>Tu regardes <b>${esc(user.support.name)}</b>. Ce n'est pas ta boutique.</p><form method="post" action="/admin/quitter"><button class="btn btn-ghost btn-sm" type="submit">Quitter</button></form></div>` : ""}${user.flash ? `<div class="alert">${esc(user.flash)}</div>` : ""}${content}</main>
   <nav class="app-tab" aria-label="Navigation">
     ${tab("home", "/dashboard", "grid", "Accueil")}
@@ -2130,7 +2160,8 @@ const dashLayout = (user, store, content, active) => {
     pageList(list, list.querySelectorAll('.ord-card'), 20)
   })
 })();
-</script>`
+</script>`,
+  { head: require("./pwa").dashboardHead() }
   )
 }
 
