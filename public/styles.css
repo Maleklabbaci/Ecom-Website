@@ -267,7 +267,10 @@ code{background:var(--bg-sub2);padding:1px 6px;border-radius:4px;font-size:.92em
   box-shadow:0 0 0 3px rgba(17,17,17,.06)}
 .form-row.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:640px){.form-row.two{grid-template-columns:1fr}}
-.check{display:flex!important;align-items:center;gap:9px;font-weight:400!important;font-size:13px!important}
+/* .form > label force flex-direction:column : la case se retrouvait seule au-dessus
+   du texte, centree. On la remet sur la meme ligne, a gauche du texte. */
+.check{display:flex!important;flex-direction:row!important;align-items:center;justify-content:flex-start;
+  gap:9px;font-weight:400!important;font-size:13px!important;text-align:left}
 .check input{width:auto!important;margin:0!important}
 .form-actions{display:flex;gap:8px;margin-top:6px}
 

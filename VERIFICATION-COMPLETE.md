@@ -71,7 +71,21 @@ Deux défauts corrigés au passage :
 | Défaut bloquant (contenu inatteignable, texte coupé, image cassée, erreur JS) | **0** |
 | Petites zones à agrandir (< 32 px) | 16 pages, liste dans `captures/doigt/audit-tap.json` |
 
-## 6. Ce qui a été réparé aujourd'hui
+## 6. Avant / après (captures)
+
+`scripts/captures-avant-apres.js` ouvre **la même page** sur deux serveurs : l'ancien
+code (commit `bdd0aa2`, port 4700) et le code corrigé (port 4600), même cadrage, même
+taille de téléphone (390 × 844). Le montage est dans `captures/revue/avant-apres.png`,
+les images séparées dans `captures/avant-apres/`.
+
+| Scène | Avant | Après |
+|---|---|---|
+| Réglages | la colonne ne défilait que de **82 px**, bouton Enregistrer invisible | **3 577 px** de défilement, bouton atteignable |
+| Stock | une carte coupée net (`max-height: 72px`), son texte perdu | carte entière, page défilable jusqu'au bout |
+| Case à cocher « Reprendre l'allure » | **13 × 22 px**, posée seule au-dessus du texte | **22 × 22 px**, sur la même ligne, à gauche du texte |
+| Barre d'achat de la boutique | la pastille NOVADZ recouvrait **Commander** | pastille retirée sous 700 px, bouton libre |
+
+## 7. Ce qui a été réparé aujourd'hui
 
 1. **Le formulaire Réglages était coupé sur téléphone.** Un script rognait les cartes à
    la hauteur de l'écran pour éviter qu'elles « se décalent ». Résultat : le formulaire
@@ -86,11 +100,13 @@ Deux défauts corrigés au passage :
    (impossible à viser au doigt avant), et la case « Reprendre l'allure » qui sortait
    écrasée en 13 × 22 px est revenue carrée.
 4. **Boutons Ordinateur / Téléphone** de l'aperçu : 31 px de haut, passés à 34 px.
+5. **La case à cocher « Reprendre l'allure »** était centrée au-dessus de son texte
+   (`.form > label` impose une colonne) : elle est revenue sur la même ligne, à gauche.
 
 Les quatre réparations d'avant restent : prix en dinars dans 4 modèles, script cassé de
 la fiche produit, scripts Cloudflare du modèle `sonnenbloom`, pastille de langue `ع`.
 
-## 7. Les garde-fous (tests)
+## 8. Les garde-fous (tests)
 
 | Fichier | Rôle |
 |---|---|
@@ -103,6 +119,7 @@ la fiche produit, scripts Cloudflare du modèle `sonnenbloom`, pastille de langu
 | `scripts/parcours.js` | **17 vérifications** : commande client, Studio, publication, inscription |
 | `scripts/parcours-tel.js` | **7 vérifications** : achat complet au doigt sur téléphone |
 | `scripts/revue.js` | captures du haut jusqu'en bas, une image par page |
+| `scripts/captures-avant-apres.js` | la même page sur l'ancien et le nouveau code, côte à côte |
 
 Deux tests neufs empêchent le retour des bugs :
 
@@ -121,7 +138,7 @@ node scripts/audit-nouveau.js
 node scripts/parcours.js
 ```
 
-## 8. Ce qui reste à faire (pas fait, volontairement)
+## 9. Ce qui reste à faire (pas fait, volontairement)
 
 - **Fusion sur `main`** : en attente du feu vert. Tant qu'elle n'est pas faite, un
   déploiement depuis `main` donne l'ancien code.
