@@ -17,9 +17,26 @@ test("aucun modèle de site n'affiche des prix en euros", () => {
   assert.deepEqual(coupables, [], "modèles avec des prix en euros : " + coupables.join(", "))
 })
 
-test("aucun modèle n'affiche des prix en dollars", () => {
-  const coupables = files.filter((f) => /\$\d/.test(fs.readFileSync(path.join(DIR, f), "utf8")))
+/* Le texte VISIBLE du modèle : on retire les balises et on décode les entités.
+   Pourquoi : dans les modèles importés, la devise est dans sa propre balise
+   (`<span …currencySymbol…>$</span>124.90`) ou séparée en deux paragraphes.
+   Une recherche brute de « $1 » ne voyait donc rien. */
+const texteVisible = (html) => {
+  const sansCode = html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ")
+  const sansBalises = sansCode.replace(/<[^>]+>/g, " ")
+  return sansBalises
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ")
+    .replace(/\\\//g, "/")
+}
+
+test("aucun modèle n'affiche des prix en dollars (même dans une balise à part)", () => {
+  const coupables = files.filter((f) => texteVisible(fs.readFileSync(path.join(DIR, f), "utf8")).includes("$"))
   assert.deepEqual(coupables, [], "modèles avec des prix en dollars : " + coupables.join(", "))
+})
+
+test("aucun modèle n'affiche des prix en euros dans le texte visible", () => {
+  const coupables = files.filter((f) => texteVisible(fs.readFileSync(path.join(DIR, f), "utf8")).includes("€"))
+  assert.deepEqual(coupables, [], "modèles avec des prix en euros : " + coupables.join(", "))
 })
 
 test("les prix d'exemple des modèles sont en dinars", () => {

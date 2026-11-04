@@ -793,7 +793,7 @@ const reviewsHtml = (store, p, extra) => {
       var f = inp.files && inp.files[0]; if (!f) return;
       var box = inp.parentNode, hidden = box.querySelector("[data-rev-photo-url]"), prev = box.querySelector("[data-rev-prev]");
       var send = function (url) { hidden.value = url || ""; prev.innerHTML = url ? '<img src="' + url + '" alt="">' : ""; };
-      if (!/^image\//.test(f.type)) { hidden.value = ""; prev.textContent = "Fichier ignoré."; return; }
+      if (!/^image\\//.test(f.type)) { hidden.value = ""; prev.textContent = "Fichier ignoré."; return; }
       var img = new Image(), u = URL.createObjectURL(f);
       img.onload = function () {
         var s = Math.min(1, 1100 / Math.max(img.naturalWidth, img.naturalHeight));
