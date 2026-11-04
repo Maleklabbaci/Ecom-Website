@@ -42,7 +42,28 @@ pages vides et les divisions par zéro.
 Sur téléphone, l'espace marchand défile dans sa propre colonne (`.dash-main`) : les
 audits descendent ce cadre, pas la fenêtre, sinon on ne mesurait que le premier écran.
 
-## 4. Au doigt (téléphone)
+## 4. Le parcours d'achat au doigt (téléphone)
+
+`scripts/parcours-tel.js` joue un client sur un téléphone, en cliquant vraiment :
+
+| Étape | Résultat |
+|---|---|
+| Fermer le bandeau cookies | OK |
+| Boutique → ouvrir une fiche produit | OK (`/amina-mode/p/4`) |
+| « Ajouter au panier » | OK → panier avec l'article, sous-total 3 800 DZD |
+| Formulaire de commande | 12 champs, wilaya et commune reliées |
+| Valider | **commande confirmée**, n° `#NDZ-…`, total 4 300 DZD avec livraison |
+| Erreurs JavaScript | **0** |
+
+Deux défauts corrigés au passage :
+
+- **Le bandeau cookies** (124 px de haut) recouvrait « Acheter maintenant » et
+  « Mes favoris » sur la fiche produit. Réduit à 50 px, et le bas de page garde
+  88 px de place tant qu'il est affiché.
+- **La case à cocher « Reprendre l'allure de la boutique »** sortait en 13 × 22 px
+  (écrasée) : 22 × 22 px.
+
+## 5. Au doigt (téléphone)
 
 | | |
 |---|---|
@@ -50,7 +71,7 @@ audits descendent ce cadre, pas la fenêtre, sinon on ne mesurait que le premier
 | Défaut bloquant (contenu inatteignable, texte coupé, image cassée, erreur JS) | **0** |
 | Petites zones à agrandir (< 32 px) | 16 pages, liste dans `captures/doigt/audit-tap.json` |
 
-## 5. Ce qui a été réparé aujourd'hui
+## 6. Ce qui a été réparé aujourd'hui
 
 1. **Le formulaire Réglages était coupé sur téléphone.** Un script rognait les cartes à
    la hauteur de l'écran pour éviter qu'elles « se décalent ». Résultat : le formulaire
@@ -62,13 +83,14 @@ audits descendent ce cadre, pas la fenêtre, sinon on ne mesurait que le premier
    seul bouton qui compte. Elle est retirée sous 700 px ; la signature reste dans le
    pied de page (« Propulsé par NovaDZ »). Sur ordinateur, elle reste.
 3. **Cases à cocher de 15 px** dans l'espace marchand : portées à 22 px sur téléphone
-   (impossible à viser au doigt avant).
+   (impossible à viser au doigt avant), et la case « Reprendre l'allure » qui sortait
+   écrasée en 13 × 22 px est revenue carrée.
 4. **Boutons Ordinateur / Téléphone** de l'aperçu : 31 px de haut, passés à 34 px.
 
 Les quatre réparations d'avant restent : prix en dinars dans 4 modèles, script cassé de
 la fiche produit, scripts Cloudflare du modèle `sonnenbloom`, pastille de langue `ع`.
 
-## 6. Les garde-fous (tests)
+## 7. Les garde-fous (tests)
 
 | Fichier | Rôle |
 |---|---|
@@ -79,6 +101,7 @@ la fiche produit, scripts Cloudflare du modèle `sonnenbloom`, pastille de langu
 | `scripts/audit-tap.js` | 28 pages au doigt : zones trop petites, contenu caché |
 | `scripts/audit-nouveau.js` | inscription réelle + 34 pages sans données |
 | `scripts/parcours.js` | **17 vérifications** : commande client, Studio, publication, inscription |
+| `scripts/parcours-tel.js` | **7 vérifications** : achat complet au doigt sur téléphone |
 | `scripts/revue.js` | captures du haut jusqu'en bas, une image par page |
 
 Deux tests neufs empêchent le retour des bugs :
@@ -98,7 +121,7 @@ node scripts/audit-nouveau.js
 node scripts/parcours.js
 ```
 
-## 7. Ce qui reste à faire (pas fait, volontairement)
+## 8. Ce qui reste à faire (pas fait, volontairement)
 
 - **Fusion sur `main`** : en attente du feu vert. Tant qu'elle n'est pas faite, un
   déploiement depuis `main` donne l'ancien code.
