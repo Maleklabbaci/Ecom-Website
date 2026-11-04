@@ -164,8 +164,11 @@ Captures : `captures/revue/0-inscription-*.png`, `1-apres-signup-boutique.png`,
 
 ## 9. Ce qui reste à faire (pas fait, volontairement)
 
-- **Fusion sur `main`** : en attente du feu vert. Tant qu'elle n'est pas faite, un
-  déploiement depuis `main` donne l'ancien code.
+- **Fusion sur `main`** : faite le 4 novembre (PR #2, `main` = `a9ddd5e`).
+  Vérifié après la fusion : sur un clone propre de `main`, `npm test` donne
+  **363 tests, 361 réussis, 0 échec**. Pour voir le nouveau code en ligne, il
+  faut redémarrer le serveur (ou relancer le déploiement) : un serveur déjà
+  lancé garde l'ancien code en mémoire.
 - La traduction en français du modèle à choisir.
 - Agrandir les 16 pages de petites zones listées (confort, pas blocage).
 - `scroll-behavior: smooth` sur certains modèles : c'est voulu (les liens de menu
