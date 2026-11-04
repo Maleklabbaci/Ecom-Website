@@ -178,6 +178,32 @@ if (process.env.NOVADZ_DEMO === "1") {
     next()
   })
 }
+/* Démonstration « sans cookie ».
+   Certains aperçus intégrés (iframe) et certains réglages de navigateur
+   refusent le cookie de session : la connexion ne tient pas et l'on retombe
+   sans fin sur /login. NOVADZ_DEMO_AS=marchand ouvre alors la session du
+   compte de démonstration dès qu'il n'y en a pas. Le mode démo est local et
+   ses mots de passe sont publics ; hors mode démo, cette variable est ignorée. */
+const DEMO_AS = String(process.env.NOVADZ_DEMO_AS || "").toLowerCase()
+if (process.env.NOVADZ_DEMO === "1" && DEMO_EMAILS[DEMO_AS]) {
+  app.use((req, res, next) => {
+    const cur = getSession(req, res)
+    if (cur.userId) return next()
+    /* les fichiers statiques n'ont pas besoin d'une session */
+    if (/\.(css|js|png|jpg|jpeg|svg|webp|avif|woff2?|ico|json|txt|xml|map)$/i.test(req.path)) return next()
+    const user = db.prepare("SELECT * FROM users WHERE email = ?").get(DEMO_EMAILS[DEMO_AS])
+    if (!user) return next()
+    cur.userId = user.id
+    cur.supportStoreId = null
+    const first = db.prepare("SELECT id FROM stores WHERE owner_id = ? ORDER BY id LIMIT 1").get(user.id)
+    if (first) cur.storeId = first.id
+    saveSession(cur.sid, cur)
+    /* la session vient d'être créée : les routes doivent lire CE sid
+       (sinon elles en ouvrent une deuxième, vide, et renvoient vers /login) */
+    if (req.cookies) req.cookies.sid = cur.sid
+    next()
+  })
+}
 /* langue de la page (FR/AR) disponible partout sans la passer de main en main */
 app.use((req, res, next) => {
   /* le choix de langue survit à la navigation (cookie 1 an) */
