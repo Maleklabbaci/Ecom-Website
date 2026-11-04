@@ -5,6 +5,7 @@
  * produit, panier, checkout et footer sont recomposés pour chaque thème.
  */
 
+const FONTS_AR = require("./fonts-ar")
 const { icon, initial } = require("./icons")
 const I18N = require("./i18n")
 const PAY = require("./payments")
@@ -17,6 +18,7 @@ const GEO = require("./geo")
 const { esc, money, moneyHtml, WILAYAS, page, PREVIEW_SCRIPT } = require("./ui")
 const { readSections, renderSections, readDesign, readDraft, storeStyle, designClass, img, readNav } = require("./sections")
 const db = require("./db")
+const PWA = require("./pwa")
 
 /** Lien de navigation : "" = accueil, sinon page interne ou URL externe. */
 const navHref = (store, url) => {
@@ -41,8 +43,8 @@ const navLinks = (store, cls) => {
 }
 
 /** Accueil = suite de sections ordonnées par le marchand dans l'éditeur. */
-const homeFromSections = (store, products, meta) =>
-  renderSections(store, readSections(store), {
+const homeFromSections = (store, products, meta) => {
+  const html = renderSections(store, readSections(store), {
     products,
     design: readDesign(store),
     /* pas de barre Tout / rayons / Récents : retirée de tous les thèmes */
@@ -50,6 +52,10 @@ const homeFromSections = (store, products, meta) =>
     cats: (() => { try { return SHOP.categories(store.id) || [] } catch (_) { return [] } })(),
     store,
   })
+  /* Un titre de niveau 1 par page, même quand la première section n'en pose
+     pas : il est là pour les lecteurs d'écran et les moteurs, jamais à l'écran. */
+  return /<h1\b/.test(html) ? html : `<h1 class="ndz-sr">${esc(store.name)}</h1>` + html
+}
 
 const slug = (store) => `/` + esc(store.slug)
 const emptyCartHref = (store) => {
@@ -57,7 +63,13 @@ const emptyCartHref = (store) => {
   return u ? navHref(store, u) : slug(store)
 }
 const cur = (store) => store.currency || "DZD"
-const price = (store, cents) => moneyHtml(cents, cur(store))
+/** Format de prix choisi par le vendeur : « 4 500,00 DZD », « 4 500 DA » ou « 4 500 ». */
+const styleOf = (store) => {
+  const v = readDesign(store).priceStyle
+  return v === "da" || v === "court" ? v : ""
+}
+const cash = (store, cents) => money(cents, cur(store), styleOf(store))
+const price = (store, cents) => moneyHtml(cents, cur(store), styleOf(store))
 
 /**
  * Bouton d'achat. Trois modes réglables par le marchand (éditeur → Panier) :
@@ -102,8 +114,11 @@ const swatchMark = (label) => {
 const payDirectButtons = (store, p) => {
   const methods = PAY.list(store)
   if (!methods.length) return ""
+  /* « Commander » est un mot de l'interface : il suit la langue de la page,
+     alors que le nom du moyen de paiement est celui du marchand */
+  const buy = I18N.t(I18N.langNow(store), "Commander")
   return methods.map((m) => `<button class="ndz-paybtn" formaction="${slug(store)}/direct"
-    name="payment" value="${esc(m.id)}" ${p.stock === 0 ? "disabled" : ""}>Commander · ${esc(m.name)}</button>`).join("")
+    name="payment" value="${esc(m.id)}" ${p.stock === 0 ? "disabled" : ""}>${buy} · ${esc(m.name)}</button>`).join("")
 }
 
 const buyButtons = (store, p, cls, label) => {
@@ -118,11 +133,11 @@ const buyButtons = (store, p, cls, label) => {
    du formulaire doit donc déjà pointer au bon endroit côté serveur. */
 const buyAction = (store) => (cartModeOf(store) === "direct" ? "direct" : "cart")
 
-const addForm = (store, p, cls, label) => `
+const addForm = (store, p, cls, label) => `${buyFinish(store, p)}
 <form method="post" action="${slug(store)}/${buyAction(store)}" class="ndz-buy">
   <input type="hidden" name="product_id" value="${p.id}">
   ${buyButtons(store, p, cls, label)}
-</form>`
+</form>${stickyBuyBar(store, p)}`
 
 const PROMO_ERRORS = {
   inconnu: "Ce code n'existe pas ou n'est plus actif.",
@@ -149,7 +164,7 @@ const promoBox = (store, totals, msg) => {
 
 const discountRow = (cls, store, totals) =>
   totals.discount > 0
-    ? `<div class="${cls}"><span>Remise ${totals.promo ? esc(totals.promo.code) : ""}</span><span>−${money(totals.discount, cur(store))}</span></div>`
+    ? `<div class="${cls}"><span>Remise ${totals.promo ? esc(totals.promo.code) : ""}</span><span>−${cash(store, totals.discount)}</span></div>`
     : ""
 
 /* -------- galerie (plusieurs images + point focal) -------- */
@@ -182,6 +197,12 @@ const bundleBlock = (store, p) => {
     .all(store.id, ...ids)
   if (!rows.length) return ""
   const total = rows.reduce((a, r) => a + r.price_cents, Number(p.price_cents) || 0)
+  /* le libellé du bouton est réécrit par le script au gré des cases cochées :
+     on le donne déjà dans la langue de la page, sinon « Ajouter les 3 » revenait
+     en français au milieu d'une page arabe. */
+  const ar = I18N.langNow(store) === "ar"
+  const lblOne = ar ? "أضف إلى السلة" : "Ajouter au panier"
+  const lblMany = (n) => (ar ? `أضف ${n} إلى السلة` : `Ajouter les ${n} au panier`)
   return `
 <div class="ndz-bundle">
   <b class="ndz-bundle-t">Souvent achetés ensemble</b>
@@ -194,8 +215,8 @@ const bundleBlock = (store, p) => {
       <span><b>${esc(r.title)}</b><em>${price(store, r.price_cents)}</em></span>
     </label>`).join("")}
     <div class="ndz-bundle-foot">
-      <span>Ensemble : <b data-bundle-total data-cents="${total}">${price(store, total)}</b></span>
-      <button class="btn btn-primary btn-sm" type="submit" data-bundle-btn>Ajouter les ${rows.length + 1} au panier</button>
+      <span>${ar ? "المجموع" : "Ensemble"} : <b data-bundle-total data-cents="${total}">${price(store, total)}</b></span>
+      <button class="btn btn-primary btn-sm" type="submit" data-bundle-btn>${lblMany(rows.length + 1)}</button>
     </div>
   </form>
   <script>
@@ -214,7 +235,7 @@ const bundleBlock = (store, p) => {
       var cents = Number(self && self.getAttribute("data-cents")) || 0;
       var n = 1;
       boxes.forEach(function(b){ if (b.checked) { n++; cents += Number(b.getAttribute("data-cents")) || 0; } });
-      if (btn) btn.textContent = n > 1 ? ("Ajouter les " + n + " au panier") : "Ajouter au panier";
+      if (btn) btn.textContent = n > 1 ? (${JSON.stringify(ar ? "أضف " : "Ajouter les ")} + n + ${JSON.stringify(ar ? " إلى السلة" : " au panier")}) : ${JSON.stringify(lblOne)};
       if (total) total.textContent = money(cents);
     }
     boxes.forEach(function(b){ b.addEventListener("change", sync); });
@@ -353,9 +374,12 @@ const galleryHtml = (store, p, extra) => {
     .filter((i) => i.url && fileThere(i.url))
   /* pas de lettre dans le cadre : ça se lit comme une image cassée */
   if (!all.length) return `<div class="gal"><div class="gal-main placeholder" aria-hidden="true"></div></div>`
+  const zoom = readDesign(store).photoZoom === true
+  const vid = /^(\/uploads\/|https?:\/\/).+\.(mp4|webm|ogv)(\?|$)/i.test(String(p && p.video || "")) ? String(p.video) : ""
   return `
-<div class="gal" data-gal>
+<div class="gal${zoom ? " gal-zoom" : ""}" data-gal${zoom ? ' data-zoom="1"' : ""}>
   <div class="gal-main"><img src="${esc(all[0].url)}" alt="${esc(p.title)}" style="object-position:${focalCss(all[0].focal)}"></div>
+  ${vid ? `<button type="button" class="gal-vplay" data-video="${esc(vid)}">${icon("play", 16)} Voir la vidéo du produit</button>` : ""}
   ${all.length > 1 ? `<div class="gal-thumbs">${all.map((i, idx) => `
     <button type="button" class="gal-thumb${idx === 0 ? " on" : ""}" data-src="${esc(i.url)}" data-focal="${focalCss(i.focal)}">
       <img src="${esc(i.url)}" alt="" style="object-position:${focalCss(i.focal)}">
@@ -365,9 +389,17 @@ const galleryHtml = (store, p, extra) => {
 (function(){
   var box = document.currentScript.previousElementSibling;
   if (!box) return;
+  var frameBox = box.querySelector('.gal-main');
   var main = box.querySelector('.gal-main img');
   box.querySelectorAll('.gal-thumb').forEach(function(b){
     b.addEventListener('click', function(){
+      /* une vidéo était ouverte : on remet une image avant de changer de photo */
+      if (frameBox && !frameBox.querySelector('img')) {
+        main = document.createElement('img');
+        main.alt = b.querySelector('img') ? (b.querySelector('img').getAttribute('alt') || '') : '';
+        frameBox.innerHTML = ''; frameBox.appendChild(main);
+        var pl2 = box.querySelector('.gal-vplay'); if (pl2) pl2.hidden = false;
+      }
       if (!main) return;
       main.src = b.getAttribute('data-src');
       main.style.objectPosition = b.getAttribute('data-focal');
@@ -375,6 +407,35 @@ const galleryHtml = (store, p, extra) => {
       b.classList.add('on');
     });
   });
+  /* zoom choisi par le vendeur : on approche l'image là où le doigt ou la souris se pose */
+  var play = box.querySelector('.gal-vplay');
+  if (play) play.addEventListener('click', function(){
+    var v = document.createElement('video');
+    v.src = play.getAttribute('data-video');
+    v.controls = true; v.autoplay = true; v.playsInline = true;
+    v.setAttribute('playsinline', '');
+    var main = box.querySelector('.gal-main');
+    if (main) { main.innerHTML = ''; main.appendChild(v); main.classList.remove('zoomed') }
+    play.hidden = true;
+  });
+  var frame = box.querySelector('.gal-main');
+  if (frame && box.getAttribute('data-zoom') === '1' && main) {
+    var put = function(e){
+      var r = frame.getBoundingClientRect();
+      main.style.transformOrigin = ((e.clientX - r.left) / r.width * 100) + '% ' +
+        ((e.clientY - r.top) / r.height * 100) + '%';
+    };
+    frame.addEventListener('pointermove', function(e){
+      if (e.pointerType !== 'touch') { put(e); frame.classList.add('zoomed') }
+    });
+    frame.addEventListener('pointerleave', function(){ frame.classList.remove('zoomed') });
+    frame.addEventListener('click', function(e){
+      var noHover = e.pointerType === 'touch' || !(window.matchMedia && window.matchMedia('(hover:hover)').matches)
+      if (noHover) {
+        put(e); frame.classList.toggle('zoomed');
+      }
+    });
+  }
 })();
 </script>`
 }
@@ -382,9 +443,9 @@ const galleryHtml = (store, p, extra) => {
 /* -------- sélecteur de variante dans le formulaire d'ajout -------- */
 const favButton = (store, p) =>
   `<button type="button" class="ndz-fav" data-fav="1" data-id="${p.id}" data-slug="${esc(store.slug)}"
-    data-title="${esc(p.title)}" data-price="${money(p.price_cents, cur(store))}"
+    data-title="${esc(p.title)}" data-price="${cash(store, p.price_cents)}"
     data-img="${esc(p.image || "")}" data-url="/${esc(store.slug)}/p/${p.id}">
-    <span class="ndz-fav-ico">♡</span> <span class="ndz-fav-txt">Mes favoris</span></button>
+    <span class="ndz-fav-ico">♡</span> <span class="ndz-fav-txt">${I18N.t(I18N.langNow(store), "Mes favoris")}</span></button>
   <script>(function(){var b=document.currentScript.previousElementSibling;
   var k='ndz_fav_'+b.getAttribute('data-slug');
   var list=[];try{list=JSON.parse(localStorage.getItem(k)||'[]')}catch(e){list=[]}
@@ -405,7 +466,7 @@ const favButton = (store, p) =>
 /** Formulaire de commande posé directement sur la fiche produit (sans bouton panier). */
 const variantPills = (list, store, p, title) => `<div class="ck-var"><span>${esc(title || "Variante")}</span><span class="ck-pills">${list.map((v, i) => {
   const diff = v.price_cents && Number(v.price_cents) !== Number(p.price_cents)
-  return `<label class="ck-pill"><input type="radio" name="buy_variant" value="${v.id}" ${i === 0 ? "checked" : ""}><span>${esc(v.label)}${diff ? " · " + money(v.price_cents, cur(store)) : ""}</span></label>`
+  return `<label class="ck-pill"><input type="radio" name="buy_variant" value="${v.id}" ${i === 0 ? "checked" : ""}><span>${esc(v.label)}${diff ? " · " + cash(store, v.price_cents) : ""}</span></label>`
 }).join("")}</span></div>`
 
 const qtyBlock = (p, open, title) => {
@@ -550,7 +611,7 @@ const inlineOrderForm = (store, p, variants) => {
   const groups = optionGroupsOf(p)
   const varTitle = CF.pieceText(store, "variants", lang)
   const choices = stocked.length
-    ? (open ? variantPills(stocked, store, p, varTitle) : `<label class="ck-f ck-wide"><span>${esc(varTitle)}</span><select name="buy_variant">${stocked.map((v) => `<option value="${v.id}">${esc(v.label)}${v.price_cents && Number(v.price_cents) !== Number(p.price_cents) ? " — " + money(v.price_cents, cur(store)) : ""}</option>`).join("")}</select></label>`)
+    ? (open ? variantPills(stocked, store, p, varTitle) : `<label class="ck-f ck-wide"><span>${esc(varTitle)}</span><select name="buy_variant">${stocked.map((v) => `<option value="${v.id}">${esc(v.label)}${v.price_cents && Number(v.price_cents) !== Number(p.price_cents) ? " — " + cash(store, v.price_cents) : ""}</option>`).join("")}</select></label>`)
     : (groups.length ? optionPicker(store, p, groups) : "")
   const flow = CF.pieces(store)
   const noteLast = flow.length && flow[flow.length - 1].id === "paynote"
@@ -638,7 +699,7 @@ const optionPicker = (store, p, groups) => `
 const addFormV = (store, p, cls, label, variants) => {
   const extraBlocks = favButton(store, p) + stockNote(store, p) + bundleBlock(store, p)
   if (readDesign(store).productForm === "inline" || (store && store.form_look) || CF.lookOf(store).model === "ouvert") {
-    return stockNote(store, p) + inlineOrderForm(store, p, variants) + favButton(store, p) + bundleBlock(store, p)
+    return buyFinish(store, p) + stockNote(store, p) + inlineOrderForm(store, p, variants) + favButton(store, p) + bundleBlock(store, p) + stickyBuyBar(store, p)
   }
   const list = variants || []
   const groups = list.length ? [] : optionGroupsOf(p)
@@ -649,7 +710,7 @@ const addFormV = (store, p, cls, label, variants) => {
   <input type="hidden" name="product_id" value="${p.id}">
   ${optionPicker(store, p, groups)}
   ${buyButtons(store, p, cls, label)}
-</form>` + extraBlocks
+</form>` + buyFinish(store, p) + extraBlocks + stickyBuyBar(store, p)
   }
   if (!list.length) return addForm(store, p, cls, label) + extraBlocks
   const inStock = list.filter((v) => v.stock > 0)
@@ -658,7 +719,7 @@ const addFormV = (store, p, cls, label, variants) => {
   const directBtn = `<button class="${cls} ndz-buy-now" formaction="/${esc(store.slug)}/direct">Acheter maintenant</button>`
   const style = ["boutons", "cartes", "radio", "liste"].includes(readDesign(store).variantStyle)
     ? readDesign(store).variantStyle : "boutons"
-  const priceOf = (v) => (v.price_cents ? money(v.price_cents, cur(store)) : "")
+  const priceOf = (v) => (v.price_cents ? cash(store, v.price_cents) : "")
   /* « liste » : un menu déroulant ; les autres styles : des pastilles cliquables
      (de vrais boutons radio, donc utilisables au clavier et sur mobile). */
   const picker = style === "liste"
@@ -683,7 +744,7 @@ const addFormV = (store, p, cls, label, variants) => {
   ${picker}
   ${cartBtn}${directBtn}
   ${payDirectButtons(store, p)}
-</form>` + extraBlocks
+</form>` + buyFinish(store, p) + extraBlocks + stickyBuyBar(store, p)
 }
 
 /* -------- avis clients -------- */
@@ -701,7 +762,8 @@ const reviewsHtml = (store, p, extra) => {
   ${extra && extra.reviewSent ? `<div class="revs-ok">Merci ! Votre avis sera publié après validation.</div>` : ""}
   ${list.length ? `<ul class="revs-list">${list.map((v) => `
     <li><div class="revs-top"><b>${esc(v.name)}</b><span>${stars(v.rating)}</span></div>
-      ${v.body ? `<p>${esc(v.body)}</p>` : ""}</li>`).join("")}</ul>` : ""}
+      ${v.body ? `<p>${esc(v.body)}</p>` : ""}
+      ${v.photo ? `<a class="revs-photo" href="${esc(v.photo)}" target="_blank" rel="noopener"><img src="${esc(v.photo)}" alt="Photo du client" loading="lazy"></a>` : ""}</li>`).join("")}</ul>` : ""}
   <details class="revs-form">
     <summary>Laisser un avis</summary>
     <form method="post" action="/${esc(store.slug)}/p/${p.id}/review">
@@ -713,10 +775,42 @@ const reviewsHtml = (store, p, extra) => {
         </label>
       </div>
       <label>Votre avis<textarea name="body" rows="3" maxlength="500" placeholder="Qualité, taille, livraison…"></textarea></label>
+      <label class="revs-file">Ajouter une photo (facultatif)
+        <input type="file" accept="image/*" data-rev-photo>
+        <input type="hidden" name="photo" data-rev-photo-url>
+        <span class="revs-prev" data-rev-prev></span>
+      </label>
       <button class="btn btn-primary">Envoyer</button>
     </form>
   </details>
-</section>`
+</section>
+<script>
+/* photo d'avis : on réduit dans le navigateur (téléphone = 4 Mo) avant l'envoi,
+   et on montre un aperçu pour que le client voie ce qu'il envoie */
+(function () {
+  document.querySelectorAll("[data-rev-photo]").forEach(function (inp) {
+    inp.addEventListener("change", function () {
+      var f = inp.files && inp.files[0]; if (!f) return;
+      var box = inp.parentNode, hidden = box.querySelector("[data-rev-photo-url]"), prev = box.querySelector("[data-rev-prev]");
+      var send = function (url) { hidden.value = url || ""; prev.innerHTML = url ? '<img src="' + url + '" alt="">' : ""; };
+      if (!/^image\//.test(f.type)) { hidden.value = ""; prev.textContent = "Fichier ignoré."; return; }
+      var img = new Image(), u = URL.createObjectURL(f);
+      img.onload = function () {
+        var s = Math.min(1, 1100 / Math.max(img.naturalWidth, img.naturalHeight));
+        var c = document.createElement("canvas");
+        c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(u);
+        var out; try { out = c.toDataURL("image/webp", 0.82); } catch (e) { out = ""; }
+        if (!out || out.indexOf("data:image/webp") !== 0) out = c.toDataURL("image/jpeg", 0.85);
+        send(out);
+      };
+      img.onerror = function () { URL.revokeObjectURL(u); send(""); };
+      img.src = u;
+    });
+  });
+})();
+</script>`
 }
 
 /* -------- filtres / recherche / catégories -------- */
@@ -996,7 +1090,7 @@ document.addEventListener('DOMContentLoaded', function(){
 /* -------- bandeau légal + cookies + pixels -------- */
 const legalBar = (store) => `
 <div class="legalbar"><div class="wrap legalbar-in">
-  <span>${esc(store.legal_name || store.name)}${store.legal_address ? " · " + esc(store.legal_address) : ""}</span>
+  <span>© ${new Date().getFullYear()} ${esc(store.legal_name || store.name)}${store.legal_address ? " · " + esc(store.legal_address) : ""}</span>
   <nav>
     <a href="/${esc(store.slug)}/legal#mentions">Mentions légales</a>
     ${store.site_kind === "vitrine" ? "" : `<a href="/${esc(store.slug)}/legal#cgv">CGV</a>
@@ -1007,8 +1101,8 @@ const legalBar = (store) => `
 
 const cookieBanner = (store) => `
 <div class="cookies" id="ndzCookies" hidden>
-  <p>Ce site utilise des cookies de mesure d'audience. <a href="/${esc(store.slug)}/legal#cookies">En savoir plus</a>.</p>
-  <div><button type="button" data-ck="no">Refuser</button><button type="button" data-ck="yes">Accepter</button></div>
+  <p>Mesure d'audience. <a href="/${esc(store.slug)}/legal#cookies">Détails</a></p>
+  <div><button type="button" data-ck="no">Refuser</button><button type="button" data-ck="yes">J'accepte</button></div>
 </div>
 <script>
 (function(){
@@ -1099,10 +1193,89 @@ const askBox = (store) => `<form class="ndz-ask" method="post" action="/${esc(st
   <button type="submit">Envoyer au marchand</button>
 </form>`
 
+/* -------- bandeau d'annonce (réglage vendeur, éteint par défaut) -------- */
+const announceHtml = (store) => {
+  const D = readDesign(store)
+  const text = String(D.announceText || "").trim()
+  if (!D.announceOn || !text) return ""
+  const inner = D.announceLink
+    ? `<a href="${esc(D.announceLink)}">${esc(text)}</a>`
+    : esc(text)
+  return `<div class="ndz-ann" role="status">${inner}</div>`
+}
+
+/* -------- ce qui entoure le bouton d'achat -------- */
+const buyFinish = (store, p) => {
+  const D = readDesign(store)
+  const eta = String(D.etaText || "").trim()
+  const served = String(D.servedNote || "").trim()
+  return (served ? `<p class="ndz-served">${esc(served)}</p>` : "") +
+    (eta ? `<p class="ndz-eta">${icon("truck", 14)}<span>${esc(eta)}</span></p>` : "") +
+    (D.sizeGuide ? `<a class="ndz-guide" href="${esc(D.sizeGuide)}" target="_blank" rel="noopener">Guide des tailles</a>` : "")
+}
+
+/* Barre d'achat collante : elle rejoue les vrais boutons de la fiche,
+   jamais une caisse inventée. Masquée tant que le bouton est à l'écran. */
+const stickyBuyBar = (store, p) => {
+  const D = readDesign(store)
+  if (D.stickyBuy === "off" || Number(p && p.stock) === 0) return ""
+  const two = D.stickyBuy === "deux"
+  /* Fiche avec le formulaire de commande déjà ouvert : le bouton du bas
+     n'ajoute pas au panier, il envoie ce formulaire-là. Un seul bouton. */
+  const inline = D.productForm === "inline" || (store && store.form_look) || CF.lookOf(store).model === "ouvert"
+  return `
+<div class="ndz-bar" data-bar hidden>
+  <div class="ndz-bar-in">
+    <span class="ndz-bar-p">${priceWithCompare(store, p)}</span>
+    <span class="ndz-bar-btns">
+      ${inline
+        ? `<button type="button" class="ndz-bar-btn" data-bar-order="1">Commander</button>`
+        : `<button type="button" class="ndz-bar-btn" data-bar-add="1">Ajouter au panier</button>` +
+          (two ? `<button type="button" class="ndz-bar-btn ndz-bar-ghost" data-bar-buy="1">Acheter maintenant</button>` : "")}
+    </span>
+  </div>
+</div>
+<script>
+(function(){
+  var bar = document.currentScript.previousElementSibling;
+  if (!bar) return;
+  function form(){ return document.querySelector('.ndz-buy') }
+  function go(sel){
+    var f = form();
+    if (!f) return;
+    var b = f.querySelector(sel);
+    if (b && !b.disabled) { b.click(); return }
+    if (!b) f.submit();
+  }
+  bar.addEventListener('click', function(e){
+    var t = e.target;
+    if (!t || !t.closest) return;
+    if (t.closest('[data-bar-order]')) {
+      var o = document.querySelector('.ndz-buyform');
+      if (o) { if (o.requestSubmit) o.requestSubmit(); else o.submit() }
+      return;
+    }
+    if (t.closest('[data-bar-add]')) go('.ndz-cart-add');
+    else if (t.closest('[data-bar-buy]')) go('.ndz-buy-now');
+  });
+  function paint(){
+    var f = form() || document.querySelector('.ndz-buyform');
+    var show = !!f && f.getBoundingClientRect().bottom < 0 && window.scrollY > 200;
+    bar.hidden = !show;
+    document.documentElement.classList.toggle('ndz-bar-on', show);
+  }
+  window.addEventListener('scroll', paint, { passive: true });
+  window.addEventListener('resize', paint);
+  paint();
+})();
+</script>`
+}
+
 const footerExtras = (store, opt = {}) => {
   const px = pixels(store)
-  return (opt.foot === false ? "" : footerHtml(store)) +
-    (opt.ask === false || store.site_kind === "vitrine" ? "" : askBox(store)) +
+  /* la question au marchand passe AVANT le pied : on termine par le pied, pas par un formulaire */
+  return (opt.ask === false || store.site_kind === "vitrine" ? "" : askBox(store)) +
+    (opt.foot === false ? "" : footerHtml(store)) +
     (opt.social === false ? "" : socialBar(store, "pied")) +
     (opt.legal === false ? "" : legalBar(store)) +
     (px ? `<template id="ndzPx">${px}</template>` : "") +
@@ -1127,7 +1300,7 @@ const minimal = {
     const D = readDesign(store)
     return page(title ? `${title} — ${store.name}` : `${store.name} — ${store.tagline || "Boutique en ligne"}`, `
 <div class="theme theme-minimal ${designClass(D)}">
-${storeStyle(D, store.theme)}
+${storeStyle(D, store.theme)}${announceHtml(store)}
   <header class="mn-head">
     <div class="wrap mn-bar">
       <a class="mn-brand" href="${slug(store)}">
@@ -1142,14 +1315,15 @@ ${storeStyle(D, store.theme)}
     ${socialBar(store, "entete")}
   </header>
   ${content}
+  ${store.site_kind === "vitrine" ? "" : askBox(store)}
   <footer class="mn-foot">
     <div class="wrap mn-frow">
-      <div class="mn-fbrand">${esc(store.name)}</div>
-      <div>${esc(store.phone || "")}${store.wilaya ? (store.phone ? " · " : "") + esc(store.wilaya) : ""}</div>
+      <div class="mn-fbrand">${esc(store.name)}${(store.phone || store.wilaya)
+        ? `<span>${esc(store.phone || "")}${store.wilaya ? (store.phone ? " · " : "") + esc(store.wilaya) : ""}</span>` : ""}</div>
       <div class="mn-powered">${D.footerNote ? esc(D.footerNote) + (D.showNovadz ? " · " : "") : ""}${D.showNovadz ? 'Propulsé par <a href="/">NovaDZ</a>' : ""}</div>
     </div>
   </footer>
-  ${footerExtras(store)}
+  ${footerExtras(store, { ask: false })}
 </div>${opts.preview ? PREVIEW_SCRIPT : ""}`, { seo })
   },
 
@@ -1263,7 +1437,7 @@ const editorial = {
     const D = readDesign(store)
     return page(title ? `${title} — ${store.name}` : `${store.name}`, `
 <div class="theme theme-editorial ${designClass(D)}">
-${storeStyle(D, store.theme)}
+${storeStyle(D, store.theme)}${announceHtml(store)}
   <div class="ed-topbar">
     <div class="wrap ed-topline">
       <span>${esc(store.wilaya || "Algérie")}</span>
@@ -1439,7 +1613,7 @@ const contrast = {
     const D = readDesign(store)
     return page(title ? `${title} — ${store.name}` : `${store.name}`, `
 <div class="theme theme-contrast ${designClass(D)}">
-${storeStyle(D, store.theme)}
+${storeStyle(D, store.theme)}${announceHtml(store)}
   <header class="ct-head">
     <div class="wrap ct-bar">
       <a class="ct-brand" href="${slug(store)}">
@@ -1595,7 +1769,7 @@ const catalogue = {
     const D = readDesign(store)
     return page(title ? `${title} — ${store.name}` : `${store.name}`, `
 <div class="theme theme-catalogue ${designClass(D)}">
-${storeStyle(D, store.theme)}
+${storeStyle(D, store.theme)}${announceHtml(store)}
   <header class="ca-head">
     <div class="wrap ca-bar">
       <a class="ca-brand" href="${slug(store)}">${D.logo ? `<img class="ca-logo" src="${esc(D.logo)}" alt="${esc(store.name)}">` : `<span class="ca-tile">${esc((store.name || "?")[0].toUpperCase())}</span>`}${esc(store.name)}</a>
@@ -1699,7 +1873,7 @@ ${related.length ? `
     <div><span>Livraison</span><b data-ship>${price(store, totals.shipping)}</b></div>
     ${totals.discount > 0 ? `<div class="promo-line"><span>Remise ${totals.promo ? esc(totals.promo.code) : ""}</span><b>−${price(store, totals.discount)}</b></div>` : ""}
     <div class="total"><span>Total</span><b data-total>${price(store, totals.total)}</b></div>
-    <a class="btn btn-primary btn-block btn-lg" href="${slug(store)}/checkout">Commander · ${price(store, totals.total)}</a>
+    <a class="btn btn-primary btn-block btn-lg" href="${slug(store)}/checkout">${I18N.t(I18N.langNow(store), "Commander")} · ${price(store, totals.total)}</a>
     <a class="ca-link" href="${slug(store)}">Continuer les achats</a>
   </div>`}
 </section>`
@@ -1758,7 +1932,7 @@ const mono = {
     const mode = cartModeOf(store)
     return page(title ? `${title} — ${store.name}` : `${store.name} — ${store.tagline || "Boutique en ligne"}`, `
 <div class="theme theme-mono ${designClass(D)}">
-${storeStyle(D, store.theme)}
+${storeStyle(D, store.theme)}${announceHtml(store)}
   <header class="mo-head">
     <div class="wrap mo-bar">
       <a class="mo-brand" href="${slug(store)}">
@@ -1907,7 +2081,7 @@ const galerie = {
     const mode = cartModeOf(store)
     return page(title ? `${title} — ${store.name}` : `${store.name} — ${store.tagline || "Boutique en ligne"}`, `
 <div class="theme theme-galerie ${designClass(D)}">
-${storeStyle(D, store.theme)}
+${storeStyle(D, store.theme)}${announceHtml(store)}
   <header class="ga-head">
     <div class="wrap ga-bar">
       <a class="ga-brand" href="${slug(store)}" aria-label="${esc(store.name)}">
@@ -2042,7 +2216,7 @@ const bento = {
     const mode = cartModeOf(store)
     return page(title ? `${title} — ${store.name}` : `${store.name} — ${store.tagline || "Boutique en ligne"}`, `
 <div class="theme theme-bento ${designClass(D)}">
-${storeStyle(D, store.theme)}
+${storeStyle(D, store.theme)}${announceHtml(store)}
   <header class="bt-head">
     <div class="wrap bt-bar">
       <a class="bt-brand" href="${slug(store)}">
@@ -2215,7 +2389,7 @@ const zen = {
     const mode = cartModeOf(store)
     return page(title ? `${title} — ${store.name}` : `${store.name} — ${store.tagline || "Boutique en ligne"}`, `
 <div class="theme theme-zen ${designClass(D)}">
-${storeStyle(D, store.theme)}
+${storeStyle(D, store.theme)}${announceHtml(store)}
   <header class="zn-head">
     <div class="zn-wrap zn-bar">
       <a class="zn-brand" href="${slug(store)}">
@@ -2355,7 +2529,7 @@ const cod = {
     const D = readDesign(store)
     return page(title ? `${title} — ${store.name}` : `${store.name} — ${store.tagline || "Boutique en ligne"}`, `
 <div class="theme theme-cod ${designClass(D)}">
-${storeStyle(D, store.theme)}
+${storeStyle(D, store.theme)}${announceHtml(store)}
   <header class="cd-head">
     <div class="wrap cd-bar">
       <a class="cd-brand" href="${slug(store)}">
@@ -2497,7 +2671,7 @@ const tech = {
     const mode = cartModeOf(store)
     return page(title ? `${title} — ${store.name}` : `${store.name} — ${store.tagline || "Boutique en ligne"}`, `
 <div class="theme theme-tech ${designClass(D)}">
-${storeStyle(D, store.theme)}
+${storeStyle(D, store.theme)}${announceHtml(store)}
   <header class="th-head">
     <div class="wrap th-top">
       <a class="th-brand" href="${slug(store)}">
@@ -2643,7 +2817,7 @@ const marche = {
     const mode = cartModeOf(store)
     return page(title ? `${title} — ${store.name}` : `${store.name} — ${store.tagline || "Boutique en ligne"}`, `
 <div class="theme theme-marche ${designClass(D)}">
-${storeStyle(D, store.theme)}
+${storeStyle(D, store.theme)}${announceHtml(store)}
   <div class="mr-marquee"><span>Prix cassés toute la semaine · Paiement à la livraison · Livraison 58 wilayas · Échange sous 7 jours · Prix cassés toute la semaine · Paiement à la livraison · Livraison 58 wilayas · Échange sous 7 jours ·</span></div>
   <header class="mr-head">
     <div class="wrap mr-bar">
@@ -2772,7 +2946,7 @@ const mosaique = {
     const mode = cartModeOf(store)
     return page(title ? `${title} — ${store.name}` : `${store.name} — ${store.tagline || "Boutique en ligne"}`, `
 <div class="theme theme-mosaique ${designClass(D)}">
-${storeStyle(D, store.theme)}
+${storeStyle(D, store.theme)}${announceHtml(store)}
   <header class="mq-head">
     <div class="wrap mq-bar">
       <a class="mq-brand" href="${slug(store)}">
@@ -2939,7 +3113,7 @@ const noir = {
     const mode = cartModeOf(store)
     return page(title ? `${title} — ${store.name}` : `${store.name} — ${store.tagline || "Boutique en ligne"}`, `
 <div class="theme theme-noir ${designClass(D)}">
-${storeStyle(D, store.theme)}
+${storeStyle(D, store.theme)}${announceHtml(store)}
   <header class="nr-head">
     <div class="wrap nr-bar">
       <a class="nr-brand" href="${slug(store)}">
@@ -3079,7 +3253,7 @@ ${related.length ? `<section class="wrap nr-related">
    briques déjà écrites ici : aucune duplication de la fiche produit ni du panier. */
 const PRO = require("./layouts-pro")({
   esc, money, page, PREVIEW_SCRIPT, icon, img, initial,
-    readDesign, storeStyle, designClass, navLinks, socialBar, footerExtras, legalBar,
+    readDesign, storeStyle, designClass, navLinks, socialBar, footerExtras, legalBar, announceHtml,
   trustInline, galleryHtml, addFormV, reviewsHtml, promoBox, discountRow,
   deliveryBlock, payBlock, CF, homeFromSections, categories: SHOP.categories, price, slug, emptyCartHref,
 })
@@ -3252,15 +3426,34 @@ Object.keys(LAYOUTS).forEach((key) => {
     if (fontHref) {
       html = html.replace("</head>", `<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n<link id="ndzGf" rel="stylesheet" href="${esc(fontHref)}"></head>`)
     }
+    /* application installable : manifeste, couleur d'écran, icône du téléphone */
+    if (html.indexOf('rel="manifest"') === -1) {
+      html = html.replace("</head>", `${PWA.storeHead(store, D)}\n</head>`)
+    }
     if (D.htmlFooter) html = html.replace("</body>", `${D.htmlFooter}</body>`)
     html = html.replace("<html ", `<html data-drawer="${esc(D.cartType || "page")}" data-drawer-open="${D.cartOpenDrawer ? "1" : "0"}" data-parts="${D.installOn ? String(D.installN || 3) : "0"}" data-accel="${D.payDirect ? "1" : "0"}" data-swatch="${D.swatchImg ? "1" : "0"}" `)
     html = html.replace("</body>", `<script src="/ndz-store.js" defer></script></body>`)
     if (Array.isArray(D.dict) && D.dict.length) html = I18N.applyDict(html, D.dict)
-    if (lang === "ar" && html.indexOf("/estedad.css") === -1) {
-      html = html.replace("</head>", '<link rel="stylesheet" href="/estedad.css"></head>')
+    /* arabe : la police choisie par le marchand (voir src/fonts-ar.js) */
+    if (lang === "ar") {
+      if (html.indexOf("/arabic-fonts.css") === -1) {
+        html = html.replace("</head>", '<link rel="stylesheet" href="/arabic-fonts.css"></head>')
+      }
+      html = html.replace("</head>", `<style>html[dir="rtl"] body,html[dir="rtl"] h1,html[dir="rtl"] h2,html[dir="rtl"] h3,html[dir="rtl"] h4,html[dir="rtl"] p,html[dir="rtl"] a,html[dir="rtl"] button,html[dir="rtl"] span,html[dir="rtl"] li{font-family:${FONTS_AR.stack(store)} !important}` +
+        /* les textes du marchand gardent leur sens de lecture : une phrase en
+           français reste lisible dans une page arabe (ponctuation en place) */
+        `html[dir="rtl"] h1,html[dir="rtl"] h2,html[dir="rtl"] h3,html[dir="rtl"] h4,html[dir="rtl"] h5,html[dir="rtl"] h6,html[dir="rtl"] p,html[dir="rtl"] li,html[dir="rtl"] a,html[dir="rtl"] span,html[dir="rtl"] button,html[dir="rtl"] label,html[dir="rtl"] small,html[dir="rtl"] b,html[dir="rtl"] strong,html[dir="rtl"] em,html[dir="rtl"] blockquote,html[dir="rtl"] figcaption{unicode-bidi:plaintext}</style></head>`)
     }
     const pill = I18N.switchHtml(store, I18N.current().req || {}, lang)
-    if (pill) html = placeLang(html, pill)
+    if (pill) {
+      /* la pastille affiche « ع » : sans police arabe, certains systèmes
+         dessinaient un autre signe (un « € »). On charge la police une fois. */
+      if (html.indexOf("/arabic-fonts.css") === -1) {
+        html = html.replace("</head>", '<link rel="stylesheet" href="/arabic-fonts.css"></head>')
+      }
+      html = html.replace("</head>", '<style>.lang-switch{font-family:"Cairo","IBM Plex Sans Arabic","Noto Naskh Arabic",system-ui,sans-serif}</style></head>')
+      html = placeLang(html, pill)
+    }
     return I18N.localize(html, lang)
   }
 })
