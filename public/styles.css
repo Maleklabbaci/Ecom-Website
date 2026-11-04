@@ -5311,9 +5311,11 @@ img#cropImg:not([src]), img#cropImg[src=""] { display: none !important; }
     font-family: Inter, Estedad, "Segoe UI", sans-serif;
   }
   .dash input, .dash select, .dash textarea { font-size: 16px; border-radius: 14px; }
+  /* cases à cocher : 15 px, impossible à viser au doigt */
+  .dash input[type=checkbox], .dash input[type=radio] { width: 22px; height: 22px; }
+  .prev-dev { min-height: 34px; }
+  .ed-devices .ed-tool { height: 32px; }
   .dash .btn { border-radius: 999px; }
-  .dash-main .dock-sliver { visibility: hidden; }
-  .dash-main .dock-clip { overflow: hidden; }
 
 }
 

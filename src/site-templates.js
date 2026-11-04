@@ -138,6 +138,12 @@ const SHOP_CSS = `
 #ndz-boutique .ndzs-empty{font:400 15px/1.5 system-ui,sans-serif;color:#666}
 `
 
+/* La pastille NOVADZ était posée en bas à droite, au-dessus du bouton
+   « Commander » de la barre d'achat : sur téléphone elle cachait le seul
+   bouton qui compte. On la retire sous 700 px ; la signature reste dans le
+   pied de page (« Propulsé par NovaDZ »). */
+const BRAND_CSS = `@media (max-width:700px){#novadz-brand{display:none!important}}`
+
 const BAR_CSS = `
 #ndz-bar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:2147483000;display:flex;gap:6px;padding:6px;background:#111;border-radius:999px;box-shadow:0 8px 30px rgba(0,0,0,.28);font-family:system-ui,sans-serif}
 #ndz-bar a{color:#fff;text-decoration:none;font:600 13px/1 system-ui,sans-serif;padding:11px 16px;border-radius:999px;white-space:nowrap}
@@ -334,7 +340,7 @@ const render = (store, products, id, opts = {}) => {
   const pillCss = offersAr
     ? '<link rel="stylesheet" href="/arabic-fonts.css"><style>.lang-switch{font-family:"Cairo","IBM Plex Sans Arabic","Noto Naskh Arabic",system-ui,sans-serif}</style>'
     : ""
-  if (!opts.studio) html = html.replace(/<\/head>/i, `${links}${ar ? arCss(store) : pillCss}${varsCss}${html.includes("ndz-shop-css") ? "" : `<style id="ndz-shop-css">${blockCss}</style>`}<style>${BAR_CSS}</style></head>`)
+  if (!opts.studio) html = html.replace(/<\/head>/i, `${links}${ar ? arCss(store) : pillCss}${varsCss}${html.includes("ndz-shop-css") ? "" : `<style id="ndz-shop-css">${blockCss}</style>`}<style>${BAR_CSS}${BRAND_CSS}</style></head>`)
 
   /* liens entre pages d'un site importé : /__ndz__/s/about -> /<boutique>/s/about */
   html = html.replace(/\/__ndz__(?=[\/"'#?])/g, "/" + slug)

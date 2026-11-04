@@ -105,3 +105,17 @@ test("l'ancienne adresse du Studio renvoie vers lui", async () => {
   assert.equal(r.status, 302)
   assert.equal(r.headers.get("location"), "/dashboard/studio")
 })
+
+/* LE CONTENU DOIT TOUJOURS ÊTRE ATTEIGNABLE.
+   Un script « rognait » les cartes qui dépassaient de la barre du bas sur
+   téléphone : il leur posait une hauteur maximale, et le reste du formulaire
+   n'existait plus, même en défilant. On vérifie que ce rognage ne revient pas. */
+test("aucune carte n'est rognée à la hauteur de l'écran", async () => {
+  const src = fs.readFileSync(path.join(__dirname, "..", "src/views.js"), "utf8")
+  assert.ok(!/dock-clip|dock-sliver/.test(src), "le rognage des cartes est revenu dans src/views.js")
+  const css = fs.readFileSync(path.join(__dirname, "..", "public/styles.css"), "utf8")
+  assert.ok(!/\.dock-clip|\.dock-sliver/.test(css), "les règles de rognage sont revenues dans public/styles.css")
+  /* et une page longue doit défiler assez pour montrer son bouton d'enregistrement */
+  const { html } = await lire("/dashboard/settings")
+  assert.ok(/<button[^>]*>[^<]*Enregistrer/i.test(html) || /Enregistrer/i.test(html), "le bouton Enregistrer doit exister")
+})

@@ -2087,36 +2087,9 @@ const dashLayout = (user, store, content, active) => {
       }
     })
   })
-  /* un bout de carte coupé contre la barre disparaît ; dès qu'on scrolle, elle revient entière */
-  var main = document.querySelector('.dash-main')
-  function trimDock() {
-    if (!main) return
-    var wide = window.innerWidth > 920
-    var boxes = main.querySelectorAll('.ord-card, .panel, .stat, .kpi, .m-list tbody tr, .form > label, .lang-opt')
-    boxes.forEach(function (el) {
-      el.classList.remove('dock-sliver')
-      el.classList.remove('dock-clip')
-      el.style.maxHeight = ''
-    })
-    if (wide) return
-    var edge = main.getBoundingClientRect().bottom - 1
-    boxes.forEach(function (el) {
-      var r = el.getBoundingClientRect()
-      var visible = edge - r.top
-      var hidden = r.bottom - edge
-      if (r.top >= edge - 2 || hidden < 8) return
-      if (visible < 72) el.classList.add('dock-sliver')
-      else if (hidden > 24 && (el.classList.contains('panel') || el.classList.contains('ord-card'))) {
-        el.style.maxHeight = Math.max(72, Math.floor(visible - 12)) + 'px'
-        el.classList.add('dock-clip')
-      }
-    })
-  }
-  if (main) {
-    trimDock()
-    main.addEventListener('scroll', trimDock, { passive: true })
-    window.addEventListener('resize', trimDock)
-  }
+  /* Plus de rognage des cartes : couper une carte à la hauteur de la barre du bas
+     masquait définitivement son contenu (le formulaire Réglages devenait
+     inatteignable sur téléphone). Une carte qui dépasse dépasse, et elle défile. */
   /* 20 lignes, puis page 2, puis 20, puis page 3 — sur chaque liste */
   function pageList(host, nodes, size) {
     var rows = []

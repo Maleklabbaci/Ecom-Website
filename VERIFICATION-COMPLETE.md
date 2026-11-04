@@ -1,65 +1,109 @@
-# Vérification complète — 4 novembre 2026
+# Vérification complète — 4 novembre 2026 (milieu d'après-midi)
 
 Tout ce qui suit a été vérifié sur le vrai site, dans un vrai navigateur, pas à l'œil.
+Cette version remplace la précédente : deux défauts trouvés après elle sont corrigés ici.
 
-## 1. Les pages
+## 1. Les pages après connexion
 
 | | |
 |---|---|
-| Pages visitées | **103** |
+| Pages ouvertes dans le navigateur | **102** |
 | Codes HTTP en erreur | **0** |
 | Erreurs JavaScript | **0** |
 | Requêtes en échec (404, 500) | **0** |
+| Débordement horizontal (bureau et téléphone) | **0** |
 | « undefined », « NaN », « [object Object] » | **0** |
 | Prix en dollars ou en euros | **0** |
 
-Ce qui est visité : accueil, connexion, inscription, thèmes, 16 modèles de site, 19 thèmes,
-3 boutiques (FR et AR), les 43 écrans du tableau de bord marchand, les 6 écrans admin.
+Deux tailles à chaque fois : ordinateur 1440 × 900 et téléphone 390 × 844.
+Les captures pleine page sont dans `captures/scroll/` (102) et `captures/revue/`.
 
-## 2. Le parcours d'un vrai client
+## 2. Un compte tout neuf (inscription réelle)
 
-17 vérifications, 0 échec :
+On s'inscrit vraiment, on répond au premier écran, puis on ouvre **toutes** les pages
+du menu — sans un seul produit, sans une seule commande : c'est là que sortent les
+pages vides et les divisions par zéro.
 
-1. le client ouvre une fiche produit, ajoute au panier, remplit le formulaire → **commande confirmée**
-2. la commande **apparaît** dans le tableau de bord du marchand
-3. le marchand écrit dans le Studio, enregistre → **le brouillon n'est pas visible par les clients**
-4. il publie → **le texte apparaît** sur la boutique
-5. la boutique reste en ligne, **prix en dinars**
-6. une inscription crée une boutique et **ouvre le Studio tout de suite**
-7. les pages tiennent sur un téléphone (390 px, aucun débordement)
+| | |
+|---|---|
+| Écrans vérifiés | **68** (34 pages × 2 tailles) |
+| Défauts | **0** |
+| Boutique publique d'un compte neuf | 200, aucun débordement, aucun « undefined » |
 
-## 3. Ce qui a été réparé
+## 3. Le défilement, page par page
 
-1. **Des prix en dollars dans 4 modèles.** 44 prix ($124.90, $3,399, $27.99…) sont devenus des dinars
-   (12 490 DZD, 339 900 DZD, 2 799 DZD). Le test qui devait l'empêcher regardait mal : la devise était
-   dans sa propre balise, il ne la voyait pas. Le test lit maintenant le texte visible.
-2. **Un script cassé sur la fiche produit.** Le code contenait `!/^image\//` ; le gabarit mangeait le
-   `\`, la page recevait `!/^image//` : la partie après était un commentaire, et le formulaire d'avis
-   avec photo levait une erreur. Réparé.
-3. **Le modèle `sonnenbloom` appelait des scripts Cloudflare** (`cdn-cgi/...`) qui n'existent pas sur
-   notre serveur : 2 erreurs et 2 requêtes en échec à chaque affichage. Retirés.
-4. **La pastille de langue `ع`** s'affichait avec un autre signe sur certains systèmes (on croyait voir
-   un « € »). La police arabe vient maintenant avec le bouton.
+| Contrôle | Résultat |
+|---|---|
+| Arriver en bas de chaque page | **32 écrans sur 32** |
+| Contenu caché derrière une barre fixe | **0** |
+| Barre fixe qui mange trop d'écran | **0** |
+| Page qui ne défile pas alors qu'elle est plus longue que l'écran | **0** |
 
-## 4. Nouveaux garde-fous
+Sur téléphone, l'espace marchand défile dans sa propre colonne (`.dash-main`) : les
+audits descendent ce cadre, pas la fenêtre, sinon on ne mesurait que le premier écran.
+
+## 4. Au doigt (téléphone)
+
+| | |
+|---|---|
+| Pages testées | **28** |
+| Défaut bloquant (contenu inatteignable, texte coupé, image cassée, erreur JS) | **0** |
+| Petites zones à agrandir (< 32 px) | 17 pages, liste dans `captures/doigt/audit-tap.json` |
+
+## 5. Ce qui a été réparé aujourd'hui
+
+1. **Le formulaire Réglages était coupé sur téléphone.** Un script rognait les cartes à
+   la hauteur de l'écran pour éviter qu'elles « se décalent ». Résultat : le formulaire
+   faisait 4 359 px de haut mais la colonne ne défilait que sur 82 px — le bouton
+   **Enregistrer** n'existait plus. Le rognage est supprimé ; le formulaire défile
+   entièrement, le bouton est atteignable (vérifié au clic, pas à l'œil).
+2. **La pastille « NOVADZ » cachait le bouton « Commander ».** Posée en bas à droite,
+   au même endroit que la barre d'achat des modèles : sur téléphone elle recouvrait le
+   seul bouton qui compte. Elle est retirée sous 700 px ; la signature reste dans le
+   pied de page (« Propulsé par NovaDZ »). Sur ordinateur, elle reste.
+3. **Cases à cocher de 15 px** dans l'espace marchand : portées à 22 px sur téléphone
+   (impossible à viser au doigt avant).
+4. **Boutons Ordinateur / Téléphone** de l'aperçu : 31 px de haut, passés à 34 px.
+
+Les quatre réparations d'avant restent : prix en dinars dans 4 modèles, script cassé de
+la fiche produit, scripts Cloudflare du modèle `sonnenbloom`, pastille de langue `ع`.
+
+## 6. Les garde-fous (tests)
 
 | Fichier | Rôle |
 |---|---|
-| `tests/pages-js-propres.test.js` | 24 tests : chaque page est lue, chaque script écrit dedans est compilé, et l'on refuse « undefined », les dollars et les euros |
-| `scripts/audit.js` | ouvre 103 pages dans un navigateur, rapporte codes, erreurs JS, requêtes ratées, prix |
-| `scripts/parcours.js` | joue un vrai client : commande, Studio, publication, inscription, téléphone |
-| `scripts/captures.js` | refait les captures du Studio, des thèmes et de la boutique |
+| `npm test` | **354 tests**, 0 échec |
+| `scripts/audit.js` | 102 pages : codes, erreurs JS, requêtes ratées, prix |
+| `scripts/audit-scroll.js` | 102 pages × 2 tailles : défilement, largeur, images, textes |
+| `scripts/audit-bas.js` | 32 écrans : arriver en bas, barres fixes |
+| `scripts/audit-tap.js` | 28 pages au doigt : zones trop petites, contenu caché |
+| `scripts/audit-nouveau.js` | inscription réelle + 34 pages sans données |
+| `scripts/parcours.js` | **17 vérifications** : commande client, Studio, publication, inscription |
+| `scripts/revue.js` | captures du haut jusqu'en bas, une image par page |
 
-Lancer :
+Deux tests neufs empêchent le retour des bugs :
+
+- « aucune carte n'est rognée à la hauteur de l'écran » (`tests/pages-js-propres.test.js`)
+- « la pastille NOVADZ ne recouvre pas la barre d'achat sur téléphone » (`tests/site-templates.test.js`)
+
+Lancer (serveur déjà démarré sur le port 4600) :
 
 ```bash
-npm test                              # 350 tests
-node scripts/audit.js                 # 103 pages
-node scripts/parcours.js              # le parcours client
+npm test
+node scripts/audit.js
+node scripts/audit-scroll.js
+node scripts/audit-bas.js
+node scripts/audit-tap.js
+node scripts/audit-nouveau.js
+node scripts/parcours.js
 ```
 
-## 5. Ce qui reste à faire (pas fait, volontairement)
+## 7. Ce qui reste à faire (pas fait, volontairement)
 
-- **Fusion sur `main`** : en attente du feu vert. Tant qu'elle n'est pas faite, un déploiement
-  depuis `main` donne l'ancien code.
+- **Fusion sur `main`** : en attente du feu vert. Tant qu'elle n'est pas faite, un
+  déploiement depuis `main` donne l'ancien code.
 - La traduction en français du modèle à choisir.
+- Agrandir les 17 petites zones listées (confort, pas blocage).
+- `scroll-behavior: smooth` sur certains modèles : c'est voulu (les liens de menu
+  glissent au lieu de sauter). Un défilement au doigt ou à la molette n'est pas gêné ;
+  seuls les scripts qui sautent en bas d'un coup doivent en tenir compte.

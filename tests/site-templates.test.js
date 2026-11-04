@@ -527,3 +527,13 @@ test("studio : nom et prix d'un produit modifiables depuis l'éditeur", async ()
 
   await req("/dashboard/studio/reset", { method: "POST" })
 })
+
+/* LA PASTILLE NOVADZ NE DOIT PAS CACHER LE BOUTON « COMMANDER ».
+   Elle est posée en bas à droite, au même endroit que la barre d'achat.
+   Sur téléphone le bouton passait dessous : on la retire sous 700 px, la
+   signature restant dans le pied de page. */
+test("vitrine : la pastille NOVADZ ne recouvre pas la barre d'achat sur téléphone", async () => {
+  const html = await (await fetch(BASE + "/amina-mode")).text()
+  assert.match(html, /max-width:700px\)\s*\{?#novadz-brand\{display:none/, "la règle qui retire la pastille a disparu")
+  assert.ok(html.includes('id="ndz-bar"') || html.includes("ndz-bar"), "la barre d'achat doit rester")
+})
