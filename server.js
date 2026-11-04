@@ -2014,9 +2014,7 @@ app.get("/_proto/:file", (req, res, next) => {
 /* LE Studio (un seul bouton dans le menu) : l'atelier « un seul écran ».
    Simple / Avancé / Atelier, aperçu ordinateur et téléphone, publication.
    L'ancien éditeur de blocs reste joignable à /dashboard/studio/pages. */
-app.get("/dashboard/studio", requireAuth, requireStore, (req, res) =>
-  res.redirect("/dashboard/studio/atelier"))
-app.get("/dashboard/studio/atelier", requireAuth, requireStore, (req, res) => {
+app.get("/dashboard/studio", requireAuth, requireStore, (req, res) => {
   const d = DESIGN.read(req.store.id)
   res.set("Cache-Control", "no-store")
   res.send(atelierPage({
@@ -2026,6 +2024,10 @@ app.get("/dashboard/studio/atelier", requireAuth, requireStore, (req, res) => {
     versions: DESIGN.versions(req.store.id),
   }))
 })
+/* Un seul Studio, une seule adresse. L'ancienne adresse /atelier reste un
+   raccourci (favoris, liens déjà envoyés) mais ne montre pas un autre écran. */
+app.get("/dashboard/studio/atelier", requireAuth, requireStore, (req, res) =>
+  res.redirect("/dashboard/studio"))
 /* La page d'accueil publique, quand le marchand a coché « faire de cette page ma
    page d'accueil » et publié. Sans ce choix, la boutique garde exactement la page
    qu'elle avait : on ne remplace jamais le travail de quelqu'un sans son accord. */

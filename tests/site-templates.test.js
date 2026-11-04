@@ -392,7 +392,11 @@ test("raccourci démo : ouvre le studio vitrine, refuse une redirection externe"
   const r = await req("/demo-login/vitrine?next=/dashboard/studio")
   assert.equal(r.status, 302)
   assert.match(r.location, /^\/dashboard\/studio(\?|$)/)
-  assert.equal((await req("/dashboard/studio/atelier")).status, 200, "session ouverte par le raccourci")
+  /* un seul Studio, une seule adresse : /atelier renvoie vers /dashboard/studio */
+  const atelier = await req("/dashboard/studio/atelier")
+  assert.equal(atelier.status, 302, "l'ancienne adresse renvoie vers le Studio")
+  assert.equal(atelier.location, "/dashboard/studio")
+  assert.equal((await req("/dashboard/studio")).status, 200, "session ouverte par le raccourci")
 
   jar.clear()
   const evil = await req("/demo-login/marchand?next=//evil.example/x")

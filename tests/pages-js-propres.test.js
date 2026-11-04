@@ -85,3 +85,23 @@ for (const url of PAGES) {
     assert.ok(!/€\s?\d|\d\s?€/.test(texte), `${url} affiche un prix en euros`)
   })
 }
+
+/* UN SEUL STUDIO, UNE SEULE ADRESSE.
+   Le marchand ne doit pas se demander si « Design » et « Studio » sont deux
+   outils différents : le menu n'offre que le Studio, et l'ancienne adresse
+   /dashboard/studio/atelier renvoie vers lui au lieu de montrer autre chose. */
+test("le menu du marchand propose un seul Studio, et pas de doublon « Design »", async () => {
+  const dash = await lire("/dashboard")
+  const nav = (dash.html.match(/<nav class="dash-nav">[\s\S]*?<\/nav>/) || [""])[0]
+  const liens = [...nav.matchAll(/href="([^"]+)"/g)].map((m) => m[1])
+  const studio = liens.filter((h) => /\/dashboard\/studio/.test(h))
+  assert.deepEqual(studio, ["/dashboard/studio"], "une seule entrée Studio : " + JSON.stringify(studio))
+  const design = liens.filter((h) => /^\/dashboard\/design($|\?)/.test(h))
+  assert.deepEqual(design, [], "plus d'entrée « Design » en double : " + JSON.stringify(design))
+})
+
+test("l'ancienne adresse du Studio renvoie vers lui", async () => {
+  const r = await fetch(base + "/dashboard/studio/atelier", { headers: { cookie: cookieMarchand }, redirect: "manual" })
+  assert.equal(r.status, 302)
+  assert.equal(r.headers.get("location"), "/dashboard/studio")
+})

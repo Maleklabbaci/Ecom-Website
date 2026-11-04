@@ -1885,8 +1885,7 @@ const dashLayout = (user, store, content, active) => {
       <a class="${active === "visits" ? "on" : ""}" href="/dashboard/visites">${icon("chart", 16)} Visites</a>
       <p class="dash-group">Contenu</p>
       ${navIf(user, "design", `<a class="${active === "pages" ? "on" : ""}" href="/dashboard/pages">${icon("receipt", 16)} <span>Pages</span><b class="nav-count">${B.pages || 0}</b></a>`)}
-      ${navIf(user, "design", `<a class="${active === "design" ? "on" : ""}" href="/dashboard/design/themes">${icon("palette", 16)} Design</a>`)}
-      ${navIf(user, "design", studioLink(false))}
+      ${navIf(user, "design", studioLink(active === "studio"))}
       <p class="dash-group">Contact</p>
       <a class="${active === "leads" ? "on" : ""}" href="/dashboard/recus">${icon("chat", 16)} <span>Reçus</span>${BADGES.pill(B.leads)}</a>
       ${navIf(user, "shop", `<a class="${active === "social" ? "on" : ""}" href="/dashboard/reseaux">${icon("chat", 16)} Réseaux sociaux</a>`)}
@@ -1913,7 +1912,6 @@ const dashLayout = (user, store, content, active) => {
       <a class="${active === "promos" ? "on" : ""}" href="/dashboard/discounts">${icon("cash", 16)} Codes promo</a>`)}
 
       ${(canSee(user, "design") || canSee(user, "shop") || canSee(user, "settings") || canSee(user, "team")) ? `<p class="dash-group">Boutique</p>` : ""}
-      ${navIf(user, "design", `<a class="${active === "design" ? "on" : ""}" href="/dashboard/design/themes">${icon("palette", 16)} Design</a>`)}
       ${navIf(user, "design", studioLink(active === "studio"))}
       ${navIf(user, "design", `<a class="${active === "form" ? "on" : ""}" href="/dashboard/formulaire">${icon("edit", 16)} Formulaire</a>`)}
       ${navIf(user, "shop", `<a class="${active === "transporteur" ? "on" : ""}" href="/dashboard/transporteur">${icon("truck", 16)} Transporteur</a>`)}
@@ -1947,7 +1945,7 @@ const dashLayout = (user, store, content, active) => {
   <nav class="app-tab" aria-label="Navigation">
     ${tab("home", "/dashboard", "grid", "Accueil")}
     ${vitrine ? `${navIf(user, "design", tab("pages", "/dashboard/pages", "receipt", "Pages"))}
-    ${navIf(user, "design", tab("design", "/dashboard/design/themes", "palette", "Design"))}${navIf(user, "design", `<a class="${active === "studio" ? "on" : ""}" href="/dashboard/studio">${icon("edit", 20)}<span>Studio</span></a>`)}` : `${navIf(user, "orders", tab("orders", "/dashboard/orders", "receipt", "Commandes", B.toTreat))}
+    ${navIf(user, "design", `<a class="${active === "studio" ? "on" : ""}" href="/dashboard/studio">${icon("edit", 20)}<span>Studio</span></a>`)}` : `${navIf(user, "orders", tab("orders", "/dashboard/orders", "receipt", "Commandes", B.toTreat))}
     ${navIf(user, "products", tab("products", "/dashboard/products", "box", "Produits"))}
     ${navIf(user, "products", tab("stock", "/dashboard/stock", "layers", "Stock", B.lowStock, "bad"))}
     ${active === "relances" ? tab("relances", "/dashboard/relances", "history", "Relances", B.relances, "warn") : ""}`}

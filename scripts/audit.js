@@ -31,7 +31,7 @@ const PUBLIC = [
   "/atelier-lina", "/atelier-lina?lang=ar",
 ]
 const MARCHAND = [
-  "/dashboard", "/dashboard/studio", "/dashboard/studio/atelier", "/dashboard/studio/pages",
+  "/dashboard", "/dashboard/studio", "/dashboard/studio/pages",
   "/dashboard/studio/design", "/dashboard/design", "/dashboard/design/themes",
   "/dashboard/design/versions", "/dashboard/design/source",
   "/dashboard/products", "/dashboard/products/new", "/dashboard/orders", "/dashboard/stock",
@@ -116,7 +116,7 @@ async function auditPage(browser, cookie, url) {
     if (/\.(csv|txt|webmanifest)$/.test(url) === false) {
       const fini = page.url()
       if (/\/login/.test(fini)) echecs.push("session perdue : arrivée sur /login")
-      if (url === "/dashboard/studio" && !/\/dashboard\/studio$/.test(fini) && !/\/dashboard\/studio\/atelier$/.test(fini)) {
+      if (url === "/dashboard/studio" && !/\/dashboard\/studio$/.test(fini)) {
         echecs.push("Studio inattendu : " + fini.replace(BASE, ""))
       }
     }
