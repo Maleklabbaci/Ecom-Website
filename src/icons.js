@@ -50,6 +50,7 @@ const ICONS = {
   menu: `<path d="M4 7h16M4 12h16M4 17h16"/>`,
   search: '<circle cx="10.8" cy="10.8" r="4.5"/><path d="M14.3 14.3 17.8 17.8"/>',
   user: `<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/>`,
+  users: `<circle cx="9" cy="8.5" r="3.2"/><path d="M2.5 19.5c0-3.4 2.9-5.7 6.5-5.7s6.5 2.3 6.5 5.7"/><path d="M16 5.6a3 3 0 0 1 0 5.9M17.5 13.9c2.3.5 4 2.4 4 5.6"/>`,
   /* --- éditeur de design --- */
   undo: `<path d="M9 7 4.5 11.5 9 16"/><path d="M4.5 11.5h9a6 6 0 0 1 0 12h-2.5"/>`,
   redo: `<path d="M15 7l4.5 4.5L15 16"/><path d="M19.5 11.5h-9a6 6 0 0 0 0 12H13"/>`,
@@ -79,6 +80,17 @@ const ICONS = {
   link: `<path d="M10.5 13.5a3.6 3.6 0 0 0 5.1 0l2.1-2.1a3.6 3.6 0 1 0-5.1-5.1l-1 1"/><path d="M13.5 10.5a3.6 3.6 0 0 0-5.1 0l-2.1 2.1a3.6 3.6 0 1 0 5.1 5.1l1-1"/>`,
   globe: `<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.3 2.4 3.5 5.3 3.5 8.5S14.3 18.1 12 20.5c-2.3-2.4-3.5-5.3-3.5-8.5S9.7 5.9 12 3.5Z"/>`,
   bell: `<path d="M6.2 9.2a5.8 5.8 0 0 1 11.6 0c0 4.2 1.2 5.6 1.2 5.6H5s1.2-1.4 1.2-5.6Z"/><path d="M10 18.2a2 2 0 0 0 4 0"/>`,
+  /* --- une icône par page du menu (aucune répétition) --- */
+  home: `<path d="M4 10.5 12 3.5l8 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/>`,
+  mail: `<rect x="2.8" y="5.2" width="18.4" height="13.6" rx="2.2"/><path d="m3.4 7 8.6 6 8.6-6"/>`,
+  megaphone: `<path d="M4 10.2v3.6c0 .7.6 1.3 1.3 1.3H8l7.4 4.2V5.7L8 9.9H5.3C4.6 9.9 4 10.5 4 11.2Z"/><path d="M18.4 9.4a3.6 3.6 0 0 1 0 5.2"/>`,
+  tag: `<path d="M20.3 12.9 12.9 20.3a2 2 0 0 1-2.8 0l-6.4-6.4a2 2 0 0 1-.6-1.6l.5-6.2 6.2-.5a2 2 0 0 1 1.6.6l6.4 6.4a2 2 0 0 1 0 2.8Z"/><circle cx="8.4" cy="8.4" r="1.3"/>`,
+  route: `<circle cx="6" cy="6.5" r="2.2"/><circle cx="18" cy="17.5" r="2.2"/><path d="M8.2 6.5h6.3a3.2 3.2 0 0 1 0 6.4H9.5a3.2 3.2 0 0 0 0 4.6H15.8"/>`,
+  folder: `<path d="M3.5 7.5a2 2 0 0 1 2-2h3.6l2 2.6h7.4a2 2 0 0 1 2 2v7.4a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z"/>`,
+  file: `<path d="M6 3.5h7.5L19 9v11.5H6Z"/><path d="M13.5 3.5V9H19"/><path d="M9 13h6M9 16.5h4"/>`,
+  gauge: `<path d="M4 17.5a8.5 8.5 0 1 1 16 0"/><path d="M12 17.5 16 11"/><circle cx="12" cy="17.5" r="1.1"/>`,
+  star: `<path d="m12 4 2.4 5 5.5.7-4 3.8 1 5.4-4.9-2.7-4.9 2.7 1-5.4-4-3.8 5.5-.7Z"/>`,
+  brush: `<path d="M14.5 4.8 19.2 9.5 11 17.7l-4.7-4.7Z"/><path d="M6.3 13 4 20l7-2.3"/>`,
 }
 
 /* Décalage du cadre pour que le trait soit au centre du bouton, sans changer la taille. */

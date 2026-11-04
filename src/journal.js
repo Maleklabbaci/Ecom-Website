@@ -72,7 +72,7 @@ const PAGE = 30
 const RING = []
 
 const SKIP = ["/styles.css", "/editor.js", "/upimg.js", "/uploads", "/demo", "/fonts",
-  "/themes-pro.css", "/landing.css", "/inter-font.css", "/estedad.css", "/theme-fonts.css",
+  "/themes-pro.css", "/landing.css", "/inter-font.css", "/estedad.css", "/arabic-fonts.css", "/theme-fonts.css",
   "/favicon.ico"]
 
 const SECRET = /pass|token|secret|authorization|cookie|smtp/i

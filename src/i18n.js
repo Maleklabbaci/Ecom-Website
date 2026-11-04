@@ -122,6 +122,15 @@ const DICT = [
   ["Livraison 48 wilayas", "التوصيل إلى 58 ولاية"],
   ["Paiement à la livraison", "الدفع عند الاستلام"],
   ["Paiement à la livraison partout en Algérie.", "الدفع عند الاستلام في كل الجزائر."],
+  ["Échange sous 7 jours", "الاستبدال خلال 7 أيام"],
+  ["Dernière pièce disponible", "آخر قطعة متوفرة"],
+  /* questions au marchand */
+  ["Une question pour la boutique", "سؤال للمتجر"],
+  ["Le marchand reçoit le message dans ses notifications. Personne ne répond à votre place.", "يستلم التاجر الرسالة في إشعاراته. لا أحد يجيب بدلاً عنك."],
+  ["Votre question", "سؤالك"],
+  ["Envoyer au marchand", "أرسل إلى التاجر"],
+  ["Souvent achetés ensemble", "غالباً ما تُشترى معاً"],
+  ["Ensemble", "المجموع"],
 
   /* fiche produit */
   ["Ajouter au panier", "أضف إلى السلة"],
@@ -150,6 +159,9 @@ const DICT = [
   ["Récapitulatif", "ملخص الطلب"],
   ["Passer commande", "إتمام الطلب"],
   ["Commander", "اطلب"],
+  ["Mes favoris", "مفضلاتي"],
+  ["Dans mes favoris", "في مفضلاتي"],
+  ["Ensemble", "المجموع"],
   ["Commander · ", "اطلب · "],
   ["Commander directement", "اطلب مباشرة"],
   ["Finaliser la commande", "إتمام الطلب"],
@@ -403,9 +415,50 @@ const switchHtml = (store, req, lang) => {
   return `<a class="lang-switch" href="${here}?lang=${other}" rel="alternate" hreflang="${other}" title="${meta.label}" aria-label="${meta.label}">${meta.short}</a>`
 }
 
+/* ------------------------------------------------------- retour au français
+   Le Studio peut montrer les pages de la boutique en arabe au marchand qui lit
+   son espace en arabe. À l'enregistrement, ces libellés d'interface repartent
+   en français : la page n'existe qu'en une version, la langue reste un simple
+   affichage. Le contenu du marchand (noms, descriptions) n'est jamais touché. */
+const BACK = new Map()
+for (const [fr, ar] of PAIRS) if (!BACK.has(ar)) BACK.set(ar, fr)
+/* libellés construits par le gabarit : ils contiennent un nombre ou un prix */
+const BACK_RX = [
+  [/أضف (\d+) إلى السلة/g, "Ajouter les $1 au panier"],
+  [/المجموع/g, "Ensemble"],
+  [/اطلب · /g, "Commander · "],
+]
+
+const unlocalize = (html) => {
+  if (typeof html !== "string" || !/[\u0600-\u06FF]/.test(html)) return html
+  const back = (txt) => {
+    const t = txt.replace(/[\u2066-\u2069]/g, "").trim()
+    if (!t) return ""
+    return BACK.get(t) || ""
+  }
+  const parts = html.split(/(<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>)/i)
+  return parts.map((chunk, i) => {
+    if (i % 2) return chunk
+    let out = chunk.replace(/>([^<>]+)</g, (m, txt) => {
+      const fr = back(txt)
+      if (!fr) return m
+      const head = txt.match(/^\s*/)[0], tail = txt.match(/\s*$/)[0]
+      return ">" + head + fr + tail + "<"
+    })
+    for (const [rx, to] of BACK_RX) out = out.replace(rx, to)
+    for (const a of ["placeholder", "title", "aria-label", "alt", "value"]) {
+      out = out.replace(new RegExp(a + '="([^"]{2,200})"', "g"), (m, v) => {
+        const fr = back(v)
+        return fr ? a + '="' + fr + '"' : m
+      })
+    }
+    return out
+  }).join("")
+}
+
 const htmlAttrs = (lang) => `lang="${lang === "ar" ? "ar" : "fr"}" dir="${dirOf(lang)}"`
 
 module.exports = {
   LANGS, isLang, dirOf, storeLangs, defaultLang, langOf, langNow,
-  localize, applyDict, switchHtml, htmlAttrs, DICT, t, run, current,
+  localize, unlocalize, applyDict, switchHtml, htmlAttrs, DICT, t, run, current,
 }

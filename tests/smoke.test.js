@@ -251,7 +251,7 @@ test("anti-fraude : CAPTCHA exigé, téléphone strict, doublon détecté", asyn
   assert.match(marketing.text, /doublon_telephone/)
 })
 
-test("pixels serveur : configuration et journal des envois", async () => {
+test("pixels : un identifiant suffit, aucune clé n'est demandée", async () => {
   const save = await req("/dashboard/marketing/pixels", form({
     pixels_server: "1", pixel_meta: "123456789012345", meta_token: "FAKE",
     pixel_tiktok: "", tiktok_token: "", snap_pixel: "", snap_token: "", pixel_test_code: "",
@@ -259,8 +259,13 @@ test("pixels serveur : configuration et journal des envois", async () => {
   assert.equal(save.status, 302)
   const page = await req("/dashboard/marketing")
   assert.equal(page.status, 200)
-  assert.match(page.text, /Pixels serveur/)
+  assert.match(page.text, /Pixels \(facultatif\)/)
   assert.match(page.text, /Journal des événements/)
+  /* le marchand ne colle que des identifiants : plus un seul jeton dans la page */
+  assert.match(page.text, /name="pixel_meta"/)
+  assert.match(page.text, /Envoi serveur des événements/, "la suite est annoncée, pas demandée")
+  assert.ok(!/name="meta_token"|name="tiktok_token"|name="snap_token"|name="pixels_server"/.test(page.text),
+    "aucune clé ni jeton demandé au marchand")
 
   /* désactivé ensuite pour ne pas appeler Meta depuis les autres tests */
   await req("/dashboard/marketing/pixels", form({ pixels_server: "0", pixel_meta: "", meta_token: "" }))

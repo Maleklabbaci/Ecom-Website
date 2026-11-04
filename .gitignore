@@ -19,3 +19,8 @@ public/uploads/
 .DS_Store
 Thumbs.db
 npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+captures/

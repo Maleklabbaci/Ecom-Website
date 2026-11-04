@@ -229,6 +229,8 @@ addCol("stores", "legal_nif", "TEXT")
 addCol("stores", "return_days", "INTEGER DEFAULT 7")
 addCol("stores", "pixel_meta", "TEXT")
 addCol("stores", "pixel_tiktok", "TEXT")
+/* police arabe choisie par le marchand (vide = celle d'origine) */
+addCol("stores", "arabic_font", "TEXT DEFAULT ''")
 addCol("products", "category_id", "INTEGER")
 addCol("products", "focal", "TEXT DEFAULT 'center'")
 addCol("orders", "customer_id", "INTEGER")
@@ -252,6 +254,36 @@ addCol("products", "option_groups", "TEXT DEFAULT ''")
 addCol("stores", "form_fields", "TEXT")
 addCol("stores", "form_look", "TEXT")
 addCol("stores", "site_kind", "TEXT DEFAULT ''")
+/* lien d'aperçu partageable : montrer sa boutique avant la mise en ligne */
+addCol("stores", "preview_token", "TEXT")
+/* --- marché algérien : prix d'achat, vidéo, photo d'avis, commune obligatoire --- */
+/* prix d'achat : sert à calculer le bénéfice net, jamais montré au client */
+addCol("products", "cost_cents", "INTEGER NOT NULL DEFAULT 0")
+/* vidéo du produit (darja) : un fichier envoyé ou un lien, montrée dans la galerie */
+addCol("products", "video", "TEXT DEFAULT ''")
+/* photo d'un avis (capture WhatsApp, photo d'une cliente) : la preuve qui rassure */
+addCol("reviews", "photo", "TEXT DEFAULT ''")
+/* la commune devient obligatoire à la commande : une adresse incomplète = colis perdu */
+addCol("stores", "commune_required", "INTEGER NOT NULL DEFAULT 0")
+/* commande attribuée à un membre de l'équipe (0 = personne) */
+addCol("orders", "assigned_to", "INTEGER NOT NULL DEFAULT 0")
+/* acompte demandé avant l'envoi : il filtre les fausses commandes */
+addCol("stores", "deposit_cents", "INTEGER NOT NULL DEFAULT 0")
+addCol("stores", "deposit_note", "TEXT DEFAULT ''")
+addCol("orders", "deposit_cents", "INTEGER NOT NULL DEFAULT 0")
+addCol("orders", "deposit_paid", "INTEGER NOT NULL DEFAULT 0")
+db.exec(`
+CREATE TABLE IF NOT EXISTS ad_spend (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  day      TEXT NOT NULL,
+  channel  TEXT NOT NULL DEFAULT 'meta',
+  cents    INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(store_id, day, channel)
+);
+CREATE INDEX IF NOT EXISTS idx_ad_spend_day ON ad_spend(store_id, day);
+`)
+
 /* reponses aux champs ajoutes par le marchand (JSON, cle = libelle) */
 addCol("orders", "form", "TEXT")
 

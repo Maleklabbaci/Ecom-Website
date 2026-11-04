@@ -21,13 +21,47 @@ const clean = (raw) => {
   return v
 }
 
+/**
+ * Le domaine des adresses gratuites.
+ *
+ * Chaque boutique a une adresse offerte : `<slug>.<domaine libre>`, par exemple
+ * `amina-mode.nova.site`. Aucun achat, aucun réglage DNS. On le prend dans
+ * PUBLIC_URL quand le serveur a un vrai nom ; sinon « nova.site ».
+ */
+const FREE_FALLBACK = "nova.site"
+const freeDomain = () => {
+  const env = String(process.env.NOVADZ_FREE_DOMAIN || "").trim().toLowerCase().replace(/^\.+/, "")
+  if (env) return env
+  try {
+    const h = new URL(process.env.PUBLIC_URL || "").hostname.toLowerCase().replace(/^www\./, "")
+    if (h && h !== "localhost" && h !== "0.0.0.0" && !h.startsWith("127.")) return h
+  } catch (_) {}
+  return FREE_FALLBACK
+}
+
+/** amina-mode + nova.site → amina-mode.nova.site */
+const freeHost = (store) => {
+  const slug = String((store && store.slug) || "").trim().toLowerCase()
+  return slug ? `${slug}.${freeDomain()}` : ""
+}
+
 const find = (host) => {
   const h = String(host || "").split(":")[0].trim().toLowerCase().replace(/\.$/, "")
   if (!h || platformHosts().has(h)) return null
   const bare = h.replace(/^www\./, "")
-  return db.prepare(
+  const parDomaine = db.prepare(
     "SELECT * FROM stores WHERE status = 'active' AND domain IN (?, ?, ?)"
   ).get(h, bare, "www." + bare) || null
+  if (parDomaine) return parDomaine
+  /* adresse gratuite : <slug>.<domaine libre> */
+  const libre = freeDomain()
+  if (h.endsWith("." + libre)) {
+    const slug = h.slice(0, -(libre.length + 1))
+    if (slug && !slug.includes(".")) {
+      return db.prepare("SELECT * FROM stores WHERE status = 'active' AND slug = ?").get(slug) || null
+    }
+  }
+  return null
 }
 
 const instructions = (store, host) => {
@@ -40,4 +74,4 @@ const instructions = (store, host) => {
   ]
 }
 
-module.exports = { clean, find, instructions, platformHosts }
+module.exports = { clean, find, instructions, platformHosts, freeDomain, freeHost }

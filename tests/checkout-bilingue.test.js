@@ -159,11 +159,12 @@ test("livraison : le délai par wilaya remonte jusqu'au checkout", async () => {
 })
 
 /* ------------------------------ bilingue ------------------------------ */
-test("arabe : la vitrine passe en RTL avec la police Estedad", async () => {
+test("arabe : la vitrine passe en RTL avec la police arabe", async () => {
   const r = await req("/amina-mode?lang=ar")
   assert.equal(r.status, 200)
   assert.match(r.text, /<html[^>]*lang="ar" dir="rtl"/)
-  assert.match(r.text, /\/estedad\.css/)
+  assert.match(r.text, /\/arabic-fonts\.css/)
+  assert.match(r.text, /"Cairo"/, "sans choix du marchand, la page part sur Cairo")
   assert.match(r.text, /أضف إلى السلة/)
 })
 

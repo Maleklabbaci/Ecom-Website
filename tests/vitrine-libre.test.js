@@ -306,11 +306,22 @@ test("police arabe : Estedad est auto-hébergée et servie", async () => {
   assert.match(css.text, /\/fonts\/estedad-arabic\.woff2/)
 })
 
-test("police arabe : une page en arabe charge Estedad", async () => {
+test("police arabe : une page en arabe charge la police choisie", async () => {
   await login()
   const r = await req("/amina-mode?lang=ar")
   assert.equal(r.status, 200)
-  assert.match(r.text, /href="\/estedad\.css"/)
+  assert.match(r.text, /href="\/arabic-fonts\.css"/)
+  assert.match(r.text, /font-family:"Cairo"/)
+  /* le marchand choisit : sa police remplace Cairo dans toute la page */
+  const choix = await req("/dashboard/studio/police", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: "amiri" }),
+  })
+  assert.equal(JSON.parse(choix.text).ok, true)
+  const ar = await req("/amina-mode?lang=ar")
+  assert.match(ar.text, /font-family:"Amiri"/)
+  await req("/dashboard/studio/police", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: "cairo" }),
+  })
 })
 
 test("thèmes Bento et Zen : chaque classe utilisée a son style (pas de trou visuel)", async () => {

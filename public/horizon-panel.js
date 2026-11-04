@@ -60,6 +60,11 @@ function hzOff(label, why) {
     '<span class="ed-hint">' + why + "</span></span><input type=\"checkbox\" disabled></div>"
 }
 
+function hzText(label, key, value, placeholder, max) {
+  return hzRow(label, '<input type="text" data-scope="design" data-key="' + key + '" value="' + hzEsc(value || "") +
+    '" placeholder="' + hzEsc(placeholder || "") + '" maxlength="' + (max || 120) + '">')
+}
+
 function hzFile(label, key, url, btn) {
   return '<div class="hz-img"><span class="ed-row-l">' + label + "</span>" +
     '<div class="ed-img"><div class="ed-imgbox logo">' +
@@ -91,7 +96,7 @@ function horizonPanel(d, extras) {
   var caseOpts = [["def", "Par défaut"], ["upper", "Majuscules"], ["lower", "Minuscules"], ["caps", "Capitales"]]
   var fontRole = [["corps", "Corps de texte"], ["sous", "Sous-titre"], ["titre", "Titre"]]
   function fontVal(key) { return d[key] || d.font || "inter" }
-  var titles = ["Logo et favicon", "Palette de couleurs", "Typographie", "Page", "Animations", "Badges", "Boutons", "Panier", "Tiroirs", "Icônes", "Champs de saisie", "Pop-overs et fenêtres modales", "Prix", "Recherche", "Sélecteurs de variantes", "CSS personnalisé"]
+  var titles = ["Logo et favicon", "Palette de couleurs", "Typographie", "Page", "Animations", "Badges", "Boutons", "Panier", "Achat et finitions", "Tiroirs", "Icônes", "Champs de saisie", "Pop-overs et fenêtres modales", "Prix", "Recherche", "Sélecteurs de variantes", "CSS personnalisé"]
   var bag = extras.open || {}
   var any = titles.some(function (t) { return bag[t] })
   function acc(title, body) {
@@ -202,6 +207,24 @@ function horizonPanel(d, extras) {
     hzSeg("Style de bordure", "cartMediaBorder", d.cartMediaBorder || "aucun", [["aucun", "Aucun"], ["plein", "Plein"]]) +
     hzRange("Rayon de la bordure", "cartMediaRadius", 0, 40, 1, d.cartMediaRadius == null ? 0 : d.cartMediaRadius, "px"))
 
+  var premium = acc("Achat et finitions",
+    hzSub("Bandeau d'annonce") +
+    hzToggle("Afficher le bandeau", "announceOn", d.announceOn === true, "Une ligne, en haut de chaque page.") +
+    hzText("Texte du bandeau", "announceText", d.announceText, "Livraison offerte dès 6 000 DZD", 120) +
+    hzText("Lien du bandeau", "announceLink", d.announceLink, "/boutique ou https://…", 200) +
+    hzSub("Prix affichés") +
+    hzSeg("Format du prix", "priceStyle", d.priceStyle || "complet", [["complet", "4 500,00 DZD"], ["da", "4 500 DA"], ["court", "4 500"]]) +
+    '<p class="ed-hint">« 4 500 DA » : c\'est ce que lit un acheteur algérien. Sans centimes.</p>' +
+    hzSub("Sous le bouton d'achat") +
+    hzText("Preuve sociale", "servedNote", d.servedNote, "+4 200 clientes depuis 2021", 80) +
+    hzText("Délai de livraison", "etaText", d.etaText, "Livré en 2 à 3 jours", 60) +
+    hzFile("Guide des tailles", "sizeGuide", d.sizeGuide, "Choisir une image") +
+    hzToggle("Zoom sur les photos", "photoZoom", d.photoZoom === true, "On approche l'image là où la souris se pose.") +
+    hzSub("Autour de la fiche") +
+    hzSeg("Barre d'achat collante", "stickyBuy", d.stickyBuy || "off", [["off", "Aucune"], ["un", "Un bouton"], ["deux", "Deux boutons"]]) +
+    hzSeg("Densité de la page", "density", d.density || "normal", [["aere", "Aérée"], ["normal", "Normale"], ["serre", "Serrée"]]) +
+    '<p class="ed-hint">Tout est éteint au départ : rien ne change tant que tu n\'allumes rien.</p>')
+
   var drawers = acc("Tiroirs",
     hzColor("Couleur d'arrière-plan", "drawerBg", d.drawerBg) +
     hzColor("Couleur du texte", "drawerInk", d.drawerInk) +
@@ -278,7 +301,7 @@ function horizonPanel(d, extras) {
     hzEsc(d.customCss || "") + "</textarea>")
 
   return '<div class="ed-pane folded hz">' +
-    logo + colors + type + page + anim + badges + buttons + cart + drawers + icons + fields + pops + price + search + variants +
+    logo + colors + type + page + anim + badges + buttons + cart + premium + drawers + icons + fields + pops + price + search + variants +
     (extras.tail || "") +
     css +
     "</div>"
