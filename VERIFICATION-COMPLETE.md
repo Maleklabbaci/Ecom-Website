@@ -48,7 +48,7 @@ audits descendent ce cadre, pas la fenêtre, sinon on ne mesurait que le premier
 |---|---|
 | Pages testées | **28** |
 | Défaut bloquant (contenu inatteignable, texte coupé, image cassée, erreur JS) | **0** |
-| Petites zones à agrandir (< 32 px) | 17 pages, liste dans `captures/doigt/audit-tap.json` |
+| Petites zones à agrandir (< 32 px) | 16 pages, liste dans `captures/doigt/audit-tap.json` |
 
 ## 5. Ce qui a été réparé aujourd'hui
 
@@ -103,7 +103,7 @@ node scripts/parcours.js
 - **Fusion sur `main`** : en attente du feu vert. Tant qu'elle n'est pas faite, un
   déploiement depuis `main` donne l'ancien code.
 - La traduction en français du modèle à choisir.
-- Agrandir les 17 petites zones listées (confort, pas blocage).
+- Agrandir les 16 pages de petites zones listées (confort, pas blocage).
 - `scroll-behavior: smooth` sur certains modèles : c'est voulu (les liens de menu
   glissent au lieu de sauter). Un défilement au doigt ou à la molette n'est pas gêné ;
   seuls les scripts qui sautent en bas d'un coup doivent en tenir compte.
