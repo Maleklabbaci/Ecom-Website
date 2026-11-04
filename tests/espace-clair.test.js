@@ -108,6 +108,13 @@ test("transporteur : les réglages techniques ne sont plus à écrire à la main
   assert.ok(!p.text.includes('name="create_body"'), "plus de corps de requête à écrire")
 })
 
+test("l'adresse affichée dans le menu est le sous-domaine, jamais « /slug »", async () => {
+  await login("demo@novadz.dz")
+  const p = await req("/dashboard")
+  assert.match(p.text, /amina-mode\.nova\.site/, "le menu montre l'adresse gratuite")
+  assert.ok(!/>\/amina-mode</.test(p.text), "plus de « /amina-mode » affiché sous le nom")
+})
+
 test("l'adresse gratuite s'affiche avant le domaine payant", async () => {
   const p = await req("/dashboard/settings")
   assert.equal(p.status, 200)

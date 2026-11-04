@@ -148,7 +148,14 @@ node scripts/parcours.js
 | Ne plus demander d'API ni de clés | Relances (URL, en-têtes, corps, mode auto), E-mails (SMTP), Pixels (jetons CAPI), Transporteur (chemins et en-têtes) : remplacés par une carte **« Prochainement »**. Restent : délais, modèles de messages, lien WhatsApp, identifiants de pixels (facultatifs). | `tests/espace-clair.test.js` + `tests/relance.test.js` |
 | Adresse gratuite **avant** le DNS | Encadré « Ton adresse gratuite » : `amina-mode.nova.site`, puis « Tu as déjà un domaine ? (facultatif) » replié, puis le DNS dedans. Le sous-domaine **sert vraiment la boutique** (`src/domain.js` le reconnaît). | test « l'adresse gratuite s'affiche avant le domaine payant » + « sert vraiment la boutique » |
 
-`npm test` : **362 tests, 360 réussis, 0 échec** (2 ignorés volontairement).
+Ajouts du 4 novembre (soir) :
+- la vitrine demande aussi **son projet en une phrase** (obligatoire, 6 caractères
+  minimum) : c'est le texte sous son nom, sur le site ;
+- plus aucun **« /amina-mode »** affiché au marchand : le menu, l'aperçu, la carte
+  de partage, la liste des pages et le tableau de bord vitrine montrent
+  `amina-mode.nova.site` (et son domaine s'il en a un).
+
+`npm test` : **363 tests, 361 réussis, 0 échec** (2 ignorés volontairement).
 
 Captures : `captures/revue/0-inscription-*.png`, `1-apres-signup-boutique.png`,
 `2-apres-signup-vitrine.png`, `3-reglages-adresse.png`, `4-relances-prochainement.png`,

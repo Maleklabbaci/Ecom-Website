@@ -49,6 +49,7 @@ test("nouveau compte e-commerce : le premier écran parle boutique", async () =>
   assert.ok(!/Ville \(wilaya\)/.test(p.text), "pas de champ « ville » de vitrine")
   assert.ok(!/Aucun produit, aucun panier/.test(p.text), "pas de discours vitrine")
   assert.ok(!/data-k="vitrine"/.test(p.text), "l'autre formulaire n'est pas dans la page")
+  assert.ok(!/name="project"/.test(p.text), "la boutique ne demande pas de « projet »")
 })
 
 test("nouveau compte vitrine : aucune question de boutique", async () => {
@@ -57,6 +58,8 @@ test("nouveau compte vitrine : aucune question de boutique", async () => {
   assert.match(p.text, /Votre activité/, "on demande l'activité, pas un produit")
   assert.match(p.text, /Le nom de votre site/)
   assert.match(p.text, /Ville \(wilaya\)/, "la ville remplace la wilaya de livraison")
+  assert.match(p.text, /name="project" required/, "la vitrine dit son projet en une phrase")
+  assert.match(p.text, /Votre projet en une phrase/)
   assert.match(p.text, /Pas de commande ni de livraison à préparer/, "on le dit clairement")
   assert.match(p.text, /Créer mon site/, "le bouton parle de site")
   assert.ok(!/Wilaya \(livraison\)/.test(p.text), "aucune question de livraison")
@@ -64,6 +67,14 @@ test("nouveau compte vitrine : aucune question de boutique", async () => {
   /* le métier « téléphones et électronique » n'est pas proposé à une vitrine */
   assert.ok(!/value="tech"/.test(p.text), "liste de métiers propre à la vitrine")
   assert.match(p.text, /value="services"/, "les services sont proposés à une vitrine")
+
+  /* le projet est obligatoire, vérifié aussi par le serveur */
+  const sansProjet = await req("/demarrer", form({ store_name: "Atelier Photo", metier: "services", phone: "0555 12 34 56", wilaya: "Blida", project: "" }))
+  assert.equal(sansProjet.status, 400, "sans projet, l'envoi est refusé")
+  assert.match(sansProjet.text, /Dites en une phrase ce que vous faites/)
+  const avecProjet = await req("/demarrer", form({ store_name: "Atelier Photo", metier: "services", phone: "0555 12 34 56", wilaya: "Blida", project: "Des portraits naturels, à Blida" }))
+  assert.equal(avecProjet.status, 302, "avec le projet, ça passe")
+  assert.match(avecProjet.location, /\/dashboard\/studio/, "une vitrine arrive dans le Studio")
 })
 
 test("tous les champs du premier écran sont obligatoires", async () => {
@@ -103,7 +114,7 @@ test("changer d'avis change de formulaire, et le serveur garde le choix", async 
   assert.ok(!/Wilaya \(livraison\)/.test(apres.text), "les questions de boutique ont disparu")
 
   /* le prénom saisi à l'inscription est repris dans le nom de la boutique */
-  const fin = await req("/demarrer", form({ store_name: "Atelier Bascule", metier: "services", phone: "0555 12 34 56", wilaya: "Blida" }))
+  const fin = await req("/demarrer", form({ store_name: "Atelier Bascule", metier: "services", phone: "0555 12 34 56", wilaya: "Blida", project: "Des bijoux faits main, à Blida" }))
   assert.equal(fin.status, 302)
   assert.match(fin.location, /\/dashboard/, "on arrive dans l'espace de travail")
   const encore = await req("/demarrer")

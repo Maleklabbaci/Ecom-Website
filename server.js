@@ -693,10 +693,13 @@ app.post("/demarrer", requireAuth, requireStore, (req, res) => {
      impossible d'envoyer un métier de vitrine dans un formulaire de boutique */
   const kind = store.site_kind === "vitrine" ? "vitrine" : "commerce"
   const name = String(req.body.store_name || "").trim()
+  const projet = String(req.body.project || "").trim().slice(0, 90)
   const metier = METIERS.get(String(req.body.metier || ""))
   const phone = String(req.body.phone || "").trim()
   const wilaya = String(req.body.wilaya || "").trim()
   if (!name) return again(kind === "vitrine" ? "Le nom de votre site est obligatoire." : "Le nom de votre boutique est obligatoire.")
+  /* une vitrine dit en une phrase ce qu'elle fait : c'est le texte d'accueil */
+  if (kind === "vitrine" && projet.length < 6) return again("Dites en une phrase ce que vous faites (au moins 6 caractères).")
   if (!metier) return again("Choisissez ce que vous vendez (ou ce que vous montrez).")
   if (!METIERS.allows(metier, kind)) {
     return again(kind === "vitrine" ? "Ce choix n'est pas proposé pour un site vitrine." : "Ce choix n'est pas proposé pour une boutique.")
@@ -708,7 +711,7 @@ app.post("/demarrer", requireAuth, requireStore, (req, res) => {
   const theme = isTheme(asked) ? asked : store.theme
   /* textes de départ : seulement s'ils sont vides, jamais à la place de
      ce que la personne a déjà écrit */
-  const tagline = String(store.tagline || "").trim() || metier.tagline
+  const tagline = projet || String(store.tagline || "").trim() || metier.tagline
   const about = String(store.about || "").trim() || metier.about
   const whatsapp = String(store.whatsapp || "").trim() || phone
 

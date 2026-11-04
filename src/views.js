@@ -23,6 +23,15 @@ const DOMAIN = require("./domain")
 /* L'adresse offerte de la boutique : amina-mode.nova.site. Aucun achat, aucun DNS. */
 const freeAddress = (store) => DOMAIN.freeHost(store)
 
+/* L'adresse qu'on MONTRE au marchand : son domaine s'il en a un, sinon la
+   gratuite. Jamais « /amina-mode » : le lien qu'il partage à ses clients est
+   une vraie adresse. */
+const showAddress = (store, path = "") => {
+  const base = store && store.domain ? String(store.domain).replace(/^www\./, "") : freeAddress(store)
+  if (!base) return ""
+  return base + (path ? (path.startsWith("/") ? path : "/" + path) : "")
+}
+
 /* Carte « Prochainement » : une fonction qui n'est pas encore là s'annonce,
    elle ne demande pas au marchand de clés d'API ni de réglages techniques. */
 const soonCard = (title, text, items = []) => `<section class="panel soon">
@@ -439,7 +448,7 @@ const dashDesign = (user, store, themeName, products = [], pages = [], meta = {}
   <header class="ed-top">
     <div class="ed-top-left">
       <a class="ed-back" href="/dashboard" title="Tableau de bord" aria-label="Retour au tableau de bord">${icon("arrowLeft", 16)}</a>
-      <div class="ed-title"><b>Design</b><span>${esc(themeName)} · /${esc(store.slug)}</span></div>
+      <div class="ed-title"><b>Design</b><span>${esc(themeName)} · ${esc(showAddress(store))}</span></div>
     </div>
 
     <div class="ed-top-mid">
@@ -704,7 +713,7 @@ const dashPages = (user, store, pages) => dashLayout(user, store, `
     <thead><tr><th>Titre</th><th>Adresse</th><th>Statut</th><th></th></tr></thead>
     <tbody>${pages.map((pg) => `<tr>
       <td><b>${esc(pg.title)}</b></td>
-      <td><a class="link" target="_blank" href="/${esc(store.slug)}/page/${esc(pg.slug)}">/${esc(store.slug)}/page/${esc(pg.slug)}</a></td>
+      <td><a class="link" target="_blank" href="/${esc(store.slug)}/page/${esc(pg.slug)}">${esc(showAddress(store, "/page/" + pg.slug))}</a></td>
       <td>${pg.published ? '<span class="pill ok">En ligne</span>' : '<span class="pill">Brouillon</span>'}</td>
       <td class="right">
         <a class="btn btn-ghost btn-sm" href="/dashboard/pages/${pg.id}">Modifier</a>
@@ -721,7 +730,7 @@ const dashPages = (user, store, pages) => dashLayout(user, store, `
 const pageForm = (user, store, page, error) => dashLayout(user, store, `
 <script>window.ED_NAV = ${JSON.stringify({ pages: [] })};</script>
 <header class="dash-head"><div><h1>${page ? "Modifier la page" : "Nouvelle page"}</h1>
-<p class="muted">Elle sera accessible à l'adresse /${esc(store.slug)}/page/…</p></div>
+<p class="muted">Elle sera accessible à l'adresse ${esc(showAddress(store, "/page/…"))}</p></div>
 <a class="btn btn-ghost" href="/dashboard/pages">${icon("arrowLeft", 15)} Retour</a></header>
 ${error ? `<div class="alert">${esc(error)}</div>` : ""}
 <form class="panel form" method="post" action="${page ? `/dashboard/pages/${page.id}` : "/dashboard/pages"}">
@@ -1845,7 +1854,7 @@ const dashLayout = (user, store, content, active) => {
     <a class="brand dash-brand" href="/"><span class="dash-bolt">${authBolt}</span><span>NovaDZ</span></a>
     <div class="dash-store">
       <div class="dash-tile">${esc((store.name || "?")[0].toUpperCase())}</div>
-      <div><b>${esc(store.name)}</b><span>${vitrine ? `<i class="dash-kind">Vitrine</i>` : ""}${user.support ? "vue admin" : (store.domain ? esc(store.domain) : "/" + esc(store.slug))}</span></div>
+      <div><b>${esc(store.name)}</b><span>${vitrine ? `<i class="dash-kind">Vitrine</i>` : ""}${user.support ? "vue admin" : esc(showAddress(store))}</span></div>
     </div>
     ${(user.stores || []).length > 1 ? `<form class="store-switch" method="post" action="/dashboard/utiliser-boutique">
       <label>Espace<select name="store_id" onchange="this.form.submit()">${user.stores.map((s) => `<option value="${s.id}"${s.id === store.id ? " selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>
@@ -2123,7 +2132,7 @@ const startGuide = (store, stats) => {
       { done: Boolean(String(store.phone || "").trim()), href: "/dashboard/settings", title: "Mettre le contact",
         sub: "Téléphone et wilaya : on sait comment vous joindre." },
       { done: stats.visits > 0, href: `/${store.slug}`, title: "Partager votre site",
-        sub: `Votre adresse : /${store.slug}` },
+        sub: `Votre adresse : ${showAddress(store)}` },
     ]
     const done = steps.filter((s) => s.done).length
     if (done === steps.length) return ""
@@ -2138,7 +2147,7 @@ const startGuide = (store, stats) => {
     { done: PAY.list(store).length > 0, href: "/dashboard/paiement", title: "Choisir un moyen de paiement",
       sub: "À la livraison, CIB, CCP : vous décidez." },
     { done: stats.orderCount > 0, href: `/${store.slug}`, title: "Partager votre boutique",
-      sub: `Votre adresse : /${store.slug}` },
+      sub: `Votre adresse : ${showAddress(store)}` },
   ]
   const done = steps.filter((s) => s.done).length
   if (done === steps.length) return ""
@@ -2456,7 +2465,7 @@ const sitePreview = (store) => `
     <button class="btn btn-ghost" type="button" data-share-copy>${icon("copy", 14)} Copier</button>
     <span class="copied" data-share-done hidden>Copié</span>
   </div>` : ""}
-  <p class="muted small">C'est ce que voient vos visiteurs sur <code>/${esc(store.slug)}</code> — vos passages ici ne sont pas comptés dans les visites.</p>
+  <p class="muted small">C'est ce que voient vos visiteurs sur <code>${esc(showAddress(store))}</code> — vos passages ici ne sont pas comptés dans les visites.</p>
   <script>
   (function () {
     var frame = document.querySelector("[data-prev-frame]");
@@ -2515,7 +2524,7 @@ ${sitePreview(store)}
       <td class="muted">${esc(String(r.created_at || "").slice(0, 16))}</td>
     </tr>`).join("")}</tbody>
   </table>` : `<div class="empty small"><p>Rien reçu pour l'instant. Le formulaire du site arrive ici.</p>
-      <code>/${esc(store.slug)}#ecrire</code></div>`}
+      <code>${esc(showAddress(store))}#ecrire</code></div>`}
 </section>
 <section class="panel">
   <div class="panel-head"><h2>Pages</h2><a href="/dashboard/pages">Tout voir →</a></div>
@@ -2523,11 +2532,11 @@ ${sitePreview(store)}
     <thead><tr><th>Titre</th><th>Adresse</th><th>Statut</th></tr></thead>
     <tbody>${recentOrders.map((p) => `<tr>
       <td><a class="link" href="/dashboard/pages/${p.id}"><b>${esc(p.title)}</b></a></td>
-      <td class="muted">/${esc(store.slug)}/page/${esc(p.slug)}</td>
+      <td class="muted">${esc(showAddress(store, "/page/" + p.slug))}</td>
       <td>${p.published ? '<span class="pill ok">En ligne</span>' : '<span class="pill">Brouillon</span>'}</td>
     </tr>`).join("")}</tbody>
   </table>` : `<div class="empty small"><p>Aucune page pour l'instant. Partagez le lien de votre site :</p>
-      <code>/${esc(store.slug)}</code></div>`}
+      <code>${esc(showAddress(store))}</code></div>`}
 </section>`, "home")
   : dashLayout(user, store, `
 <header class="dash-head">
@@ -2560,7 +2569,7 @@ ${sitePreview(store)}
       <td><span class="status s-${esc(o.status)}">${esc(o.status)}</span></td>
       <td class="muted">${esc(o.created_at.slice(0, 16))}</td></tr>`).join("")}</tbody>
   </table>` : `<div class="empty small"><p>Aucune commande pour l'instant. Partagez le lien de votre boutique :</p>
-      <code>/${esc(store.slug)}</code></div>`}
+      <code>${esc(showAddress(store))}</code></div>`}
 </section>`, "home")
 
 /**
@@ -3172,7 +3181,7 @@ ${shown.length ? shown.map((o) => `
     </div>
   </article>`).join("")
   : `<div class="empty-state">${icon("receipt", 22)}<h3>Aucune commande ici</h3>
-     <p>${filter.q || filter.src || cur || filter.test ? "Aucun résultat pour ce filtre." : `Partagez votre boutique pour recevoir vos premières ventes : <code>/${esc(store.slug)}</code>`}</p>
+     <p>${filter.q || filter.src || cur || filter.test ? "Aucun résultat pour ce filtre." : `Partagez votre boutique pour recevoir vos premières ventes : <code>${esc(showAddress(store))}</code>`}</p>
      ${filter.q || filter.src || cur || filter.test ? `<a class="btn btn-ghost btn-sm" href="/dashboard/orders">Voir toutes les commandes</a>` : ""}</div>`}
 </section>
 
@@ -5137,6 +5146,9 @@ ${error ? `<div class="alert">${esc(error)}</div>` : ""}
       ? "Le nom qui s'affiche en haut de votre site, et dans le lien que vous partagez."
       : "Le nom qui s'affiche en haut de votre boutique, sur les factures et dans le lien que vous partagez."}</p>
     <label>Nom <input name="store_name" required maxlength="60" value="${esc(store.name || "")}" placeholder="${vitrine ? "Atelier Lina" : "Amina Mode"}"></label>
+    ${vitrine ? `<label>Votre projet en une phrase
+      <input name="project" required minlength="6" maxlength="90" value="${esc(store.tagline || "")}" placeholder="Des portraits naturels, à Blida">
+      <small class="muted">Elle s'affiche sous votre nom, en haut du site.</small></label>` : ""}
     <p class="start-addr">${icon("globe", 14)}<span>Ton adresse gratuite, déjà ouverte :</span> <b>${esc(freeAddress(store))}</b> <span class="muted">Rien à acheter, rien à régler.</span></p>
   </section>
 
