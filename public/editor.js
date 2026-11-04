@@ -906,7 +906,7 @@
       var kids = chip.parentNode.querySelectorAll("[data-chip]")
       for (var ci = 0; ci < kids.length; ci++) kids[ci].classList.toggle("on", kids[ci] === chip)
       liveStyle()
-      save(key === "cartType" ? { reload: true } : { quiet: true })
+      save(key === "cartType" || key === "stickyBuy" || key === "sizeGuide" ? { reload: true } : { quiet: true })
       return
     }
     var sdel = e.target.closest("[data-search-del]")
@@ -1212,7 +1212,8 @@
         if (frame.contentWindow) frame.contentWindow.postMessage({ t: "foot", part: key === "footerBrand" ? "brand" : "note", value: val }, "*")
       }
       if (key === "searchHint" && frame.contentWindow) frame.contentWindow.postMessage({ t: "style", design: design }, "*")
-      if (key === "payDirect" || key === "installOn" || key === "installN" || key === "cartOpenDrawer" || key === "cartNote" || key === "cartDiscount" || key === "cartMode" || key === "productForm" || key === "searchPlace" || key === "cardStyle" || key === "socialWhere" || key === "socialStyle" || key === "socialSize" || key === "heroLogo" || key === "showLogo" || key === "showName" || key === "logoPlace") { save({ reload: true }); return }
+      if (key === "announceOn" || key === "announceText" || key === "announceLink" || key === "etaText" || key === "density") { save({ quiet: true }); return }
+      if (key === "payDirect" || key === "installOn" || key === "installN" || key === "cartOpenDrawer" || key === "cartNote" || key === "cartDiscount" || key === "cartMode" || key === "productForm" || key === "searchPlace" || key === "cardStyle" || key === "socialWhere" || key === "socialStyle" || key === "socialSize" || key === "heroLogo" || key === "showLogo" || key === "showName" || key === "logoPlace" || key === "stickyBuy" || key === "photoZoom" || key === "sizeGuide") { save({ reload: true }); return }
       if (liveKeys[key] || key === "searchHint" || key === "footerBrand" || key === "footerNote") { save({ quiet: true }); return }
     }
     save()

@@ -1,0 +1,81 @@
+NovaDZ — projet complet
+========================
+
+Ce dossier contient tout le code (branche arena/c70c6999-ecom-website).
+Les dépendances et la base de données ne sont pas incluses : elles se créent
+à l'installation.
+
+CE QU'IL FAUT
+-------------
+Node.js 20 ou plus récent (https://nodejs.org). Rien d'autre.
+
+DÉMARRER (Windows : PowerShell dans ce dossier)
+-----------------------------------------------
+1) npm install
+2) npm run demo
+3) ouvrir http://localhost:3000
+
+COMPTES DE DÉMONSTRATION (écrits aussi sous le formulaire de connexion)
+-----------------------------------------------------------------------
+  Marchand (boutique) : demo@novadz.dz    / demo1234
+  Vitrine (site)      : vitrine@novadz.dz / demo1234
+  Admin (plateforme)  : admin@novadz.dz   / admin1234
+
+La démo crée seule : les 3 comptes, 2 boutiques avec produits et photos,
+1 site vitrine, un thème par boutique et 6 commandes d'exemple pour que le
+tableau de bord ne soit pas vide.
+
+LE STUDIO — MODIFIER SON SITE SANS RIEN CONNAÎTRE
+-------------------------------------------------
+Menu « Studio » (ou Design → Studio). Trois zones :
+  à gauche   « Ma page »  : les blocs de votre page, un par un
+  au centre               : votre site, tel que le voient les clients
+  à droite                : ce que vous voulez changer (texte, taille, photo)
+
+En haut à gauche, une carte dit ce qu'il reste à faire :
+  - ajouter vos photos
+  - écrire vos textes
+  - montrer ce que vous vendez
+  - mettre un numéro de téléphone
+Quand les quatre sont vertes : « Votre page est prête » → bouton « Publier ».
+
+Rien n'est visible par les clients avant « Publier ».
+
+DEUX CHOSES UTILES DANS LE STUDIO
+---------------------------------
+1) Le prix d'un produit : cliquez sur le produit dans la page (bloc « Nos
+   produits »). À droite : « Votre produit » avec le nom et le prix, puis
+   « Enregistrer ce produit ». Le changement est immédiat dans la boutique.
+   La photo, la description et le stock restent sur la fiche complète.
+2) Où va un bouton : cliquez le bouton, puis à droite « Où va ce bouton ? ».
+   La liste des pages, des produits et du panier s'affiche : un clic pose le
+   lien, rien à taper. Le bouton 🔗 de la liste de gauche ouvre la même liste
+   en grand. Pour un site extérieur (Instagram, WhatsApp) ou un numéro, le
+   champ du bas accepte l'adresse telle quelle.
+
+L'ONGLET « AIDE »
+-----------------
+Quatre onglets en haut du panneau de gauche : Ma page · Ajouter · Mon site · Aide.
+« Aide » est un mode d'emploi de sept questions courtes :
+  changer un texte · changer une photo · ajouter une partie à ma page
+  changer les couleurs ou la police · mettre ma page en ligne
+  une commande est arrivée · je me suis trompé
+Chaque réponse tient en trois pas et finit par un bouton qui emmène au bon
+endroit. En bas, une case permet aussi d'écrire sa demande en une phrase
+(ex. « mets le titre plus grand »).
+
+TESTS
+-----
+  npm test               → 251 tests (249 verts, 2 ignorés)
+  npm run test:studio    → ouvre les 16 thèmes dans un navigateur et vérifie
+                           le découpage + l'édition. Chrome doit être installé
+                           (CHROME_PATH="C:\...\chrome.exe" si besoin).
+
+DÉPENDANCES
+-----------
+SQLite est intégré à Node : aucune base à installer. better-sqlite3 est
+optionnel et n'est pas nécessaire pour la démonstration locale.
+
+REPARTIR DE ZÉRO
+----------------
+Supprimer data/novadz-demo.db puis relancer « npm run demo ».

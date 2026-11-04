@@ -400,7 +400,9 @@ const PRO_RECIPES = {
     ] },
   ],
   electro: [
+    { type: "banner", settings: { text: "Paiement à la livraison · garantie sur le matériel.", ctaLabel: "Voir" } },
     { type: "hero", settings: { image: "auto", kicker: "", heading: "", sub: "", ctaLabel: "Voir les articles", align: "gauche", height: "normale" } },
+    { type: "cats", settings: { heading: "", style: "tiles", count: 4 } },
     { type: "grid", settings: { heading: "Les articles", columns: 4, count: 8, showPrice: true, showAdd: true, showDesc: true } },
     { type: "benefits", settings: { heading: "" }, blocks: [
       { icon: "camion", title: "Livraison 48 h", text: "Sur les wilayas couvertes." },
@@ -716,6 +718,8 @@ const DESIGN_DEFAULTS = {
   weight: "600",
   /* couleurs */
   accent: "#111111",
+  /* couleur des prix : un seul réglage, répété partout où un prix s'affiche */
+  prix: "",
   bg: "#FFFFFF",
   ink: "#111111",
   headBg: "",
@@ -749,6 +753,20 @@ const DESIGN_DEFAULTS = {
   /* panier */
   cartMode: "deux",        // panier | direct | deux
   payDirect: false,        // boutons d'achat direct par moyen de paiement
+  /* achat : ce qui entoure le bouton. Tout est éteint par défaut :
+     aucune boutique déjà en ligne ne change d'apparence. */
+  announceOn: false,       // bandeau d'annonce en haut de chaque page
+  announceText: "",
+  announceLink: "",
+  stickyBuy: "off",        // off | un | deux
+  photoZoom: false,        // zoom au survol sur la photo principale
+  etaText: "",             // « Livré en 2 à 3 jours »
+  sizeGuide: "",           // image du guide des tailles
+  density: "normal",       // aere | normal | serre
+  /* prix : « 4 500,00 DZD » (complet), « 4 500 DA » (da) ou « 4 500 » (court) */
+  priceStyle: "complet",
+  /* preuve sociale écrite par le vendeur, sous le prix : « +4 200 clients depuis 2021 » */
+  servedNote: "",
   /* personnalisation libre */
   customCss: "",
   htmlHead: "",
@@ -790,7 +808,9 @@ const HIDE_KEYS = [
 const pageCodeKeyOk = (k) =>
   PAGE_KEYS.includes(k) || /^page:[a-z0-9-]{1,60}$/.test(String(k || ""))
 
-const sanitizeDesign = (d = {}) => {
+const sanitizeDesign = (d = {}, storeOrKind = "") => {
+  const SITES = require("./site-templates")
+  const checkKind = typeof storeOrKind === "string" ? storeOrKind !== "" : !!(storeOrKind && typeof storeOrKind === "object")
   const out = {
     button: oneOf(d.button, ["noir", "gris", "contour"], "noir"),
     radius: oneOf(d.radius, ["net", "normal", "doux"], "normal"),
@@ -822,6 +842,7 @@ const sanitizeDesign = (d = {}) => {
     tracking: oneOf(d.tracking, ["serre", "normal", "aere"], "normal"),
     weight: oneOf(String(d.weight), ["500", "600", "700"], "600"),
     accent: HEX(d.accent, "#111111"),
+    prix: /^#[0-9a-f]{6}$/i.test(String(d.prix || "")) ? String(d.prix).toLowerCase() : "",
     bg: HEX(d.bg, "#FFFFFF"),
     ink: HEX(d.ink, "#111111"),
     headBg: d.headBg ? HEX(d.headBg, "") : "",
@@ -854,12 +875,25 @@ const sanitizeDesign = (d = {}) => {
     socialSize: oneOf(d.socialSize, ["petit", "normal", "grand"], "normal"),
     cartMode: oneOf(d.cartMode, ["panier", "direct", "deux"], "deux"),
     payDirect: d.payDirect === true,
+    announceOn: d.announceOn === true,
+    announceText: d.announceText == null ? "" : String(d.announceText).slice(0, 120),
+    announceLink: /^(\/|https?:\/\/)/i.test(String(d.announceLink || "").trim())
+      ? String(d.announceLink).trim().slice(0, 200) : "",
+    stickyBuy: oneOf(d.stickyBuy, ["off", "un", "deux"], "off"),
+    photoZoom: d.photoZoom === true,
+    etaText: d.etaText == null ? "" : String(d.etaText).slice(0, 60),
+    sizeGuide: /^\/(uploads|demo)\/[\w.-]+$/.test(String(d.sizeGuide || "")) ? String(d.sizeGuide) : "",
+    density: oneOf(d.density, ["aere", "normal", "serre"], "normal"),
+    priceStyle: oneOf(d.priceStyle, ["complet", "da", "court"], "complet"),
+    servedNote: d.servedNote == null ? "" : String(d.servedNote).slice(0, 80),
     customCss: cleanCss(d.customCss),
     htmlHead: cleanHtml(d.htmlHead),
     htmlFooter: cleanHtml(d.htmlFooter),
     pageCss: {},
     pageCode: {},
-    siteTemplate: require("./site-templates").isSite(d.siteTemplate) ? d.siteTemplate : "",
+    siteTemplate: checkKind
+      ? (SITES.isSiteForStore(d.siteTemplate, storeOrKind) ? d.siteTemplate : "")
+      : (SITES.isSite(d.siteTemplate) ? d.siteTemplate : ""),
     hide: {},
     dict: [],
     mobileOrder: Array.isArray(d.mobileOrder) ? d.mobileOrder.filter((x) => typeof x === "string").slice(0, 40) : [],
@@ -869,7 +903,7 @@ const sanitizeDesign = (d = {}) => {
   const rawCode = d.pageCode && typeof d.pageCode === "object" ? d.pageCode : {}
   Object.keys(rawCode).slice(0, 40).forEach((k) => {
     if (!pageCodeKeyOk(k)) return
-    const v = cleanHtml(rawCode[k], 40000).replace(/javascript:/gi, "")
+    const v = cleanHtml(rawCode[k], 300000).replace(/javascript:/gi, "")
     if (v.trim()) out.pageCode[k] = v
   })
   const hide = d.hide && typeof d.hide === "object" ? d.hide : {}
@@ -1215,7 +1249,10 @@ const storeStyle = (design, theme) => {
   --s-bg:${d.bg};--s-ink:${ink};--s-head-bg:${headBg};--s-head-ink:${headInk};
   --s-logo:${d.logoSize}px;--s-text:${d.textScale};--s-radius:${d.radiusPx}px;--s-container:${d.containerWidth}px;
   --s-weight:${d.weight};--s-track:${track};--s-foot-bg:${footBg || "transparent"};--s-foot-ink:${d.footInk || "inherit"};
-  --r-sm:${Math.max(0, d.radiusPx - 3)}px;--r-md:${d.radiusPx}px;--r-lg:${d.radiusPx + 4}px;--r-xl:${d.radiusPx + 8}px}
+  --r-sm:${Math.max(0, d.radiusPx - 3)}px;--r-md:${d.radiusPx}px;--r-lg:${d.radiusPx + 4}px;--r-xl:${d.radiusPx + 8}px${d.prix ? `;--ndz-prix:${d.prix}` : ""}}
+/* La couleur du prix, choisie une fois dans le Studio : elle s'applique à
+   tous les prix de la boutique (cartes, fiche produit, panier). */
+${d.prix ? `:is(.pr-now,.mr-card-price,.p-price,[class$="-price"],[class$="-prix"]){color:var(--ndz-prix)}` : ""}
 body,.theme{font-family:var(--s-font)}
 body:has(.theme){background:var(--s-bg)}
 .theme{background:var(--s-bg);color:var(--s-ink)}
@@ -1244,7 +1281,7 @@ body:has(.theme){background:var(--s-bg)}
   position:sticky;top:0;z-index:40;background:var(--s-head-bg);backdrop-filter:saturate(1.4) blur(10px)}
 /* --- logo --- */
 .theme .mn-logo,.theme .ed-logo,.theme .ct-logo,.theme .ca-logo,.theme .mo-logo,.theme .ga-logo,.theme .br-logo{
-  height:var(--s-logo);width:auto;max-width:none;object-fit:contain}
+  height:var(--s-logo);width:auto;max-width:min(260px,52vw);object-fit:contain}
 /* --- pied de page --- */
 .theme .mn-foot,.theme .ed-foot,.theme .ct-foot,.theme .ca-foot,.theme .mo-foot,.theme .ga-foot{
   background:${d.footBg || "transparent"};color:${d.footInk || "inherit"}}
@@ -1258,7 +1295,7 @@ body:has(.theme){background:var(--s-bg)}
 .theme .card,.theme .p-card,.theme .sec-card,.theme .dlv-opt,.theme .pay-opt,.theme .ck-f input,
 .theme .ck-f select,.theme .mn-form input,.theme .mn-form select,.theme .ct-form input{border-radius:var(--r-md)}
 body:has(.theme){zoom:var(--s-zoom)}
-.theme header [class$="-logo"]{height:var(--s-logo)!important;width:auto;object-fit:contain}
+.theme header [class$="-logo"]{height:var(--s-logo)!important;width:auto;max-width:min(260px,52vw);object-fit:contain}
 .theme.d-btn-noir .btn-primary,.theme.d-btn-noir .sec-cta:not(.ghost),.theme.d-btn-noir .p-add,
 .theme.d-btn-noir .tpx-buy,.theme.d-btn-noir .promo-btn,.theme.d-btn-noir .add-btn,
 .theme.d-btn-noir > header a[href$="/cart"],.theme.d-btn-noir > header a[href$="/checkout"]{
@@ -1302,6 +1339,13 @@ const readDesign = (store) => {
     try { d = JSON.parse(store.design) || {} } catch { d = {} }
   }
   const out = { ...DESIGN_DEFAULTS, ...d, logo: (store && store.logo) || d.logo || "" }
+  /* Un ancien design publié peut contenir un template de l'autre famille :
+     il est ignoré à la lecture, jamais affiché au mauvais type de site. */
+  if (out.siteTemplate) {
+    try {
+      if (!require("./site-templates").isSiteForStore(out.siteTemplate, store)) out.siteTemplate = ""
+    } catch (_) {}
+  }
   if (store && store.theme) {
     try {
       const PT = require("./public-themes")
@@ -1321,7 +1365,15 @@ const readDraft = (store) => {
   if (!store || !store.draft) return null
   try {
     const d = JSON.parse(store.draft)
-    return d && typeof d === "object" ? d : null
+    if (!d || typeof d !== "object") return null
+    if (d.design && typeof d.design === "object" && d.design.siteTemplate) {
+      try {
+        if (!require("./site-templates").isSiteForStore(d.design.siteTemplate, store)) {
+          d.design = { ...d.design, siteTemplate: "" }
+        }
+      } catch (_) {}
+    }
+    return d
   } catch { return null }
 }
 
@@ -1419,10 +1471,14 @@ const renderPage = (store, key, normal, extras) => {
   return { html: applyPageCode(store, key, normal, extras), ownCode: true }
 }
 
+/** Prix d'une section, avec le format choisi par le vendeur. */
+const moneyOf = (store, cents) => moneyHtml(cents, (store && store.currency) || "DZD", readDesign(store).priceStyle)
+
 const designClass = (design) =>
   `d-btn-${["noir", "gris", "contour"].includes(design.button) ? design.button : "noir"}` +
   ` d-radius-${["net", "normal", "doux"].includes(design.radius) ? design.radius : "normal"}` +
   ` d-head-${["plein", "ligne", "transparent", "flottant"].includes(design.headStyle) ? design.headStyle : "plein"}` +
+  (["aere", "serre"].includes(design.density) ? ` d-dense-${design.density}` : "") +
   (design.footerStyle && design.footerStyle !== "theme" ? ` d-foot-on d-foot-${design.footerStyle}` : "")
 
 /** CSS propre à une page (éditable dans l'onglet « Pages »). */
@@ -1447,14 +1503,17 @@ const img = (url, cls, tileTitle) => {
   if (!src || (src.startsWith("/") && !src.startsWith("//") && !localImageOk(src)))
     return `<span class="ph" aria-hidden="true"></span>`
   const fallback = "this.onerror=null;this.replaceWith(Object.assign(document.createElement('span'),{className:'ph'}))"
-  return `<img class="${cls}" src="${esc(src)}" alt="" loading="lazy" onerror="${fallback}">`
+  /* une photo de produit décrit ce qu'elle montre ; une image purement
+     décorative (sans titre) garde une description vide, comme il faut */
+  const alt = String(tileTitle || "").trim().replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]))
+  return `<img class="${cls}" src="${esc(src)}" alt="${alt}" loading="lazy" onerror="${fallback}">`
 }
 
 const productItem = (store, p, s) => {
   const bare = !localImageOk(p.image)
   const showPrice = s.settings.showPrice !== false
   const plate = bare
-    ? `<span class="ph-plate"><span class="ph-name">${esc(p.title)}</span>${showPrice ? `<span class="ph-price">${moneyHtml(p.price_cents, store.currency)}</span>` : ""}</span>`
+    ? `<span class="ph-plate"><span class="ph-name">${esc(p.title)}</span>${showPrice ? `<span class="ph-price">${moneyOf(store, p.price_cents)}</span>` : ""}</span>`
     : img(p.image, "p-img", p.title)
   return `
 <article class="p-item" data-title="${esc(String(p.title).toLowerCase())}">
@@ -1466,7 +1525,7 @@ const productItem = (store, p, s) => {
     <a class="p-name" href="/${esc(store.slug)}/p/${p.id}">${esc(p.title)}</a>
     ${s.settings.showDesc !== false && s.settings.showDesc && p.description ? `<p class="p-desc">${esc(p.description.slice(0, 120))}</p>` : ""}
     <div class="p-row">
-      ${s.settings.showPrice !== false ? `<span class="p-price">${moneyHtml(p.price_cents, store.currency)}</span>` : "<span></span>"}
+      ${s.settings.showPrice !== false ? `<span class="p-price">${moneyOf(store, p.price_cents)}</span>` : "<span></span>"}
       ${s.settings.showAdd !== false
         ? `<form class="ndz-buy" method="post" action="/${esc(store.slug)}/cart"><input type="hidden" name="product_id" value="${p.id}">
              <button class="p-add ndz-cart-add" ${p.stock === 0 ? "disabled" : ""} aria-label="Ajouter au panier">+</button>
@@ -1501,13 +1560,18 @@ const RENDER = {
     const align = want === "gauche" ? "left" : want === "droite" ? "right" : "center"
     const height = ["grande", "pleine"].includes(st.height) ? st.height : "normale"
     /* logo de la bannière : le marchand peut le retirer sans toucher à l'en-tête */
-    const logo = design && design.logo && design.heroLogo !== false && design.showLogo !== false
+    /* attention : les tests ci-dessous valent `true`, donc un simple `&&`
+       renvoyait `true` au lieu de l'adresse du logo (bannière cassée).
+       Le logo n'apparaît dans la bannière que si l'en-tête ne le montre pas :
+       sinon il s'affichait deux fois, l'un sous l'autre. */
+    const logo = design && design.logo && design.heroLogo !== false && design.showLogo === false
+      ? String(design.logo) : ""
     const heading = String(st.heading || "").trim()
-    const sub = String(st.sub || "").trim()
-    /* Champ vide = nom de la boutique, sur-titre ou sous-titre compris.
-       Le placeholder du champ promet exactement ça. */
-    /* vide = la phrase du marchand. Atelier garde le nom : c'est le choix déjà validé. */
-    const title = heading || (store.theme === "atelier" ? (store.name || "") : (store.tagline || store.name || ""))
+    const sub = String(st.sub || "").trim() || String(store.tagline || "").trim()
+    /* Champ vide = nom de la boutique. C'est ce que promet le placeholder
+       du champ (« Laissez vide pour le nom de la boutique ») : le slogan
+       reste affiché ailleurs (en-tête, métadonnées), pas en titre principal. */
+    const title = heading || store.name || ""
     return `
 <section class="sec sec-hero h-${height} a-${align}${st.image ? " has-img" : ""}" data-section="${s.id}" data-label="Bannière d'accueil">
   ${st.image ? `<div class="sec-hero-bg" style="background-image:url('${esc(st.image)}')"></div>` : ""}
@@ -1597,7 +1661,7 @@ const RENDER = {
       ${st.heading ? `<p class="sec-kicker">${esc(st.heading)}</p>` : ""}
       <h2><a href="/${esc(store.slug)}/p/${p.id}">${esc(p.title)}</a></h2>
       ${st.sub ? `<p data-field="sub">${esc(st.sub)}</p>` : ""}
-      <div class="sec-price">${moneyHtml(p.price_cents, store.currency)}</div>
+      <div class="sec-price">${moneyOf(store, p.price_cents)}</div>
       <a class="sec-cta ghost" href="/${esc(store.slug)}/p/${p.id}">Voir la pièce</a>
     </div>
   </div>
@@ -1682,7 +1746,7 @@ const RENDER = {
   <div class="wrap">
     ${s.settings.heading ? `<div class="sec-head"><h2>${esc(s.settings.heading)}</h2></div>` : ""}
     <div class="sec-ggrid" style="--gn:${blocks.length}">
-      ${blocks.map((b) => `<figure class="sec-gitem"><img src="${esc(b.settings.image)}" alt=""><figcaption>${esc(b.settings.caption || "")}</figcaption></figure>`).join("")}
+      ${blocks.map((b) => `<figure class="sec-gitem"><img src="${esc(b.settings.image)}" alt="${esc(b.settings.caption || s.settings.heading || store.name)}"><figcaption>${esc(b.settings.caption || "")}</figcaption></figure>`).join("")}
     </div>
   </div>
 </section>`
@@ -1718,7 +1782,7 @@ const RENDER = {
         <a class="sec-rail-thumb" href="/${esc(store.slug)}/p/${p.id}">${img(p.image, "p-img", p.title)}${p.stock === 0 ? '<i class="p-sold">Rupture</i>' : ""}</a>
         <a class="sec-rail-name" href="/${esc(store.slug)}/p/${p.id}">${esc(p.title)}</a>
         <div class="sec-rail-row">
-          ${st.showPrice !== false ? `<span>${moneyHtml(p.price_cents, store.currency)}</span>` : "<span></span>"}
+          ${st.showPrice !== false ? `<span>${moneyOf(store, p.price_cents)}</span>` : "<span></span>"}
           ${st.showAdd !== false && p.stock !== 0 ? `<form class="ndz-buy" method="post" action="/${esc(store.slug)}/cart"><input type="hidden" name="product_id" value="${p.id}"><button class="p-add ndz-cart-add" aria-label="Ajouter au panier">+</button><button class="p-add ndz-buy-now" formaction="/${esc(store.slug)}/direct" aria-label="Acheter maintenant">+</button></form>` : ""}
         </div>
       </article>`).join("")}
@@ -1816,7 +1880,7 @@ const RENDER = {
     <div class="sec-offer-body">
       ${st.heading ? `<p class="sec-kicker" data-field="heading">${esc(st.heading)}</p>` : ""}
       <h2>${p ? esc(p.title) : "Choisissez un produit"}</h2>
-      ${p ? `<div class="sec-offer-price">${moneyHtml(p.price_cents, store.currency)}</div>` : ""}
+      ${p ? `<div class="sec-offer-price">${moneyOf(store, p.price_cents)}</div>` : ""}
       ${st.note ? `<p class="sec-offer-note">${esc(st.note)}</p>` : ""}
       <div class="sec-count" id="ndzcd-${esc(s.id)}" ${end ? `data-end="${end}"` : ""}>
         <span><b data-cd="d">00</b><i>jours</i></span>
@@ -2049,7 +2113,7 @@ const sanitize = (input) => {
 module.exports = {
   img, TYPES, ICONS, DEFAULT_NAV, readNav, sanitizeNav, DESIGN_DEFAULTS, makeSection, blockOf, defaultSections,
   readSections, readSectionsAll, readDesign, readDraft, sanitizeDesign, storeStyle, FONTS, FONT_LIST, DESIGN_DEFAULTS,
-  fontHref, fontStackOf, fontFamilyOf, safeFamily, GOOGLE_FONTS,
+  fontHref, fontStackOf, fontFamilyOf, safeFamily, GOOGLE_FONTS, moneyOf,
   designClass, renderSections, renderSectionsRaw, sanitize, uid,
   PAGE_KEYS, HIDE_KEYS, pageKeyOfPath, pageCssFor, cleanCss, cleanHtml,
   pageCodeOf, applyPageCode, renderPage,

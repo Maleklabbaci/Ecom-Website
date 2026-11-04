@@ -15,6 +15,9 @@
 const path = require("path")
 
 process.env.NOVADZ_DEMO = "1"
+/* jeu de données complet : thème par défaut sur les boutiques d'exemple et
+   quelques commandes, pour que le tableau de bord ne soit pas vide */
+if (process.env.NOVADZ_DEMO_DATA === undefined) process.env.NOVADZ_DEMO_DATA = "1"
 if (!process.env.NOVADZ_DB) {
   process.env.NOVADZ_DB = path.join(__dirname, "..", "data", "novadz-demo.db")
 }

@@ -50,6 +50,7 @@ const ICONS = {
   menu: `<path d="M4 7h16M4 12h16M4 17h16"/>`,
   search: '<circle cx="10.8" cy="10.8" r="4.5"/><path d="M14.3 14.3 17.8 17.8"/>',
   user: `<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/>`,
+  users: `<circle cx="9" cy="8.5" r="3.2"/><path d="M2.5 19.5c0-3.4 2.9-5.7 6.5-5.7s6.5 2.3 6.5 5.7"/><path d="M16 5.6a3 3 0 0 1 0 5.9M17.5 13.9c2.3.5 4 2.4 4 5.6"/>`,
   /* --- éditeur de design --- */
   undo: `<path d="M9 7 4.5 11.5 9 16"/><path d="M4.5 11.5h9a6 6 0 0 1 0 12h-2.5"/>`,
   redo: `<path d="M15 7l4.5 4.5L15 16"/><path d="M19.5 11.5h-9a6 6 0 0 0 0 12H13"/>`,

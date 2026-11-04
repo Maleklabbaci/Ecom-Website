@@ -48,6 +48,7 @@ const need = (path, method) => {
   if (p.startsWith("/dashboard/settings") || p.startsWith("/dashboard/mails")
     || p.startsWith("/dashboard/domaine")) return "settings"
   if (p.startsWith("/dashboard/utiliser-boutique")) return null
+  if (p.startsWith("/dashboard/boutiques")) return "settings"
   if (p.startsWith("/dashboard/equipe")) return "team"
   if (p.startsWith("/dashboard/stats")) return "orders"
   return "settings"
