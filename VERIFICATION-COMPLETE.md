@@ -138,6 +138,23 @@ node scripts/audit-nouveau.js
 node scripts/parcours.js
 ```
 
+## 8 bis. L'après-connexion, remis au clair (4 novembre)
+
+| Point demandé | Ce qui est fait | Preuve |
+|---|---|---|
+| Le formulaire suit le choix : boutique **ou** vitrine, jamais les deux | `/demarrer` ne contient **qu'un seul** formulaire, celui du type choisi à l'inscription. Le bouton « Je voulais plutôt… » envoie un vrai choix au serveur (`POST /demarrer/type`) puis recharge l'autre formulaire. | `tests/onboarding-kind.test.js` (4 tests) |
+| Projet, wilaya, numéro **obligatoires** | Nom + métier + téléphone (9 chiffres au moins) + wilaya : `required` dans la page, **et** revérifiés par le serveur (400 avec un message clair). Un métier de vitrine est refusé dans un formulaire de boutique. | même fichier, test « tous les champs… sont obligatoires » |
+| Une icône par page, plus de doublons | 10 icônes neuves (`home, mail, megaphone, tag, route, folder, file, gauge, star, brush`). Dans un menu donné, deux pages n'ont plus jamais le même dessin. | `tests/espace-clair.test.js` (2 tests lisent le menu rendu) |
+| Ne plus demander d'API ni de clés | Relances (URL, en-têtes, corps, mode auto), E-mails (SMTP), Pixels (jetons CAPI), Transporteur (chemins et en-têtes) : remplacés par une carte **« Prochainement »**. Restent : délais, modèles de messages, lien WhatsApp, identifiants de pixels (facultatifs). | `tests/espace-clair.test.js` + `tests/relance.test.js` |
+| Adresse gratuite **avant** le DNS | Encadré « Ton adresse gratuite » : `amina-mode.nova.site`, puis « Tu as déjà un domaine ? (facultatif) » replié, puis le DNS dedans. Le sous-domaine **sert vraiment la boutique** (`src/domain.js` le reconnaît). | test « l'adresse gratuite s'affiche avant le domaine payant » + « sert vraiment la boutique » |
+
+`npm test` : **362 tests, 360 réussis, 0 échec** (2 ignorés volontairement).
+
+Captures : `captures/revue/0-inscription-*.png`, `1-apres-signup-boutique.png`,
+`2-apres-signup-vitrine.png`, `3-reglages-adresse.png`, `4-relances-prochainement.png`,
+`5-menu-icones.png`, `6-premier-ecran-telephone.png`
+(script : `node scripts/captures-onboarding.js`).
+
 ## 9. Ce qui reste à faire (pas fait, volontairement)
 
 - **Fusion sur `main`** : en attente du feu vert. Tant qu'elle n'est pas faite, un

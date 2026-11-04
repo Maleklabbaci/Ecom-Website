@@ -195,7 +195,7 @@ test("une boutique qui vient d'être créée arrive dans le Studio, pas dans l'a
   /* compte neuf, puis le premier écran (ce que je vends + téléphone + wilaya) */
   const mail = `neuf-${Date.now()}@t.dz`
   await req("/signup", form({ kind: "commerce", store: "Boutique Neuve", name: "Neuf", email: mail, password: "secret1", password2: "secret1" }))
-  const start = await req("/demarrer", form({ kind: "commerce", metier: "mode", phone: "0555 12 34 56", wilaya: "Blida" }))
+  const start = await req("/demarrer", form({ store_name: "Boutique Neuve", metier: "mode", phone: "0555 12 34 56", wilaya: "Blida" }))
   assert.equal(start.status, 302)
 
   /* le menu propose le Studio, et il s'ouvre (plus de renvoi vers la galerie) */

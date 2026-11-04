@@ -16,70 +16,70 @@
  */
 const LIST = [
   {
-    id: "mode", label: "Vêtements et mode", icon: "store",
+    id: "mode", kinds: ["commerce", "vitrine"], label: "Vêtements et mode", icon: "store",
     theme: "mode", vitrineTheme: "editorial",
     tagline: "Des pièces choisies, livrées chez vous.",
     about: "Une sélection de vêtements pour tous les jours. Livraison dans toute l'Algérie, paiement à la réception.",
     site: "site6", vitrineSite: "site5"
   },
   {
-    id: "beaute", label: "Beauté et cosmétiques", icon: "palette",
+    id: "beaute", kinds: ["commerce", "vitrine"], label: "Beauté et cosmétiques", icon: "palette",
     theme: "soin", vitrineTheme: "galerie",
     tagline: "Des produits testés, livrés partout en Algérie.",
     about: "Soins, maquillage et produits de beauté choisis un par un. Livraison dans les 58 wilayas, paiement à la réception.",
     site: "site13", vitrineSite: "site3"
   },
   {
-    id: "bijoux", label: "Bijoux et accessoires", icon: "target",
+    id: "bijoux", kinds: ["commerce", "vitrine"], label: "Bijoux et accessoires", icon: "target",
     theme: "atelier", vitrineTheme: "zen",
     tagline: "Des bijoux faits pour durer.",
     about: "Bijoux et accessoires faits à la main, en petites séries. Livraison partout en Algérie.",
     site: "site1", vitrineSite: "site3"
   },
   {
-    id: "maison", label: "Maison et décoration", icon: "layout",
+    id: "maison", kinds: ["commerce", "vitrine"], label: "Maison et décoration", icon: "layout",
     theme: "bento", vitrineTheme: "mosaique",
     tagline: "Ce qu'il faut pour se sentir bien chez soi.",
     about: "Décoration, linge et petits meubles pour la maison. Livraison dans toute l'Algérie.",
     site: "site10", vitrineSite: "site5"
   },
   {
-    id: "tech", label: "Téléphones et électronique", icon: "smartphone",
+    id: "tech", kinds: ["commerce"], label: "Téléphones et électronique", icon: "smartphone",
     theme: "tech", vitrineTheme: "contrast",
     tagline: "Du matériel testé, garanti, livré chez vous.",
     about: "Téléphones, accessoires et petit matériel électronique. Chaque appareil est testé avant l'envoi.",
     site: "site9", vitrineSite: "site4"
   },
   {
-    id: "sport", label: "Sport et fitness", icon: "play",
+    id: "sport", kinds: ["commerce", "vitrine"], label: "Sport et fitness", icon: "play",
     theme: "mono", vitrineTheme: "noir",
     tagline: "De quoi bouger, sans se ruiner.",
     about: "Équipement et vêtements de sport pour s'entraîner à la maison ou en salle.",
     site: "site14", vitrineSite: "site16"
   },
   {
-    id: "nourriture", label: "Alimentation et pâtisserie", icon: "box",
+    id: "nourriture", kinds: ["commerce", "vitrine"], label: "Alimentation et pâtisserie", icon: "box",
     theme: "marche", vitrineTheme: "galerie",
     tagline: "Fait maison, commandé aujourd'hui, livré demain.",
     about: "Pâtisseries et spécialités faites maison, sur commande. Livraison dans la wilaya.",
     site: "site11", vitrineSite: "site3"
   },
   {
-    id: "artisanat", label: "Artisanat et fait main", icon: "layers",
+    id: "artisanat", kinds: ["commerce", "vitrine"], label: "Artisanat et fait main", icon: "layers",
     theme: "zen", vitrineTheme: "atelier",
     tagline: "Du fait main, pièce par pièce.",
     about: "Des pièces fabriquées à la main, en petites quantités. Chaque commande est préparée avec soin.",
     site: "site1", vitrineSite: "site16"
   },
   {
-    id: "bebe", label: "Bébé et enfants", icon: "card",
+    id: "bebe", kinds: ["commerce"], label: "Bébé et enfants", icon: "card",
     theme: "catalogue", vitrineTheme: "mosaique",
     tagline: "Pour les petits, choisi avec soin.",
     about: "Vêtements et accessoires pour bébés et enfants. Livraison dans toute l'Algérie.",
     site: "site6", vitrineSite: "site3"
   },
   {
-    id: "services", label: "Services (photo, coiffure, architecture…)", icon: "user",
+    id: "services", kinds: ["vitrine"], label: "Services (photo, coiffure, architecture…)", icon: "user",
     theme: "minimal", vitrineTheme: "editorial",
     tagline: "Je réponds à vos projets, partout en Algérie.",
     about: "Un travail soigné, expliqué simplement. Écrivez-moi pour parler de votre projet.",
@@ -88,6 +88,19 @@ const LIST = [
 ]
 
 const get = (id) => LIST.find((m) => m.id === id) || null
+
+/**
+ * Les métiers d'UN SEUL type de site.
+ *
+ * Pourquoi : une boutique qui vend n'a rien à faire d'un choix « photographe »,
+ * et un site qui montre son travail n'a rien à faire d'un choix « téléphones et
+ * électronique ». Deux listes séparées, donc, pour ne jamais mélanger les deux
+ * formulaires. `kinds` est déclaré sur chaque métier.
+ */
+const forKind = (kind) => LIST.filter((m) => (m.kinds || ["commerce", "vitrine"]).includes(kind === "vitrine" ? "vitrine" : "commerce"))
+
+/** Ce métier est-il proposé pour ce type de site ? */
+const allows = (metier, kind) => !!metier && (metier.kinds || ["commerce", "vitrine"]).includes(kind === "vitrine" ? "vitrine" : "commerce")
 
 /** Ancienne mise en page à appliquer selon le métier et le type de site. */
 const themeFor = (metier, kind) => {
@@ -101,4 +114,4 @@ const siteFor = (metier, kind) => {
   return (kind === "vitrine" ? metier.vitrineSite : metier.site) || ""
 }
 
-module.exports = { LIST, get, themeFor, siteFor }
+module.exports = { LIST, get, forKind, allows, themeFor, siteFor }

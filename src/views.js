@@ -18,6 +18,19 @@ const BADGES = require("./badges")
 const HIST = require("./historique")
 
 /* ---- vitrines : une structure complète par thème (voir layouts.js) ---- */
+const DOMAIN = require("./domain")
+
+/* L'adresse offerte de la boutique : amina-mode.nova.site. Aucun achat, aucun DNS. */
+const freeAddress = (store) => DOMAIN.freeHost(store)
+
+/* Carte « Prochainement » : une fonction qui n'est pas encore là s'annonce,
+   elle ne demande pas au marchand de clés d'API ni de réglages techniques. */
+const soonCard = (title, text, items = []) => `<section class="panel soon">
+  <div class="panel-head"><h2>${esc(title)}</h2><span class="pill off">Prochainement</span></div>
+  <p class="muted">${esc(text)}</p>
+  ${items.length ? `<ul class="soon-list">${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>` : ""}
+</section>`
+
 const absolute = (origin, u) => (!u ? "" : /^https?:/i.test(u) ? u : (origin || "") + u)
 
 const parcelEvents = (shipment) => {
@@ -298,7 +311,8 @@ const authPage = (mode, error, kind = "", site = "") => {
           <input type="hidden" name="kind" value="vitrine">
           <input type="hidden" name="site" value="${esc(siteFor("vitrine"))}">
           <p class="auth-mode"><i></i>Vitrine</p>
-          <label>Nom de la marque<input name="store" required placeholder="Atelier Lina"></label>
+          <p class="auth-note">Montrer son travail, être contacté. Pas de panier, pas de livraison.</p>
+          <label>Nom de votre site<input name="store" required placeholder="Atelier Lina"></label>
           <label>Votre nom<input name="name" required placeholder="Amine Benali"></label>
           <label>E-mail<input type="email" name="email" required placeholder="vous@exemple.dz" autocomplete="email"></label>
           <label>Mot de passe<input type="password" name="password" required placeholder="6 caractères minimum" autocomplete="new-password"></label>
@@ -309,6 +323,7 @@ const authPage = (mode, error, kind = "", site = "") => {
           <input type="hidden" name="kind" value="commerce">
           <input type="hidden" name="site" value="${esc(siteFor("commerce"))}">
           <p class="auth-mode"><i></i>E-commerce</p>
+          <p class="auth-note">Vendre en ligne : produits, panier, wilayas, paiement à la livraison.</p>
           <label>Nom de la boutique<input name="store" required placeholder="Amina Mode"></label>
           <label>Votre nom<input name="name" required placeholder="Amine Benali"></label>
           <label>E-mail<input type="email" name="email" required placeholder="vous@exemple.dz" autocomplete="email"></label>
@@ -335,52 +350,9 @@ const authPage = (mode, error, kind = "", site = "") => {
 `, { bodyClass: "auth-body" })
 }
 
-const welcomePage = (user, store, error) => {
-  const GEO = require("./geo")
-  const admin = user.role === "admin"
-  const wilaya = store && store.wilaya || ""
-  const options = GEO.WILAYAS.map((w) => `<option ${w === wilaya ? "selected" : ""}>${esc(w)}</option>`).join("")
-  return page("Tes infos — NovaDZ", `
-<div class="auth-stage">
-  <div class="auth-bg" aria-hidden="true"></div>
-  <div class="auth-veil" aria-hidden="true"></div>
-  <div class="auth-nav">
-    <a class="auth-brand" href="/"><span class="auth-bolt">${authBolt}</span><b>templifica</b> <em>/ Création de site</em></a>
-    <div class="auth-nav-links">
-      <a href="/">Accueil</a>
-      <a class="auth-pill" href="/logout">${authBolt} Déconnexion</a>
-    </div>
-  </div>
-  <div class="auth-mix">
-    <section class="auth-pitch">
-      <p class="auth-kicker">Encore un peu.</p>
-      <h1>Ton contact.</h1>
-      <p>Téléphone, wilaya, adresse. Puis tu ouvres ${store && store.site_kind === "vitrine" ? "ton site" : "ta boutique"}.</p>
-    </section>
-    <div class="auth-card">
-      <h2>${admin && !store ? "Admin" : "Tes infos"}</h2>
-      <p class="muted">${admin && !store ? "Tu ouvres l'admin." : "Ce qu'il faut pour te joindre."}</p>
-      ${error ? `<div class="alert">${esc(error)}</div>` : ""}
-      ${store ? `<form method="post" action="/welcome">
+/* L'écran « Tes infos » (/welcome) a été fusionné avec le premier écran
+   (/demarrer) : un seul onboarding, avec les champs du type de site choisi. */
 
-        <label>Téléphone<input name="phone" required value="${esc(store.phone || "")}" placeholder="0555 12 34 56" inputmode="tel" autocomplete="tel"></label>
-        <label>WhatsApp<input name="whatsapp" value="${esc(store.whatsapp || "")}" placeholder="0555 12 34 56" inputmode="tel" autocomplete="tel"></label>
-        <label>Wilaya
-          <select name="wilaya" required>
-            <option value="" ${wilaya ? "" : "selected"} disabled>Choisir</option>
-            ${options}
-          </select>
-        </label>
-        <label>Adresse<input name="address" value="${esc(store.legal_address || "")}" placeholder="12 rue Didouche, Alger" autocomplete="street-address"></label>
-        <button class="btn btn-primary btn-block" type="submit">Ouvrir ${store && store.site_kind === "vitrine" ? "mon site" : "la boutique"}</button>
-      </form>` : `<a class="btn btn-primary btn-block" href="${admin ? "/admin" : "/dashboard"}">${admin ? "Ouvrir l'admin" : "Ouvrir la boutique"}</a>`}
-    </div>
-  </div>
-</div>`, { bodyClass: "auth-body" })
-}
-
-/* Confirmation de déconnexion : la vraie déconnexion est en POST,
-   pour qu'un lien ou une image d'un autre site ne puisse pas la déclencher. */
 const logoutPage = (user) => page("Déconnexion — NovaDZ", `
 <div class="auth-stage">
   <div class="auth-bg" aria-hidden="true"></div>
@@ -1852,7 +1824,7 @@ const dashLayout = (user, store, content, active) => {
   /* Le Studio reste visible même quand aucun modèle de site n'est encore
      choisi. Une entrée qui apparaît puis disparaît fait croire que l'éditeur
      a été supprimé : ici, on montre le chemin, et la page explique quoi faire. */
-  const studioLink = (on) => `<a class="${on ? "on" : ""}" href="/dashboard/studio"${STUDIO_TPL ? "" : ` title="Choisis un modèle de site pour écrire dans le Studio"`}>${icon("edit", 16)} Studio</a>`
+  const studioLink = (on) => `<a class="${on ? "on" : ""}" href="/dashboard/studio"${STUDIO_TPL ? "" : ` title="Choisis un modèle de site pour écrire dans le Studio"`}>${icon("brush", 16)} Studio</a>`
   return page(
   docTitle,
   `
@@ -1878,21 +1850,21 @@ const dashLayout = (user, store, content, active) => {
     ${(user.stores || []).length > 1 ? `<form class="store-switch" method="post" action="/dashboard/utiliser-boutique">
       <label>Espace<select name="store_id" onchange="this.form.submit()">${user.stores.map((s) => `<option value="${s.id}"${s.id === store.id ? " selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>
     </form>` : ""}
-    <a class="store-all${active === "stores" ? " on" : ""}" href="/dashboard/boutiques">${icon("grid", 15)} Mes boutiques${(user.stores || []).length > 1 ? ` <i>${(user.stores || []).length}</i>` : ""}</a>
+    <a class="store-all${active === "stores" ? " on" : ""}" href="/dashboard/boutiques">${icon("store", 15)} Mes boutiques${(user.stores || []).length > 1 ? ` <i>${(user.stores || []).length}</i>` : ""}</a>
     <nav class="dash-nav">
       ${vitrine ? `<p class="dash-group">Site</p>
-      <a class="${active === "home" ? "on" : ""}" href="/dashboard">${icon("grid", 16)} Vue d'ensemble</a>
+      <a class="${active === "home" ? "on" : ""}" href="/dashboard">${icon("home", 16)} Vue d'ensemble</a>
       <a class="${active === "visits" ? "on" : ""}" href="/dashboard/visites">${icon("chart", 16)} Visites</a>
       <p class="dash-group">Contenu</p>
-      ${navIf(user, "design", `<a class="${active === "pages" ? "on" : ""}" href="/dashboard/pages">${icon("receipt", 16)} <span>Pages</span><b class="nav-count">${B.pages || 0}</b></a>`)}
+      ${navIf(user, "design", `<a class="${active === "pages" ? "on" : ""}" href="/dashboard/pages">${icon("file", 16)} <span>Pages</span><b class="nav-count">${B.pages || 0}</b></a>`)}
       ${navIf(user, "design", studioLink(active === "studio"))}
       <p class="dash-group">Contact</p>
       <a class="${active === "leads" ? "on" : ""}" href="/dashboard/recus">${icon("chat", 16)} <span>Reçus</span>${BADGES.pill(B.leads)}</a>
-      ${navIf(user, "shop", `<a class="${active === "social" ? "on" : ""}" href="/dashboard/reseaux">${icon("chat", 16)} Réseaux sociaux</a>`)}
-      ${navIf(user, "settings", `<a class="${active === "mails" ? "on" : ""}" href="/dashboard/mails">${icon("chat", 16)} E-mails</a>`)}
-      ${navIf(user, "team", `<a class="${active === "equipe" ? "on" : ""}" href="/dashboard/equipe">${icon("user", 16)} Équipe</a>`)}
+      ${navIf(user, "shop", `<a class="${active === "social" ? "on" : ""}" href="/dashboard/reseaux">${icon("megaphone", 16)} Réseaux sociaux</a>`)}
+      ${navIf(user, "settings", `<a class="${active === "mails" ? "on" : ""}" href="/dashboard/mails">${icon("mail", 16)} E-mails</a>`)}
+      ${navIf(user, "team", `<a class="${active === "equipe" ? "on" : ""}" href="/dashboard/equipe">${icon("users", 16)} Équipe</a>`)}
       ${navIf(user, "settings", `<a class="${active === "settings" ? "on" : ""}" href="/dashboard/settings">${icon("settings", 16)} Réglages</a>`)}` : `<p class="dash-group">Ventes</p>
-      <a class="${active === "home" ? "on" : ""}" href="/dashboard">${icon("grid", 16)} Vue d'ensemble</a>
+      <a class="${active === "home" ? "on" : ""}" href="/dashboard">${icon("home", 16)} Vue d'ensemble</a>
       ${navIf(user, "orders", `<a class="${active === "stats" ? "on" : ""}" href="/dashboard/stats">${icon("chart", 16)} Statistiques</a>`)}
       ${navIf(user, "orders", `<a class="${active === "orders" ? "on" : ""}" href="/dashboard/orders" title="${B.toTreat} commande(s) à traiter">
         ${icon("receipt", 16)} <span>Commandes</span>${BADGES.pill(B.toTreat)}</a>`)}
@@ -1908,27 +1880,27 @@ const dashLayout = (user, store, content, active) => {
         ${icon("box", 16)} <span>Produits</span><b class="nav-count">${B.products}</b></a>
       <a class="${active === "stock" ? "on" : ""}" href="/dashboard/stock" title="${B.lowStock} produit(s) en stock faible ou rupture">
         ${icon("layers", 16)} <span>Stock</span>${BADGES.pill(B.lowStock, "danger")}</a>
-      <a class="${active === "categories" ? "on" : ""}" href="/dashboard/categories">${icon("store", 16)} Catégories</a>
-      <a class="${active === "promos" ? "on" : ""}" href="/dashboard/discounts">${icon("cash", 16)} Codes promo</a>`)}
+      <a class="${active === "categories" ? "on" : ""}" href="/dashboard/categories">${icon("folder", 16)} Catégories</a>
+      <a class="${active === "promos" ? "on" : ""}" href="/dashboard/discounts">${icon("tag", 16)} Codes promo</a>`)}
 
       ${(canSee(user, "design") || canSee(user, "shop") || canSee(user, "settings") || canSee(user, "team")) ? `<p class="dash-group">Boutique</p>` : ""}
       ${navIf(user, "design", studioLink(active === "studio"))}
       ${navIf(user, "design", `<a class="${active === "form" ? "on" : ""}" href="/dashboard/formulaire">${icon("edit", 16)} Formulaire</a>`)}
       ${navIf(user, "shop", `<a class="${active === "transporteur" ? "on" : ""}" href="/dashboard/transporteur">${icon("truck", 16)} Transporteur</a>`)}
-      ${navIf(user, "shop", `<a class="${active === "shipping" ? "on" : ""}" href="/dashboard/shipping">${icon("cash", 16)} Frais de livraison</a>`)}
+      ${navIf(user, "shop", `<a class="${active === "shipping" ? "on" : ""}" href="/dashboard/shipping">${icon("route", 16)} Frais de livraison</a>`)}
       ${navIf(user, "shop", `<a class="${active === "paiement" ? "on" : ""}" href="/dashboard/paiement">${icon("card", 16)} Paiement</a>`)}
-      ${navIf(user, "shop", `<a class="${active === "social" ? "on" : ""}" href="/dashboard/reseaux">${icon("chat", 16)} Réseaux sociaux</a>`)}
-      ${navIf(user, "settings", `<a class="${active === "mails" ? "on" : ""}" href="/dashboard/mails">${icon("chat", 16)} E-mails</a>`)}
-      ${navIf(user, "team", `<a class="${active === "equipe" ? "on" : ""}" href="/dashboard/equipe">${icon("user", 16)} Équipe</a>`)}
+      ${navIf(user, "shop", `<a class="${active === "social" ? "on" : ""}" href="/dashboard/reseaux">${icon("megaphone", 16)} Réseaux sociaux</a>`)}
+      ${navIf(user, "settings", `<a class="${active === "mails" ? "on" : ""}" href="/dashboard/mails">${icon("mail", 16)} E-mails</a>`)}
+      ${navIf(user, "team", `<a class="${active === "equipe" ? "on" : ""}" href="/dashboard/equipe">${icon("users", 16)} Équipe</a>`)}
       ${navIf(user, "settings", `<a class="${active === "settings" ? "on" : ""}" href="/dashboard/settings">${icon("settings", 16)} Réglages</a>`)}
 
       ${(canSee(user, "design") || canSee(user, "shop") || canSee(user, "orders")) ? `<details class="dash-more" ${["pages", "landings", "reviews", "customers", "marketing", "livraison", "shipping"].includes(active) ? "open" : ""}>
         <summary>${icon("menuDots", 15)} Plus d'outils${BADGES.pill(B.reviews, "warn")}</summary>
-        ${navIf(user, "design", `<a class="${active === "landings" ? "on" : ""}" href="/dashboard/landings">${icon("store", 15)} Pages de vente</a>`)}
-        ${navIf(user, "design", `<a class="${active === "pages" ? "on" : ""}" href="/dashboard/pages">${icon("receipt", 15)} Pages</a>`)}
-        ${navIf(user, "shop", `<a class="${active === "livraison" ? "on" : ""}" href="/dashboard/livraison">${icon("grid", 15)} Statistiques livraison</a>`)}
+        ${navIf(user, "design", `<a class="${active === "landings" ? "on" : ""}" href="/dashboard/landings">${icon("layout", 15)} Pages de vente</a>`)}
+        ${navIf(user, "design", `<a class="${active === "pages" ? "on" : ""}" href="/dashboard/pages">${icon("file", 15)} Pages</a>`)}
+        ${navIf(user, "shop", `<a class="${active === "livraison" ? "on" : ""}" href="/dashboard/livraison">${icon("gauge", 15)} Statistiques livraison</a>`)}
         ${navIf(user, "shop", `<a class="${active === "reviews" ? "on" : ""}" href="/dashboard/reviews" title="${B.reviews} avis en attente">
-          ${icon("check", 15)} <span>Avis</span>${BADGES.pill(B.reviews, "warn")}</a>`)}
+          ${icon("star", 15)} <span>Avis</span>${BADGES.pill(B.reviews, "warn")}</a>`)}
         ${navIf(user, "orders", `<a class="${active === "customers" ? "on" : ""}" href="/dashboard/customers">${icon("user", 15)} Clients</a>`)}
         ${navIf(user, "shop", `<a class="${active === "marketing" ? "on" : ""}" href="/dashboard/marketing">${icon("shield", 15)} Anti-fraude &amp; pixels</a>`)}
       </details>` : ""}`}
@@ -1944,8 +1916,8 @@ const dashLayout = (user, store, content, active) => {
   <main class="dash-main">${user.support ? `<div class="support-bar"><span class="support-ico">${icon("shield", 15)}</span><p>Tu regardes <b>${esc(user.support.name)}</b>. Ce n'est pas ta boutique.</p><form method="post" action="/admin/quitter"><button class="btn btn-ghost btn-sm" type="submit">Quitter</button></form></div>` : ""}${user.flash ? `<div class="alert">${esc(user.flash)}</div>` : ""}${content}</main>
   <nav class="app-tab" aria-label="Navigation">
     ${tab("home", "/dashboard", "grid", "Accueil")}
-    ${vitrine ? `${navIf(user, "design", tab("pages", "/dashboard/pages", "receipt", "Pages"))}
-    ${navIf(user, "design", `<a class="${active === "studio" ? "on" : ""}" href="/dashboard/studio">${icon("edit", 20)}<span>Studio</span></a>`)}` : `${navIf(user, "orders", tab("orders", "/dashboard/orders", "receipt", "Commandes", B.toTreat))}
+    ${vitrine ? `${navIf(user, "design", tab("pages", "/dashboard/pages", "file", "Pages"))}
+    ${navIf(user, "design", `<a class="${active === "studio" ? "on" : ""}" href="/dashboard/studio">${icon("brush", 20)}<span>Studio</span></a>`)}` : `${navIf(user, "orders", tab("orders", "/dashboard/orders", "receipt", "Commandes", B.toTreat))}
     ${navIf(user, "products", tab("products", "/dashboard/products", "box", "Produits"))}
     ${navIf(user, "products", tab("stock", "/dashboard/stock", "layers", "Stock", B.lowStock, "bad"))}
     ${active === "relances" ? tab("relances", "/dashboard/relances", "history", "Relances", B.relances, "warn") : ""}`}
@@ -3427,11 +3399,20 @@ ${error ? `<div class="alert">${esc(error)}</div>` : ""}
     <label>Devise
       <select name="currency">${["DZD","EUR","USD"].map((c) => `<option ${store.currency === c ? "selected" : ""}>${c}</option>`).join("")}</select>
     </label>
-    <label>Adresse (novadz.dz/<b>${esc(store.slug)}</b>)<input name="slug" value="${esc(store.slug)}" pattern="[a-z0-9-]+" title="minuscules, chiffres et tirets"></label>
+    <label>Adresse (fin du lien)<input name="slug" value="${esc(store.slug)}" pattern="[a-z0-9-]+" title="minuscules, chiffres et tirets"></label>
   </div>
-  <h3>Nom de domaine</h3>
-  <p class="muted">Tes clients ouvrent la boutique avec ton adresse, sans /${esc(store.slug)}. NovaDZ ne l'achète pas et ne change pas le DNS à ta place.</p>
-  <label>Domaine<input name="domain" value="${esc(store.domain || "")}" placeholder="boutique.dz"></label>
+
+  <h3>Ton adresse gratuite</h3>
+  <div class="free-addr">
+    <span class="free-addr-tag">Gratuit, déjà actif</span>
+    <b>${esc(freeAddress(store))}</b>
+    <p>Rien à acheter, rien à régler. Tes clients tapent cette adresse, ou passent par le bouton WhatsApp. La ligne <b>Adresse (fin du lien)</b> ci-dessus change juste le début.</p>
+  </div>
+
+  <details class="domain-opt">
+    <summary>${icon("globe", 15)} Tu as déjà un domaine ? (facultatif)</summary>
+  <p class="muted">Un domaine, c'est une adresse que tu loues chez un vendeur de noms (par exemple <b>maboutique.dz</b>). Sans domaine, l'adresse gratuite ci-dessus marche déjà. NovaDZ ne l'achète pas et ne change pas le DNS à ta place.</p>
+  <label>Mon domaine<input name="domain" value="${esc(store.domain || "")}" placeholder="boutique.dz"></label>
   <div class="dns-box">
     <b>Comment le relier</b>
     <ol class="domain-steps">
@@ -3455,6 +3436,7 @@ ${error ? `<div class="alert">${esc(error)}</div>` : ""}
       return `<p class="muted">Nom public connu de ce serveur : <b>${esc(known)}</b>. Le www peut aussi être un CNAME vers ce nom. Le @ doit rester un A vers son IP.</p>`
     })()}
   </div>
+  </details>
   <div class="form-actions"><button class="btn btn-primary">Enregistrer</button></div>
 </form>`, "settings")
 
@@ -3761,28 +3743,20 @@ const dashMarketing = (user, store, data) => dashLayout(user, store, `
 </section>
 
 <section class="panel">
-  <div class="panel-head"><h2>Pixels serveur (Conversions API)</h2>
-    <span class="pill ${data.providers.length ? "ok" : "off"}">${data.providers.length ? data.providers.join(" · ") + " actif(s)" : "aucun"}</span></div>
+  <div class="panel-head"><h2>Pixels (facultatif)</h2>
+    <span class="pill ${store.pixel_meta || store.pixel_tiktok || store.snap_pixel ? "ok" : "off"}">${store.pixel_meta || store.pixel_tiktok || store.snap_pixel ? "identifiant enregistré" : "aucun"}</span></div>
   <form method="post" action="/dashboard/marketing/pixels">
     <div class="grid-2">
-      <label>Envoi serveur
-        <select name="pixels_server">
-          <option value="1" ${store.pixels_server ? "selected" : ""}>Activé</option>
-          <option value="0" ${!store.pixels_server ? "selected" : ""}>Désactivé</option>
-        </select></label>
-      <label>Code de test (Events Manager)<input name="pixel_test_code" value="${esc(store.pixel_test_code || "")}" placeholder="TEST12345"></label>
-      <label>Meta — Pixel ID<input name="pixel_meta" value="${esc(store.pixel_meta || "")}" placeholder="123456789012345"></label>
-      <label>Meta — Jeton Conversions API<input name="meta_token" value="${esc(store.meta_token || "")}" placeholder="EAAG..."></label>
-      <label>TikTok — Pixel ID<input name="pixel_tiktok" value="${esc(store.pixel_tiktok || "")}" placeholder="CXXXXXXXXXXXXX"></label>
-      <label>TikTok — Jeton Events API<input name="tiktok_token" value="${esc(store.tiktok_token || "")}" placeholder="act.XXXX"></label>
-      <label>Snapchat — Pixel ID<input name="snap_pixel" value="${esc(store.snap_pixel || "")}" placeholder="xxxx-xxxx"></label>
-      <label>Snapchat — Jeton<input name="snap_token" value="${esc(store.snap_token || "")}" placeholder="eyJh..."></label>
+      <label>Meta — identifiant du pixel<input name="pixel_meta" value="${esc(store.pixel_meta || "")}" placeholder="123456789012345"></label>
+      <label>TikTok — identifiant du pixel<input name="pixel_tiktok" value="${esc(store.pixel_tiktok || "")}" placeholder="CXXXXXXXXXXXXX"></label>
+      <label>Snapchat — identifiant du pixel<input name="snap_pixel" value="${esc(store.snap_pixel || "")}" placeholder="xxxx-xxxx"></label>
     </div>
-    <p class="muted" style="font-size:12.5px">Événements envoyés : <b>ViewContent</b>, <b>AddToCart</b>, <b>InitiateCheckout</b>, <b>Purchase</b>.
-      Le téléphone est haché (SHA-256) avant l'envoi, comme l'exigent les trois régies.</p>
+    <p class="muted" style="font-size:12.5px">Colle seulement l'identifiant, si tu en as un. Aucune clé, aucun code à copier.</p>
     <div class="form-actions"><button class="btn btn-primary">Enregistrer</button></div>
   </form>
 </section>
+
+${soonCard("Envoi serveur des événements", "Le suivi côté serveur (Conversions API) arrive bientôt. Il enverra les achats aux trois régies sans aucune clé à copier.", ["Meta, TikTok et Snapchat en un seul réglage", "Téléphone haché (SHA-256) automatiquement"])}
 
 <div class="kpis">
   <div class="kpi"><span>Événements envoyés (7 j)</span><b>${data.stats.ok}</b><i>${data.stats.erreur} en erreur</i></div>
@@ -3936,97 +3910,7 @@ ${data.testResult ? `<div class="alert ${data.testResult.ok ? "ok" : ""}">
       <p class="muted" style="font-size:12.5px">Les jetons partent vers dzship le temps de l'appel, puis restent chiffrés ici. dzship ne les garde pas.</p>`
     })()}
 
-    <fieldset ${manualCarrier ? "" : "disabled hidden"} style="border:0;margin:0;padding:0;min-width:0">
-    <details class="adv">
-      <summary><b>Réglages avancés</b> <span class="muted">— déjà remplis pour ce transporteur, tu n'y touches que si ton bureau te donne d'autres chemins</span></summary>
-      <div class="grid-2">
-        <label>En-tête 1 — nom<input name="header1_name" value="${esc(c.header1_name || "X-API-ID")}" placeholder="X-API-ID"></label>
-        <label>En-tête 2 — nom<input name="header2_name" value="${esc(c.header2_name || "X-API-TOKEN")}" placeholder="X-API-TOKEN"></label>
-        <label>En-tête 3 — nom (facultatif)<input name="header3_name" value="${esc(c.header3_name || "")}" placeholder="Accept"></label>
-        <label>En-tête 3 — valeur<input name="header3_value" type="password" autocomplete="off"
-          placeholder="${secretSet(3) ? "•••••• (enregistré)" : "application/json"}"></label>
-      </div>
-      <p class="muted" style="font-size:12.5px">Les jetons sont chiffrés en base (AES-256-GCM) et jamais renvoyés au navigateur.</p>
-
-    <div class="panel-head" style="margin-top:14px"><h2>Création du colis</h2></div>
-    <div class="grid-2">
-      <label>Méthode
-        <select name="create_method">
-          ${["POST", "PUT", "PATCH"].map((m) => `<option ${c.create_method === m ? "selected" : ""}>${m}</option>`).join("")}
-        </select></label>
-      <label>Chemin<input name="create_path" value="${esc(c.create_path || "/parcels")}" placeholder="/parcels/"></label>
-      <label>Mode d'envoi des champs
-        <select name="create_body_mode">
-          ${[["json", "JSON dans le corps (Yalidine, ZR, Maystro)"],
-             ["query", "Query string dans l'URL (EcoTrack, DHD, NOEST)"],
-             ["form", "Formulaire URL-encodé"]]
-            .map(([v, l]) => `<option value="${v}" ${(c.create_body_mode || "json") === v ? "selected" : ""}>${l}</option>`).join("")}
-        </select></label>
-      <label>Chemin du message d'erreur<input name="resp_message_path" value="${esc(c.resp_message_path || "message")}" placeholder="message"></label>
-    </div>
-    <label>Corps de la requête (JSON)
-      <textarea name="create_body" rows="12" spellcheck="false" class="mono">${esc(c.create_body || "{}")}</textarea>
-      <small class="muted">Variables : <code>{{ref}}</code> <code>{{firstName}}</code> <code>{{lastName}}</code>
-        <code>{{fullName}}</code> <code>{{phone}}</code> <code>{{address}}</code> <code>{{wilaya}}</code>
-        <code>{{commune}}</code> <code>{{communeId}}</code> <code>{{products}}</code> <code>{{price}}</code>
-        <code>{{weight}}</code> <code>{{stopDesk}}</code> <code>{{deliveryType}}</code> <code>{{freeShipping}}</code> <code>{{note}}</code></small></label>
-
-    <details style="margin-top:12px">
-      <summary class="muted" style="cursor:pointer;font-size:12.5px">Avancé — plusieurs appels enchaînés (EcoTrack, NOEST, ZR nouvelle plateforme)</summary>
-      <label style="margin-top:10px">Pipeline d'appels (JSON)
-        <textarea name="create_steps" rows="14" spellcheck="false" class="mono">${esc(c.create_steps || "")}</textarea>
-        <small class="muted">Laisser vide pour un seul appel. Chaque étape : <code>method</code>, <code>path</code>,
-          <code>body</code>, <code>body_mode</code>, <code>capture</code>, <code>error_path</code>.
-          <code>capture</code> mémorise une valeur de la réponse pour les étapes suivantes.</small></label>
-    </details>
-
-    <div class="panel-head" style="margin-top:14px"><h2>Lecture de la réponse</h2></div>
-    <div class="grid-2">
-      <label>Chemin du numéro de suivi<input name="resp_tracking_path" value="${esc(c.resp_tracking_path || "tracking")}" placeholder="data.0.tracking"></label>
-      <label>Chemin du bordereau (PDF)<input name="resp_label_path" value="${esc(c.resp_label_path || "label")}" placeholder="data.0.label"></label>
-      <label>Chemin du message d'erreur<input name="resp_error_path" value="${esc(c.resp_error_path || "message")}" placeholder="message"></label>
-      <label>Chemin des communes<input name="centers_path" value="${esc(c.centers_path || "")}" placeholder="/centers/"></label>
-      <label>Chemin du tableau des communes<input name="centers_list_path" value="${esc(c.centers_list_path || "")}" placeholder="data">
-        <small class="muted">Laisser vide si la réponse est directement une liste</small></label>
-      <label>Champ identifiant commune<input name="center_id_field" value="${esc(c.center_id_field || "id")}"></label>
-      <label>Champ nom commune<input name="center_name_field" value="${esc(c.center_name_field || "name")}"></label>
-    </div>
-
-    <div class="panel-head" style="margin-top:14px"><h2>Suivi des colis</h2></div>
-    <div class="grid-2">
-      <label>Méthode du suivi
-        <select name="status_method">
-          ${["GET", "POST"].map((m) => `<option ${(c.status_method || "GET") === m ? "selected" : ""}>${m}</option>`).join("")}
-        </select></label>
-      <label>Chemin du statut<input name="status_path" value="${esc(c.status_path || "")}" placeholder="/histories/?tracking={tracking}">
-        <small class="muted"><code>{tracking}</code> est remplacé par le numéro</small></label>
-      <label>Champ du statut<input name="status_state_field" value="${esc(c.status_state_field || "status")}" placeholder="data.0.status"></label>
-      <label>Méthode des communes
-        <select name="centers_method">
-          ${["GET", "POST"].map((m) => `<option ${(c.centers_method || "GET") === m ? "selected" : ""}>${m}</option>`).join("")}
-        </select></label>
-    </div>
-    <div class="panel-head" style="margin-top:14px"><h2>Bordereau</h2></div>
-    <div class="grid-2">
-      <label>Chemin du bordereau<input name="label_path" value="${esc(c.label_path || "")}" placeholder="/get/order/label?tracking={tracking}">
-        <small class="muted">Laisser vide si le bureau renvoie une URL dans la réponse de création</small></label>
-      <label>Méthode
-        <select name="label_method">
-          ${["GET", "POST"].map((m) => `<option ${(c.label_method || "GET") === m ? "selected" : ""}>${m}</option>`).join("")}
-        </select></label>
-    </div>
-    <label>Corps de la requête de bordereau (si POST)
-      <textarea name="label_body" rows="4" spellcheck="false" class="mono">${esc(c.label_body || "")}</textarea></label>
-
-    <label>Corps de la requête de suivi (pour les API en POST)
-      <textarea name="status_body" rows="5" spellcheck="false" class="mono">${esc(c.status_body || "")}</textarea>
-      <small class="muted">Laisser vide pour un GET. <code>{{tracking}}</code> y est remplacé.</small></label>
-    <label>Correspondance des statuts (JSON)
-      <textarea name="status_map" rows="8" spellcheck="false" class="mono">${esc(c.status_map || "{}")}</textarea>
-      <small class="muted">À gauche le statut du transporteur, à droite le nôtre : <code>livree</code>, <code>expediee</code>, <code>annulee</code>.</small></label>
-
-    </details>
-    </fieldset>
+    ${manualCarrier ? `<div class="soon-inline">${icon("clock", 15)} <b>Prochainement</b> — les réglages techniques de cette ancienne connexion (en-têtes, chemins, corps de requête) n'ont plus besoin d'être écrits à la main : NovaDZ les fournira lui-même.</div>` : ""}
 
     <label class="ckv"><input type="checkbox" name="enabled" ${!c.id || c.enabled ? "checked" : ""}> Transporteur actif</label>
     <div class="form-actions"><button class="btn btn-primary">${c.id ? "Enregistrer" : "Connecter ce transporteur"}</button></div>
@@ -4364,37 +4248,18 @@ const dashRelances = (user, store, data) => {
   return dashLayout(user, store, `
 <header class="dash-head">
   <div><h1>Relances</h1>
-    <p class="muted">Sans API, tu cliques sur WhatsApp. Avec une API enregistrée, NovaDZ envoie seul, toutes les 10 minutes.</p></div>
+    <p class="muted">Un panier abandonné, une commande à confirmer : le message est prêt. Tu cliques sur WhatsApp, il part de ton téléphone.</p></div>
 </header>
 
 ${data.saved ? `<div class="alert ok">Réglages enregistrés.</div>` : ""}
 
 <section class="panel">
   <div class="panel-head"><h2>Envoi</h2>
-    <span class="pill ${store.msg_provider === "custom" ? "ok" : "off"}">${store.msg_provider === "custom" ? "Envoi automatique" : "manuel (WhatsApp)"}</span></div>
+    <span class="pill off">manuel — WhatsApp</span></div>
   <form method="post" action="/dashboard/relances">
-    <div class="grid-2">
-      <label>Mode d'envoi
-        <select name="msg_provider">
-          <option value="manual" ${store.msg_provider !== "custom" ? "selected" : ""}>Manuel — lien WhatsApp cliquable</option>
-          <option value="custom" ${store.msg_provider === "custom" ? "selected" : ""}>Automatique — une API envoie à ma place</option>
-        </select></label>
-      <label>Délai avant « abandonné » (minutes)
-        <input name="msg_delay_minutes" type="number" min="5" max="1440" value="${Number(store.msg_delay_minutes) || 45}"></label>
-    </div>
-    <div class="grid-2">
-      <label>URL de l'API d'envoi
-        <input name="msg_url" value="${esc(store.msg_url || "")}" placeholder="https://api.mon-fournisseur.dz/send">
-        <small class="muted">WhatsApp Cloud API, passerelle SMS locale, Make/Zapier…</small></label>
-      <label>En-tête d'authentification
-        <input name="msg_header_name" value="${esc(store.msg_header_name || "Authorization")}" placeholder="Authorization"></label>
-      <label>Valeur de l'en-tête
-        <input name="msg_header_value" type="password" autocomplete="off"
-          placeholder="${store.msg_header_value_enc ? "•••••• (enregistré, laisser vide pour garder)" : "Bearer ton_jeton"}"></label>
-    </div>
-    <label>Corps envoyé à l'API (JSON)
-      <textarea name="msg_body" rows="5" spellcheck="false" class="mono">${esc(store.msg_body || '{\n  "to": "{{phone}}",\n  "message": "{{texte}}"\n}')}</textarea>
-      <small class="muted"><code>{{phone}}</code> et <code>{{texte}}</code> sont remplacés.</small></label>
+    <label>Délai avant « abandonné » (minutes)
+      <input name="msg_delay_minutes" type="number" min="5" max="1440" value="${Number(store.msg_delay_minutes) || 45}">
+      <small class="muted">Le temps laissé au client avant de classer son panier comme abandonné.</small></label>
 
     <div class="panel-head" style="margin-top:14px"><h2>Messages</h2></div>
     <label>Relance de panier
@@ -4408,9 +4273,10 @@ ${data.saved ? `<div class="alert ok">Réglages enregistrés.</div>` : ""}
   </form>
 </section>
 
+${soonCard("Envoi automatique", "NovaDZ prépare l'envoi tout seul, sans clé à copier et sans compte chez un autre fournisseur. En attendant, le bouton WhatsApp de chaque message fait le travail.", ["Envoi automatique après le délai que tu choisis", "SMS de secours quand WhatsApp ne passe pas"])}
+
 <section class="panel">
-  <div class="panel-head"><h2>Journal des messages</h2>
-    ${store.msg_provider === "custom" ? `<form method="post" action="/dashboard/relances/envoyer" class="inline"><button class="btn btn-ghost btn-sm">Envoyer maintenant</button></form>` : ""}</div>
+  <div class="panel-head"><h2>Journal des messages</h2></div>
   ${data.messages.length ? `<table class="table">
     <thead><tr><th>Destinataire</th><th>Message</th><th>Type</th><th>État</th><th></th></tr></thead>
     <tbody>${data.messages.map(msgRow).join("")}</tbody>
@@ -5022,21 +4888,9 @@ ${saved ? `<div class="alert ok">Enregistré.</div>` : ""}
     <label>Nom affiché<input name="mail_name" value="${esc(store.mail_name || store.name || "")}"></label>
     <label>Adresse d'envoi<input type="email" name="mail_from" value="${esc(store.mail_from || "")}" placeholder="commandes@boutique.dz"></label>
   </div>
-  <h3>Serveur d'envoi (SMTP)</h3>
-  <p class="muted">Sans ces champs, les messages sont gardés dans le journal ci-dessous, mais ils ne partent pas. Gmail : smtp.gmail.com, port 587, mot de passe d'application.</p>
-  <div class="form-row two">
-    <label>Serveur<input name="smtp_host" value="${esc(store.smtp_host || "")}" placeholder="smtp.gmail.com"></label>
-    <label>Port<input name="smtp_port" type="number" value="${store.smtp_port || 587}"></label>
-  </div>
-  <div class="form-row two">
-    <label>Utilisateur<input name="smtp_user" value="${esc(store.smtp_user || "")}"></label>
-    <label>Mot de passe<input type="password" name="smtp_pass" placeholder="${store.smtp_pass ? "déjà enregistré" : ""}" autocomplete="new-password"></label>
-  </div>
   <div class="form-actions"><button class="btn btn-primary">Enregistrer</button></div>
 </form>
-<form method="post" action="/dashboard/mails/test" class="form-actions">
-  <button class="btn btn-ghost">Envoyer un essai</button>
-</form>
+${soonCard("Envoi des e-mails", "NovaDZ branchera l'envoi lui-même : rien à installer, aucun serveur à configurer, aucune clé à copier. Tes réglages ci-dessus sont déjà enregistrés et prêts.", ["Envoi automatique des messages depuis ton adresse", "Copie de chaque envoi dans le journal ci-dessous"])}
 <section class="panel">
   <h3>Journal</h3>
   ${rows.length ? `<table class="table"><tr><th>Quand</th><th>À</th><th>Sujet</th><th>État</th></tr>
@@ -5219,25 +5073,23 @@ const publicThemesPage = (rows, user) => {
 const startPage = (user, store, error) => {
   const METIERS = require("./metiers")
   const kind = store.site_kind === "vitrine" ? "vitrine" : "commerce"
+  const vitrine = kind === "vitrine"
   const wilaya = store.wilaya || ""
   const options = GEO.WILAYAS.map((w) => `<option ${w === wilaya ? "selected" : ""}>${esc(w)}</option>`).join("")
+  const liste = METIERS.forKind(kind)
   return dashLayout(user, store, `
 <style>
   .start-wrap{max-width:820px}
-  .start-wrap[data-kind="commerce"] [data-k="vitrine"]{display:none}
-  .start-wrap[data-kind="vitrine"] [data-k="commerce"]{display:none}
   .start-step{margin:0 0 14px}
   .start-step .panel-head{padding-bottom:10px}
   .start-step h2{font-size:16px}
   .start-step .why{font-size:13px;color:var(--muted);margin:-4px 0 14px}
-  .pick-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .pick-grid.metiers{grid-template-columns:1fr 1fr 1fr}
+  .pick-grid.metiers{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
   .pick{position:relative;display:block;cursor:pointer}
   .pick input{position:absolute;opacity:0;pointer-events:none}
   .pick-in{display:flex;align-items:center;gap:10px;height:100%;padding:13px 14px;border:1px solid var(--line);
     border-radius:10px;background:#fff;transition:border-color .15s,box-shadow .15s,background .15s}
   .pick-in b{display:block;font-size:13.5px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
-  .pick-in small{display:block;font-size:12px;color:var(--muted);margin-top:2px;line-height:1.35}
   .pick-in svg{color:var(--muted)}
   .pick input:checked + .pick-in{border-color:var(--ink);box-shadow:0 0 0 3px rgba(17,17,17,.10);background:#fff}
   .pick input:checked + .pick-in svg{color:var(--ink)}
@@ -5248,8 +5100,12 @@ const startPage = (user, store, error) => {
   .start-go{display:flex;align-items:center;gap:14px;margin:18px 0 40px}
   .start-go .btn{height:44px;padding:0 26px;font-size:14px}
   .start-go span{font-size:12.5px;color:var(--muted)}
+  .start-switch{margin:0 0 22px;font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .start-switch button{height:30px;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:#fff;
+    font:inherit;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer}
+  .start-switch button:hover{background:var(--bg-sub2)}
   @media(max-width:760px){
-    .pick-grid,.pick-grid.metiers,.start-contact{grid-template-columns:1fr}
+    .pick-grid.metiers,.start-contact{grid-template-columns:1fr}
     .start-go{flex-direction:column;align-items:stretch}
   }
 </style>
@@ -5257,40 +5113,42 @@ const startPage = (user, store, error) => {
 <header class="dash-head">
   <div>
     <h1>Bonjour ${esc((user.name || "").split(" ")[0] || "")}</h1>
-    <p class="muted"><span data-k="commerce">Trois questions, et votre boutique est prête.</span><span data-k="vitrine">Trois questions, et votre site est prêt.</span> Rien n'est définitif : tout se change ensuite.</p>
+    <p class="muted">${vitrine
+      ? "Trois réponses, et votre site est prêt. Tout est obligatoire, rien n'est définitif : tout se change ensuite."
+      : "Trois réponses, et votre boutique est prête. Tout est obligatoire, rien n'est définitif : tout se change ensuite."}</p>
   </div>
 </header>
 ${error ? `<div class="alert">${esc(error)}</div>` : ""}
+
+<div class="start-switch">
+  <span>Vous avez choisi : <b>${vitrine ? "un site vitrine (montrer mon travail)" : "une boutique (vendre en ligne)"}</b>.</span>
+  <form method="post" action="/demarrer/type">
+    <input type="hidden" name="kind" value="${vitrine ? "commerce" : "vitrine"}">
+    <button type="submit">${vitrine ? "Je voulais plutôt une boutique" : "Je voulais plutôt un site vitrine"}</button>
+  </form>
+</div>
+
 <form method="post" action="/demarrer">
   <section class="panel start-step">
-    <div class="panel-head"><h2>1. Vous voulez…</h2><span class="muted small">choisissez une seule réponse</span></div>
-    <div class="pick-grid">
-      <label class="pick">
-        <input type="radio" name="kind" value="commerce" ${kind === "commerce" ? "checked" : ""} required>
-        <span class="pick-in">${icon("cart", 18)}
-          <span><b>Vendre en ligne</b><small>Un catalogue, un panier, des commandes à livrer.</small></span>
-          <span class="tick" aria-hidden="true"></span>
-        </span>
-      </label>
-      <label class="pick">
-        <input type="radio" name="kind" value="vitrine" ${kind === "vitrine" ? "checked" : ""} required>
-        <span class="pick-in">${icon("layout", 18)}
-          <span><b>Montrer ce que je fais</b><small>Un site avec vos réalisations et un formulaire à remplir.</small></span>
-          <span class="tick" aria-hidden="true"></span>
-        </span>
-      </label>
+    <div class="panel-head">
+      <h2>1. ${vitrine ? "Le nom de votre site" : "Le nom de votre boutique"}</h2>
     </div>
+    <p class="why">${vitrine
+      ? "Le nom qui s'affiche en haut de votre site, et dans le lien que vous partagez."
+      : "Le nom qui s'affiche en haut de votre boutique, sur les factures et dans le lien que vous partagez."}</p>
+    <label>Nom <input name="store_name" required maxlength="60" value="${esc(store.name || "")}" placeholder="${vitrine ? "Atelier Lina" : "Amina Mode"}"></label>
+    <p class="start-addr">${icon("globe", 14)}<span>Ton adresse gratuite, déjà ouverte :</span> <b>${esc(freeAddress(store))}</b> <span class="muted">Rien à acheter, rien à régler.</span></p>
   </section>
 
   <section class="panel start-step">
     <div class="panel-head">
-      <h2><span data-k="commerce">2. Qu'est-ce que vous vendez ?</span><span data-k="vitrine">2. Quel est votre métier ?</span></h2>
-      <span class="muted small"><span data-k="commerce">le produit que vous vendez</span><span data-k="vitrine">ce que vous montrez</span></span>
+      <h2>2. ${vitrine ? "Votre activité" : "Ce que vous vendez"}</h2>
     </div>
-    <p class="why" data-k="commerce">Ça choisit la mise en page de départ. Vous pourrez la changer autant de fois que vous voulez.</p>
-    <p class="why" data-k="vitrine">Ça choisit la présentation de départ : vos réalisations, votre présentation, et un formulaire pour vous écrire. Aucun produit, aucun panier.</p>
+    <p class="why">${vitrine
+      ? "Ça choisit la présentation de départ : vos réalisations, votre présentation, un formulaire pour vous écrire. Aucun produit, aucun panier."
+      : "Ça choisit la mise en page de départ. Vous pourrez la changer autant de fois que vous voulez."}</p>
     <div class="pick-grid metiers">
-      ${METIERS.LIST.map((m) => `<label class="pick">
+      ${liste.map((m) => `<label class="pick">
         <input type="radio" name="metier" value="${esc(m.id)}" required>
         <span class="pick-in">${icon(m.icon, 17)}<span><b>${esc(m.label)}</b></span><span class="tick" aria-hidden="true"></span></span>
       </label>`).join("")}
@@ -5299,14 +5157,14 @@ ${error ? `<div class="alert">${esc(error)}</div>` : ""}
 
   <section class="panel start-step">
     <div class="panel-head">
-      <h2><span data-k="commerce">3. Comment un client vous joint ?</span><span data-k="vitrine">3. Où et comment vous joindre ?</span></h2>
-      <span class="muted small">obligatoire</span>
+      <h2>3. ${vitrine ? "Où et comment vous joindre ?" : "Comment un client vous joint ?"}</h2>
     </div>
-    <p class="why" data-k="commerce">Le téléphone s'affiche sur la boutique et sert à confirmer les commandes. La wilaya sert à la livraison.</p>
-    <p class="why" data-k="vitrine">Le téléphone et la ville s'affichent sur votre site. Pas de commande ni de livraison à préparer.</p>
+    <p class="why">${vitrine
+      ? "Le téléphone et la ville s'affichent sur votre site. Pas de commande ni de livraison à préparer."
+      : "Le téléphone s'affiche sur la boutique et sert à confirmer les commandes. La wilaya sert à la livraison."}</p>
     <div class="start-contact">
       <label>Téléphone<input name="phone" required inputmode="tel" autocomplete="tel" value="${esc(store.phone || "")}" placeholder="0555 12 34 56"></label>
-      <label><span data-k="commerce">Wilaya (livraison)</span><span data-k="vitrine">Ville (wilaya)</span>
+      <label>${vitrine ? "Ville (wilaya)" : "Wilaya (livraison)"}
         <select name="wilaya" required>
           <option value="" ${wilaya ? "" : "selected"} disabled>Choisir</option>
           ${options}
@@ -5316,27 +5174,17 @@ ${error ? `<div class="alert">${esc(error)}</div>` : ""}
   </section>
 
   <div class="start-go">
-    <button class="btn btn-primary" type="submit"><span data-k="commerce">C'est parti</span><span data-k="vitrine">Créer mon site</span></button>
-    <span data-k="commerce">Vous arrivez sur votre tableau de bord, avec un exemple prêt à corriger.</span>
-    <span data-k="vitrine">Vous arrivez dans le Studio, avec une page prête à corriger.</span>
+    <button class="btn btn-primary" type="submit">${vitrine ? "Créer mon site" : "C'est parti"}</button>
+    <span>${vitrine
+      ? "Vous arrivez dans le Studio, avec une page prête à corriger."
+      : "Vous arrivez sur votre tableau de bord, avec un exemple prêt à corriger."}</span>
   </div>
 </form>
-<script>
-/* Changer « vendre / montrer » change les questions tout de suite : un site qui
-   montre n'a ni produit ni livraison, donc on ne lui demande pas de boutique. */
-(function () {
-  var w = document.querySelector('.start-wrap')
-  if (!w) return
-  w.querySelectorAll('input[name=kind]').forEach(function (r) {
-    r.addEventListener('change', function () { if (r.checked) w.setAttribute('data-kind', r.value) })
-  })
-})()
-</script>
 </div>`, "home")
 }
 
 module.exports = {
-  esc, money, dashPayments, dashSocial, dashThemes, authPage, welcomePage, logoutPage, storefront, productPage, cartPage,
+  esc, money, dashPayments, dashSocial, dashThemes, authPage, logoutPage, storefront, productPage, cartPage,
   checkoutPage, orderDone, contentPage, favPage, dashHome, dashProducts, productForm, dashOrders,
   dashSettings, dashDesign, dashPages, pageForm, dashDiscounts, dashOrderDetail, adminPage,
   legalPage, customerAccount, orderTrack, invoice, dashStats, dashForm, dashCategories, dashShipping, dashReviews, dashCustomers, adminHealth, adminLogs, dashStock,

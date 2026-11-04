@@ -666,14 +666,41 @@ app.get("/demarrer", requireAuth, requireStore, (req, res) => {
   res.send(V.startPage(req.user, req.store, null))
 })
 
+/* Changer de type de site (boutique ↔ vitrine) avant l'envoi du formulaire.
+   On ne touche à rien d'autre : le formulaire suivant sera celui de l'autre
+   métier, avec ses propres champs. */
+app.post("/demarrer/type", requireAuth, requireStore, (req, res) => {
+  const { store } = req
+  const kind = req.body.kind === "vitrine" ? "vitrine" : "commerce"
+  if (kind !== store.site_kind) {
+    const draft = readOwnDraft({ ...store, site_kind: kind })
+    const chosen = draft.design && draft.design.siteTemplate
+    /* le modèle gardé doit exister dans la nouvelle famille, sinon on repart
+       sur le premier modèle de cette famille */
+    const firstOfKind = (SITES.forStore(kind)[0] || {}).id || ""
+    const garde = SITES.isSiteForStore(chosen, kind) ? chosen : firstOfKind
+    draft.design = SECTIONS.sanitizeDesign({ ...draft.design, siteTemplate: garde }, { ...store, site_kind: kind })
+    db.prepare("UPDATE stores SET site_kind = ?, draft = ? WHERE id = ?")
+      .run(kind, JSON.stringify(draft), store.id)
+  }
+  res.redirect("/demarrer")
+})
+
 app.post("/demarrer", requireAuth, requireStore, (req, res) => {
   const { store } = req
   const again = (msg) => res.status(400).send(V.startPage(req.user, store, msg))
-  const kind = req.body.kind === "vitrine" ? "vitrine" : "commerce"
+  /* le type vient de la boutique (choisi à l'inscription), pas du formulaire :
+     impossible d'envoyer un métier de vitrine dans un formulaire de boutique */
+  const kind = store.site_kind === "vitrine" ? "vitrine" : "commerce"
+  const name = String(req.body.store_name || "").trim()
   const metier = METIERS.get(String(req.body.metier || ""))
   const phone = String(req.body.phone || "").trim()
   const wilaya = String(req.body.wilaya || "").trim()
+  if (!name) return again(kind === "vitrine" ? "Le nom de votre site est obligatoire." : "Le nom de votre boutique est obligatoire.")
   if (!metier) return again("Choisissez ce que vous vendez (ou ce que vous montrez).")
+  if (!METIERS.allows(metier, kind)) {
+    return again(kind === "vitrine" ? "Ce choix n'est pas proposé pour un site vitrine." : "Ce choix n'est pas proposé pour une boutique.")
+  }
   if (phone.replace(/\D/g, "").length < 9) return again("Le téléphone doit contenir au moins 9 chiffres.")
   if (!wilaya || !GEO.WILAYAS.includes(wilaya)) return again("Choisissez votre wilaya.")
 
@@ -683,15 +710,14 @@ app.post("/demarrer", requireAuth, requireStore, (req, res) => {
      ce que la personne a déjà écrit */
   const tagline = String(store.tagline || "").trim() || metier.tagline
   const about = String(store.about || "").trim() || metier.about
-  const address = String(store.legal_address || "").trim()
   const whatsapp = String(store.whatsapp || "").trim() || phone
 
-  db.prepare(`UPDATE stores SET site_kind = ?, theme = ?, tagline = ?, about = ?,
+  db.prepare(`UPDATE stores SET name = ?, site_kind = ?, theme = ?, tagline = ?, about = ?,
       phone = ?, whatsapp = ?, wilaya = ? WHERE id = ?`)
-    .run(kind, theme, tagline, about, phone, whatsapp, wilaya, store.id)
+    .run(name, kind, theme, tagline, about, phone, whatsapp, wilaya, store.id)
 
   /* le modèle de site éventuel doit rester de la même famille que la boutique */
-  const draft = readOwnDraft({ ...store, site_kind: kind })
+  const draft = readOwnDraft({ ...store, name, site_kind: kind })
   const site = draft.design && draft.design.siteTemplate
   if (site && !SITES.isSiteForStore(site, kind)) {
     draft.design = SECTIONS.sanitizeDesign({ ...draft.design, siteTemplate: "" }, { ...store, site_kind: kind })
@@ -706,9 +732,8 @@ app.post("/demarrer", requireAuth, requireStore, (req, res) => {
     draft.design = SECTIONS.sanitizeDesign({ ...draft.design, siteTemplate: want }, { ...store, site_kind: kind })
     db.prepare("UPDATE stores SET draft = ? WHERE id = ?").run(JSON.stringify(draft), store.id)
   }
-  if (!address) db.prepare("UPDATE stores SET legal_address = ? WHERE id = ?").run("", store.id)
   logRow("info", `Premier écran terminé : ${store.slug} (${kind}, ${metier.id})`)
-  res.redirect("/dashboard")
+  res.redirect(kind === "vitrine" ? "/dashboard/studio" : "/dashboard")
 })
 
 /* Après connexion : l'écran d'accueil seulement si la boutique n'a pas encore
@@ -717,7 +742,7 @@ const afterLogin = (user) => {
   const store = db.prepare("SELECT phone, wilaya FROM stores WHERE owner_id = ? ORDER BY id LIMIT 1").get(user.id)
   if (!store) return user.role === "admin" ? "/admin" : "/dashboard"
   const digits = String(store.phone || "").replace(/\D/g, "")
-  return digits.length >= 9 && store.wilaya ? "/dashboard" : "/welcome"
+  return digits.length >= 9 && store.wilaya ? "/dashboard" : "/demarrer"
 }
 
 app.get("/login", (req, res) => {
@@ -800,38 +825,14 @@ app.post("/login", (req, res) => {
   res.redirect(afterLogin(user))
 })
 
+/* Ancienne adresse de l'écran « Tes infos ». Un seul onboarding désormais :
+   on renvoie vers /demarrer, qui pose les questions du type de site choisi. */
 app.get("/welcome", (req, res) => {
   const { user } = auth(req)
   if (!user) return res.redirect("/login")
-  const store = db.prepare("SELECT * FROM stores WHERE owner_id = ? ORDER BY id LIMIT 1").get(user.id)
-  res.send(V.welcomePage(user, store, null))
+  res.redirect("/demarrer")
 })
-
-app.post("/welcome", (req, res) => {
-  const { user, session } = auth(req)
-  if (!user) return res.redirect("/login")
-  const GEO = require("./src/geo")
-  const stores = db.prepare("SELECT * FROM stores WHERE owner_id = ? ORDER BY id").all(user.id)
-  const store = stores[0]
-  if (!store) return res.redirect(user.role === "admin" ? "/admin" : "/dashboard")
-  const phone = String(req.body.phone || "").replace(/[^0-9+ ]/g, "").slice(0, 20)
-  const whatsapp = String(req.body.whatsapp || "").replace(/[^0-9+ ]/g, "").slice(0, 20)
-  const wilaya = String(req.body.wilaya || "").trim()
-  const address = String(req.body.address || "").trim().slice(0, 200)
-  const draft = { ...store, phone, whatsapp, wilaya, legal_address: address }
-  if (phone.replace(/\D/g, "").length < 9) {
-    return res.status(400).send(V.welcomePage(user, draft, "Le numéro de téléphone est obligatoire."))
-  }
-  if (!GEO.WILAYAS.includes(wilaya)) {
-    return res.status(400).send(V.welcomePage(user, draft, "Choisis une wilaya."))
-  }
-  const ids = stores.map((s) => s.id)
-  db.prepare(`UPDATE stores SET phone = ?, whatsapp = ?, wilaya = ?, legal_address = ? WHERE id IN (${ids.map(() => "?").join(",")})`)
-    .run(phone, whatsapp || phone, wilaya, address, ...ids)
-  session.storeId = store.id
-  saveSession(session.sid, session)
-  res.redirect("/dashboard")
-})
+app.post("/welcome", (req, res) => res.redirect("/demarrer"))
 
 /* Déconnexion en POST : un simple lien (ou une image piégée sur un autre site)
    ne doit pas pouvoir déconnecter le marchand. Le GET affiche une confirmation. */
@@ -3057,17 +3058,26 @@ app.post("/dashboard/marketing/security", requireAuth, requireStore, (req, res) 
   res.redirect("/dashboard/marketing")
 })
 
+/* Seuls les identifiants de pixels sont demandés au marchand. Un champ absent
+   du formulaire (jetons serveur, code de test) ne touche pas la valeur déjà
+   enregistrée : la page publique ne les montre plus. */
 app.post("/dashboard/marketing/pixels", requireAuth, requireStore, (req, res) => {
-  db.prepare(`UPDATE stores SET pixels_server = ?, pixel_test_code = ?, pixel_meta = ?, meta_token = ?,
-              pixel_tiktok = ?, tiktok_token = ?, snap_pixel = ?, snap_token = ? WHERE id = ?`)
-    .run(req.body.pixels_server ? 1 : 0,
-      String(req.body.pixel_test_code || "").trim().slice(0, 40),
-      String(req.body.pixel_meta || "").replace(/[^0-9]/g, "").slice(0, 24),
-      String(req.body.meta_token || "").trim().slice(0, 400),
-      String(req.body.pixel_tiktok || "").replace(/[^A-Z0-9]/gi, "").slice(0, 32),
-      String(req.body.tiktok_token || "").trim().slice(0, 400),
-      String(req.body.snap_pixel || "").trim().slice(0, 60),
-      String(req.body.snap_token || "").trim().slice(0, 400),
+  const b = req.body || {}
+  const garde = (k, f) => (k in b ? f(b[k]) : null)
+  const txt = (v, n) => String(v || "").trim().slice(0, n)
+  db.prepare(`UPDATE stores SET
+      pixels_server = COALESCE(?, pixels_server), pixel_test_code = COALESCE(?, pixel_test_code),
+      pixel_meta = COALESCE(?, pixel_meta), meta_token = COALESCE(?, meta_token),
+      pixel_tiktok = COALESCE(?, pixel_tiktok), tiktok_token = COALESCE(?, tiktok_token),
+      snap_pixel = COALESCE(?, snap_pixel), snap_token = COALESCE(?, snap_token) WHERE id = ?`)
+    .run(garde("pixels_server", (v) => (v ? 1 : 0)),
+      garde("pixel_test_code", (v) => txt(v, 40)),
+      garde("pixel_meta", (v) => String(v || "").replace(/[^0-9]/g, "").slice(0, 24)),
+      garde("meta_token", (v) => txt(v, 400)),
+      garde("pixel_tiktok", (v) => String(v || "").replace(/[^A-Z0-9]/gi, "").slice(0, 32)),
+      garde("tiktok_token", (v) => txt(v, 400)),
+      garde("snap_pixel", (v) => txt(v, 60)),
+      garde("snap_token", (v) => txt(v, 400)),
       req.store.id)
   res.redirect("/dashboard/marketing")
 })
