@@ -14,7 +14,7 @@
 module.exports = (H) => {
   const {
     esc, money, page, PREVIEW_SCRIPT, icon, img, initial,
-    readDesign, storeStyle, designClass, navLinks, socialBar, footerExtras, legalBar,
+    readDesign, storeStyle, designClass, navLinks, socialBar, footerExtras, legalBar, announceHtml,
     trustInline, galleryHtml, addFormV, reviewsHtml, promoBox, discountRow,
     deliveryBlock, payBlock, CF, homeFromSections, categories, price, slug, emptyCartHref,
   } = H
@@ -78,7 +78,7 @@ module.exports = (H) => {
 <link rel="stylesheet" href="/theme-fonts.css">
 <link rel="stylesheet" href="/themes-pro.css">
 <!-- les réglages du marchand passent après le CSS du thème : ils gagnent -->
-${storeStyle(D, store.theme)}
+${storeStyle(D, store.theme)}${announceHtml(store)}
 ${cfg.top ? cfg.top(store) : ""}
 ${leadBanner}
 <div class="tpx-headwrap${overlayNow && (!isHome || hasFilters) ? " tpx-head-solid" : ""}">${cfg.head(store, cartCount)}</div>

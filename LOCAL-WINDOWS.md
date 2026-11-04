@@ -123,6 +123,7 @@ Tu arrives sur le tableau de bord marchand. Les écrans à regarder dans cet ord
 | **Produits** | la liste s'affiche, tu peux ouvrir une fiche |
 | **Commandes** | tu vois les commandes de démonstration, clique sur une : facture, bon de livraison |
 | **Design** | l'éditeur s'ouvre, les sections se réordonnent |
+| **Design → Studio** | choisis un template « site complet », le Studio s'ouvre : clique un texte, change une image, **Publier** |
 | **Landings** | les pages de vente par produit |
 | **Anti-fraude & pixels** | les réglages CAPTCHA et le score de risque |
 | **Transporteur** | choisis Yalidine dans la liste, tous les champs se remplissent |

@@ -50,9 +50,68 @@ Sans mode démo, seul un admin est créé, avec un mot de passe aléatoire affic
 ### Tests
 
 ```bash
-npm test        # 233 tests : parcours, stock, transporteurs, relances, checkout bilingue, photos,
-                #           vitrine libre (thèmes, CSS/HTML, pages, achat direct), interface de l'éditeur
+npm test        # 244 tests : parcours, stock, transporteurs, relances, checkout bilingue, photos,
+                #           vitrine libre (thèmes, CSS/HTML, pages, achat direct), interface de l'éditeur,
+                #           templates « site complet » et Studio (brouillon, publication, CSP)
 ```
+
+---
+
+## Studio — éditer un template « site complet »
+
+Un template (`site1`…`site16`, ou un template importé) n'est plus figé : le marchand
+l'ouvre dans le **Studio** et modifie son site comme une page, sans écrire de HTML.
+
+- **Où** : `Tableau de bord → Design → Studio` (le lien apparaît dès qu'un template est
+  choisi), ou directement `/dashboard/studio`. Choisir un template dans la galerie ouvre
+  le Studio tout de suite.
+- **Découpé en sections, automatiquement** : quel que soit le thème — les 16 modèles
+  fournis ou un thème importé — la page est découpée en sections dès l'ouverture du
+  Studio. Chaque section déplie ses **calques** : ses textes (modifiables sur place),
+  ses photos (vignette + remplacer) et ses boutons/liens (libellé + adresse). Une section
+  se sélectionne, se replie, se masque, se duplique, se supprime et se déplace par
+  glisser-déposer. La découpe est calculée sur la page rendue (`public/_studio/frame.js`,
+  `API.sections` / `API.layers`) : blocs `<section>/<header>/<footer>` quand le thème en a,
+  descente dans les conteneurs sinon, et redécoupage des blocs plus hauts que 2,5 écrans.
+- **Ce qu'on peut faire** : cliquer un texte pour le réécrire, changer une image
+  (en renvoyer une **ou réutiliser une photo déjà envoyée**), régler couleurs, polices,
+  espacements, ajouter/supprimer/masquer des éléments, créer des **pages
+  supplémentaires** (`/{boutique}/s/{page}`), annuler/rétablir (`Ctrl+Z` / `Ctrl+Y`),
+  aperçu ordinateur / tablette / mobile.
+- **Brouillon puis publication** : rien n'est visible par les clients avant **Publier**.
+  L'enregistrement est automatique (2,5 s après la dernière modification) ; le bouton
+  **Publier** clignote tant que le brouillon n'est pas en ligne.
+- **Deux familles, jamais mélangées** : un template « boutique » garde les produits, le
+  panier et la commande ; un template « vitrine » garde le formulaire de contact, sans
+  panier. La galerie ne propose que les templates de la famille de la boutique.
+- **Sécurité** : le HTML enregistré est assaini côté serveur (scripts retirés, sauf les
+  scripts fournis avec le template), la page publique est servie avec une CSP stricte,
+  et la taille est limitée à 6 Mo par page (40 pages max).
+
+### Tester le Studio (découpage + calques)
+
+```bash
+npm run test:studio                 # les 16 modèles, un tableau PASS/FAIL
+npm run test:studio -- site5 site11 # seulement ceux-là
+```
+
+Le test démarre son propre serveur sur une base temporaire, ouvre chaque modèle dans
+un vrai navigateur et vérifie : au moins 5 sections, **aucune section vide**, des calques
+de vrais types (textes / photos / liens), l'édition d'un texte qui change la page,
+**Enregistrer puis recharger** (la modification doit survivre), et aucune erreur JS.
+Il lui faut `puppeteer-core` (déjà en devDependency) et un Chrome installé
+(`CHROME_PATH=…` si Chrome n'est pas à l'emplacement habituel).
+
+### Importer un template
+
+```bash
+npm run add-template -- <fichier.html ou URL> --name "Mon modèle" [--kind vitrine|commerce]
+```
+
+Nécessite **Python 3.9+** (aucun paquet à installer). L'importateur range le HTML, les
+images, les CSS et les scripts du template dans `public/templates/<id>/`, crée sa capture
+d'écran et l'ajoute au catalogue : le template apparaît alors dans la galerie et
+s'édite dans le Studio comme les autres.
 
 ---
 

@@ -12,6 +12,20 @@ const db = require("./db")
 const SITES = require("./site-templates")
 
 db.exec(`
+/* En-tête et pied de page communs à toutes les pages d'un site.
+   Pourquoi une table à part ? Un débutant change son menu une fois : il ne
+   doit pas avoir à le refaire sur chaque page. La page « d'origine » n'est pas
+   modifiée en base : c'est à la lecture qu'on applique le même en-tête partout,
+   donc retirer le partage rend à chaque page son propre en-tête. */
+CREATE TABLE IF NOT EXISTS studio_shared (
+  store_id   INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  template   TEXT NOT NULL,
+  kind       TEXT NOT NULL,
+  html       TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (store_id, template, kind)
+);
+
 CREATE TABLE IF NOT EXISTS studio_site_pages (
   store_id   INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
   pkey       TEXT NOT NULL,
@@ -88,6 +102,7 @@ const saveDraft = (storeId, tpl, key, html, name) => {
   if (!r) db.prepare("INSERT INTO studio_site_pages (store_id, pkey, name, template, draft) VALUES (?, ?, ?, ?, ?)").run(storeId, key, name || (key === "home" ? "Accueil" : key), tpl, html)
   else if (r.template !== tpl) db.prepare("UPDATE studio_site_pages SET template = ?, draft = ?, live = '', updated_at = datetime('now') WHERE store_id = ? AND pkey = ?").run(tpl, html, storeId, key)
   else db.prepare("UPDATE studio_site_pages SET draft = ?, updated_at = datetime('now') WHERE store_id = ? AND pkey = ?").run(html, storeId, key)
+  remember(storeId, tpl, html)
 }
 
 /** Publie toutes les pages qui ont un brouillon. Renvoie le nombre de pages publiées. */
@@ -96,11 +111,71 @@ const publishAll = (storeId, tpl) =>
 
 const reset = (storeId, key = "home") => db.prepare("DELETE FROM studio_site_pages WHERE store_id = ? AND pkey = ?").run(storeId, key)
 
+/** « Revenir à ce que voient mes clients » : le brouillon reprend la version
+ *  en ligne, page par page. C'est la sortie de secours quand un débutant s'est
+ *  perdu : il retrouve sous ses yeux exactement ce que voient ses clients,
+ *  sans rien republier. Les pages jamais publiées ne bougent pas. */
+const revertLive = (storeId, tpl) =>
+  Number(db.prepare("UPDATE studio_site_pages SET draft = live, updated_at = datetime('now') WHERE store_id = ? AND template = ? AND live != '' AND draft != live").run(storeId, tpl).changes)
+
+/* ------------------------- en-tête / pied communs ------------------------- */
+const HEADER_RE = /<header\b[^>]*>[\s\S]*?<\/header>/i
+const FOOTER_RE = /<footer\b[^>]*>[\s\S]*?<\/footer>/i
+const NAV_RE = /<nav\b[^>]*>[\s\S]*?<\/nav>/i
+const BLOCK_RE = { header: [HEADER_RE, NAV_RE], footer: [FOOTER_RE] }
+
+/** Extrait l'en-tête (ou le pied) d'une page. "" quand la page n'en a pas. */
+const pick = (html, kind) => {
+  for (const re of BLOCK_RE[kind] || []) {
+    const m = String(html || "").match(re)
+    if (m) return m[0]
+  }
+  return ""
+}
+
+const sharedOf = (storeId, tpl) => {
+  const rows = db.prepare("SELECT kind, html FROM studio_shared WHERE store_id = ? AND template = ?").all(storeId, tpl)
+  const out = { header: "", footer: "" }
+  for (const r of rows) if (r.kind in out) out[r.kind] = r.html || ""
+  return out
+}
+
+/** Mémorise l'en-tête et le pied de la page qu'on vient d'enregistrer.
+    Seulement s'ils existent : on n'efface jamais un partage par accident. */
+const remember = (storeId, tpl, html) => {
+  for (const kind of ["header", "footer"]) {
+    const block = pick(html, kind)
+    if (!block) continue
+    db.prepare(`INSERT INTO studio_shared (store_id, template, kind, html, updated_at)
+      VALUES (?, ?, ?, ?, datetime('now'))
+      ON CONFLICT(store_id, template, kind) DO UPDATE SET html = excluded.html, updated_at = excluded.updated_at`)
+      .run(storeId, tpl, kind, block)
+  }
+}
+
+/** Remplace l'en-tête et le pied d'une page par la version commune. */
+const applyShared = (storeId, tpl, html) => {
+  const shared = sharedOf(storeId, tpl)
+  let out = html
+  for (const kind of ["header", "footer"]) {
+    const block = shared[kind]
+    if (!block) continue
+    for (const re of BLOCK_RE[kind]) {
+      if (re.test(out)) { out = out.replace(re, () => block); break }
+    }
+  }
+  return out
+}
+
+const forgetShared = (storeId, tpl) =>
+  db.prepare("DELETE FROM studio_shared WHERE store_id = ? AND template = ?").run(storeId, tpl)
+
 /** mode : edit · draft (brouillon sinon en ligne) · live. "" = HTML d'origine du template (accueil seulement). */
 const html = (storeId, tpl, key = "home", mode = "live") => {
   const r = row(storeId, tpl, key)
   if (!r) return ""
-  return mode === "live" ? r.live || "" : r.draft || r.live || ""
+  const raw = mode === "live" ? r.live || "" : r.draft || r.live || ""
+  return raw ? applyShared(storeId, tpl, raw) : raw
 }
 
 const list = (storeId, tpl) => {
@@ -139,16 +214,32 @@ const status = (storeId, tpl) => {
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]))
 
-/** Coque du studio : tout le reste est dans /_studio/studio.js */
-const page = (store, tpl, st) => `<!doctype html>
-<html lang="fr"><head><meta charset="utf-8">
+/** Coque du studio : tout le reste est dans /_studio/studio.js.
+ *  En arabe, la page passe en écriture de droite à gauche et la table de
+ *  traduction est envoyée avec : le Studio se dessine dans le navigateur. */
+const page = (store, tpl, st) => {
+  /* La langue de l'atelier suit celle du tableau de bord (cookie `ndz_ui`,
+     bouton FR / ع), et retombe sur la langue de la vitrine : un marchand qui
+     travaille en arabe ne doit pas retrouver un Studio en français. */
+  const lang = require("./ui-ar").langNow() || require("./i18n").langNow(store)
+  const ar = lang === "ar"
+  const ARF = require("./fonts-ar")
+  return `<!doctype html>
+<html lang="${ar ? "ar" : "fr"}" dir="${ar ? "rtl" : "ltr"}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Studio — ${esc(store.name)}</title>
-<link rel="stylesheet" href="/_studio/studio.css">
-</head><body>
-<div id="st" data-slug="${esc(store.slug)}" data-name="${esc(store.name)}" data-tpl="${esc(tpl.id)}" data-tpl-name="${esc(tpl.name)}" data-edited="${st.edited ? 1 : 0}" data-published="${st.published ? 1 : 0}" data-unpublished="${st.unpublished ? 1 : 0}"></div>
+<title>${ar ? "الاستوديو" : "Studio"} — ${esc(store.name)}</title>
+<link rel="stylesheet" href="/inter-font.css">
+<link rel="stylesheet" href="/arabic-fonts.css">
+<link rel="stylesheet" href="/_studio/studio.css?v=3">
+${ar ? `<style>body.ar,body.ar h1,body.ar h2,body.ar h3,body.ar h4,body.ar button,body.ar input,body.ar textarea{font-family:${ARF.uiStack()}}</style>` : ""}
+</head><body${ar ? ' class="ar"' : ""}>
+<div id="st" data-slug="${esc(store.slug)}" data-name="${esc(store.name)}" data-tpl="${esc(tpl.id)}" data-tpl-name="${esc(tpl.name)}" data-edited="${st.edited ? 1 : 0}" data-published="${st.published ? 1 : 0}" data-unpublished="${st.unpublished ? 1 : 0}" data-lang="${lang}" data-ar-font="${esc(ARF.of(store).id)}" data-prix="${esc((() => { try { const d = JSON.parse(store.design || "{}"); return /^#[0-9a-f]{6}$/i.test(d.prix || "") ? d.prix : "" } catch (_) { return "" } })())}"></div>
+${ar ? `<script id="st-ar" type="application/json">${JSON.stringify(require("./studio-ar").table()).replace(/</g, "\\u003c")}</script>` : ""}
+${require("./i18n").current().req ? require("./ui-ar").switchHtml(require("./i18n").current().req) : ""}
 <script src="/_studio/assistant.js"></script>
 <script src="/_studio/studio.js"></script>
 </body></html>`
+}
 
-module.exports = { sanitize, saveDraft, publishAll, reset, html, list, createPage, deletePage, status, page, isKey, FRAME_CSP, MAX }
+module.exports = { sanitize, saveDraft, publishAll, reset, revertLive, html, list, createPage, deletePage, status, page, isKey, FRAME_CSP, MAX,
+  sharedOf, forgetShared }
