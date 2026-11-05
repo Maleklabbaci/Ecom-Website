@@ -2192,6 +2192,10 @@ app.get("/:slug", (req, res, next) => {
     return res.type("html").send(atelierPage({
       mode: "preview", slug: store.slug, name: store.name, shop: atelierShop(store),
       state: st.draft || st.live,
+      /* Rien n'a encore été enregistré : sans ce drapeau, l'aperçu restait
+         VIDE (le Studio ne construisait pas le site du marchand). C'est ce
+         qui faisait croire que l'aperçu était cassé. */
+      fresh: !st.draft && !st.live,
     }))
   }
   if (!st.live) return next()
@@ -2253,7 +2257,10 @@ app.get("/apercu/:token", (req, res, next) => {
   const store = db.prepare("SELECT * FROM stores WHERE id = ?").get(v.storeId)
   if (!store) return res.status(404).send("Boutique introuvable.")
   res.set({ "Cache-Control": "no-store", "X-Robots-Tag": "noindex" })
-  res.send(atelierPage({ mode: "preview", slug: store.slug, name: store.name, shop: atelierShop(store), state: v.state }))
+  res.send(atelierPage({
+    mode: "preview", slug: store.slug, name: store.name, shop: atelierShop(store),
+    state: v.state, fresh: !v.state,
+  }))
 })
 
 /* pages supplémentaires du studio : /<boutique>/s/<page> */

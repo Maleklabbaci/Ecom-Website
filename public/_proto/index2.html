@@ -1975,6 +1975,11 @@ body.advmode .advmark{display:inline-flex}
 .vide p{margin:0 0 14px;font-size:12.8px;color:#8A8A93;line-height:1.5}
 .videbtn{display:inline-flex;align-items:center;height:34px;padding:0 16px;border-radius:9px;
   background:#111;color:#fff;text-decoration:none;font-size:12.5px;font-weight:600}
+/* la vignette d'un produit qui n'a pas encore de photo */
+.card .im .nop,.ln .im .nop{display:flex;align-items:center;justify-content:center;width:100%;height:100%;
+  background:linear-gradient(145deg,#F1F1F4,#E7E7EC);color:#9A9AA4;font-size:26px;font-weight:600;
+  font-family:'Jost',system-ui,sans-serif;border-radius:inherit}
+.vide-contact span{color:#8A8A93;font-size:12.5px;line-height:1.5}
 #videBar{display:none;align-items:center;gap:12px;flex-wrap:wrap;background:#FFF8E6;border-bottom:1px solid #F0E2BC;
   padding:9px 16px;font-size:12.5px;color:#6b5a20}
 #videBar.on{display:flex}
@@ -2444,9 +2449,17 @@ const secs = () => D.pages[D.page]
 const find = (id) => secs().find((s) => s.id === id)
 
 /* ================= la page, telle que les clients la voient ================= */
+/* Un produit sans photo n'est pas une image cassée : c'est une vignette
+   douce avec la première lettre de son nom. Le marchand voit tout de suite
+   à quoi ressemblera sa page, même avant d'avoir pris les photos. */
+function vignette(src, titre) {
+  if (src) return `<img src="${esc(src)}" alt="">`
+  const l = String(titre || '').trim().charAt(0).toUpperCase()
+  return `<span class="nop">${esc(l || '·')}</span>`
+}
 function cards(list, cls, editable) {
   const pz = editable ? `class="zone pz" data-z="price"` : ''
-  return `<div class="grid${cls ? ' ' + cls : ''}">${list.map((p) => `<div class="card"><div class="im"><img src="${p.i}" alt=""></div><b>${esc(p.t)}</b><span ${pz}>${p.p} ${cur()}</span></div>`).join('')}</div>`
+  return `<div class="grid${cls ? ' ' + cls : ''}">${list.map((p) => `<div class="card"><div class="im">${vignette(p.i, p.t)}</div><b>${esc(p.t)}</b><span ${pz}>${p.p} ${cur()}</span></div>`).join('')}</div>`
 }
 function secHTML(sec, editable) {
   const S = D.shop
@@ -2479,10 +2492,18 @@ function secHTML(sec, editable) {
         <span class="util">Livraison 69 wilayas · payez à la réception</span>
         <span class="crumb">Accueil &nbsp;/&nbsp; ${esc(STORE.nav[1] ? navWord(STORE.nav[1]) : 'Boutique')}</span></div>`
     }
-    case 'hero':
+    case 'hero': {
+      /* Le grand titre ne reste JAMAIS vide. Une boutique qui n'a pas encore
+         écrit sa phrase d'accueil montre son nom en gros, et la promesse de
+         base en dessous — pas un trou blanc au milieu de la page. */
+      const accroche = String(S.tag || '').trim()
+      const nom = String(S.name || '').trim() || 'Votre boutique'
+      const grand = accroche || nom
+      const petit = accroche ? nom : (W('ship') || 'Livraison partout en Algérie, paiement à la réception.')
       return `<div ${z('hero')}>${im(sec.img)}
-        <div class="cap"><h2>${esc(S.tag)}</h2><p>${esc(S.name)}</p></div>
+        <div class="cap"><h2>${esc(grand)}</h2><p>${esc(petit)}</p></div>
         <div class="cta"><a href="#">${esc((sec.btn && sec.btn.label) || 'Acheter')}</a></div></div>`
+    }
     case 'prods':
       /* Zéro produit : on le dit franchement, et on donne le bouton. */
       if (sansProduit()) return `<div ${z('wrap')}><div class="vide"><b>Aucun produit pour l'instant</b>
@@ -2501,14 +2522,22 @@ function secHTML(sec, editable) {
     }
     case 'faq':
       return `<div ${z('wrap faq' + (v === 1 ? ' two' : ''))}>${sec.items.map((f) => `<div class="q"><b>${esc(f.q)}</b><p>${esc(f.a)}</p></div>`).join('')}<a class="faqbtn" href="#">Poser ma question</a></div>`
-    case 'contact':
-      const adr = STORE.legal_address || STORE.wilaya
-      const wa = STORE.whatsapp || STORE.phone
-      if (v === 1) return `<div ${z('wrap')}><div class="maprow"><div class="mapbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg></div><div><div class="contact" style="flex-direction:column;gap:10px"><div><b>Adresse</b><span>${esc(adr)}</span></div><div><b>Téléphone</b><span>${esc(STORE.phone)}</span></div></div></div></div></div>`
-      if (v === 2) return `<div ${z('wrap')}><div class="contact"><div><b>Téléphone</b><span>${esc(STORE.phone)}</span></div><div><b>Adresse</b><span>${esc(adr)}</span></div></div><a class="wa" href="#">Écrire sur WhatsApp ${esc(wa)}</a></div>`
-      return `<div ${z('wrap')}><div class="contact"><div><b>Téléphone</b><span>${esc(STORE.phone)}</span></div><div><b>Adresse</b><span>${esc(adr)}</span></div><div><b>Boutique</b><span>${esc(STORE.domain || STORE.slug)}</span></div></div></div>`
+    case 'contact': {
+      /* Une ligne « Téléphone » suivie de rien donne l'impression que le site
+         est cassé. On ne montre que ce qui est rempli ; si rien n'est rempli,
+         on explique quoi faire au lieu d'aligner des étiquettes vides. */
+      const adr = String(STORE.legal_address || STORE.wilaya || '').trim()
+      const tel = String(STORE.phone || '').trim()
+      const wa = String(STORE.whatsapp || STORE.phone || '').trim()
+      const lig = (t, v) => (v ? `<div><b>${t}</b><span>${esc(v)}</span></div>` : '')
+      const rows = [lig('Téléphone', tel), lig('Adresse', adr), lig('Boutique', STORE.domain || STORE.slug || '')].join('')
+      if (!rows) return `<div ${z('wrap')}><div class="contact vide-contact"><div><b>Vos coordonnées</b><span>Ajoutez votre téléphone et votre wilaya dans « Mes informations » : ils s'afficheront ici.</span></div></div></div>`
+      if (v === 1) return `<div ${z('wrap')}><div class="maprow"><div class="mapbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg></div><div><div class="contact" style="flex-direction:column;gap:10px">${lig('Adresse', adr)}${lig('Téléphone', tel)}</div></div></div></div></div>`
+      if (v === 2) return `<div ${z('wrap')}><div class="contact">${lig('Téléphone', tel)}${lig('Adresse', adr)}</div>${wa ? `<a class="wa" href="#">Écrire sur WhatsApp ${esc(wa)}</a>` : ''}</div>`
+      return `<div ${z('wrap')}><div class="contact">${rows}</div></div>`
+    }
     case 'foot': {
-      const nm = STORE.name
+      const nm = STORE.name || 'Votre boutique'
       const soc = socialHTML()
       const copy = D.set.copy || ('© ' + new Date().getFullYear() + ' ' + nm)
       return `<div ${z('ft')}><div class="ftl"><b>${esc(nm)}</b><span>${esc(S.phone)}</span></div>${soc ? `<div class="soc">${soc}</div>` : ''}<div class="ftc">${esc(copy)}</div></div>`
@@ -5310,6 +5339,16 @@ body.pubonly .pvbar{display:none!important}
   }
   if (CONNECTED && NDZ && NDZ.fresh) {
     try { siteNeuf() } catch (_) {}
+    /* Le site qu'on vient de construire est enregistré tout de suite. Sans
+       ça, le marchand qui ouvre le Studio puis va voir « Aperçu du site »
+       dans le tableau de bord tombe sur l'ANCIEN site : aucun brouillon
+       n'existait encore. Ce qu'il voit dans le Studio et ce que montre
+       l'aperçu doivent être la même chose dès la première visite. */
+    try {
+      if (typeof origPersist === "function") origPersist()
+      if (typeof persist === "function") persist()
+      if (typeof saveNow === "function") saveNow(false)
+    } catch (_) {}
   }
   try {
     var vb = document.getElementById("videBar")

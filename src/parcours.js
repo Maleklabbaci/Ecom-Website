@@ -77,7 +77,8 @@ const STEPS = [
   {
     id: "donnees", n: 8, titre: "Suivre ce qui se passe",
     sous: "Commandes, visites, meilleur produit : c'est ici que vous voyez si ça marche.",
-    page: "/dashboard/stats", cible: "main .chart, main .panel",
+    /* UNE seule lumière : le graphique, pas les quatre blocs de la page. */
+    page: "/dashboard/stats", cible: ".st-graph",
     href: "/dashboard/stats", bouton: "Voir mes chiffres",
   },
 ]
@@ -212,17 +213,22 @@ const bloc = (store, page) => {
     ici,
     url: "/dashboard/parcours/" + e.courant.id,
   }
+  const pct = Math.round((e.courant.n - 1) / e.total * 100)
   const html = `
 <section class="tour" id="ndzTour" hidden aria-live="polite">
   <div class="tour-voile" id="tourVoile"></div>
-  <div class="tour-card" role="dialog" aria-labelledby="tourTitre">
-    <div class="tour-head"><span class="tour-num" id="tourNum"></span><b id="tourTitre"></b></div>
+  <div class="tour-card" id="tourCard" role="dialog" aria-labelledby="tourTitre">
+    <div class="tour-bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
+    <div class="tour-head">
+      <span class="tour-num" id="tourNum"></span>
+      <b id="tourTitre"></b>
+    </div>
     <p class="tour-sous" id="tourSous"></p>
     <div class="tour-acts">
-      <a class="btn btn-sm" id="tourFaire" href="#"></a>
-      <button class="btn btn-ghost btn-sm" type="button" id="tourPasser">${e.courant.optionnel ? "Passer (facultatif)" : "Passer pour l'instant"}</button>
-      <button class="link-danger tour-off" type="button" id="tourOff">Ne plus me guider</button>
+      <a class="btn btn-sm tour-go" id="tourFaire" href="#"></a>
+      <button class="tour-skip" type="button" id="tourPasser">${e.courant.optionnel ? "Passer — c'est facultatif" : "Passer pour l'instant"}</button>
     </div>
+    <button class="tour-off" type="button" id="tourOff">Ne plus me guider</button>
   </div>
 </section>
 <div class="tour-pill" id="tourPill" hidden>
@@ -239,24 +245,36 @@ const bloc = (store, page) => {
 .tour-card{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:9002;
   width:min(560px,92vw);background:#fff;border-radius:14px;padding:16px 18px;
   box-shadow:0 30px 70px -24px rgba(0,0,0,.55);pointer-events:auto}
-.tour-head{display:flex;align-items:center;gap:10px}
+.tour-bar{height:4px;border-radius:999px;background:#ECECF1;overflow:hidden;margin:-2px 0 14px}
+.tour-bar i{display:block;height:100%;background:#111;border-radius:999px}
+.tour-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .tour-num{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;
-  background:#111;color:#fff;font-size:11.5px;font-weight:600;letter-spacing:.02em}
-.tour-head b{font-size:15px;letter-spacing:-.01em}
-.tour-sous{margin:8px 0 14px;font-size:13px;line-height:1.5;color:#5b5b63}
-.tour-acts{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.tour-off{margin-left:auto;background:none;border:0;font:inherit;font-size:12px;color:#8a8a93;cursor:pointer;text-decoration:underline}
+  background:#111;color:#fff;font-size:11.5px;font-weight:600;letter-spacing:.02em;flex:0 0 auto}
+.tour-head b{font-size:15.5px;letter-spacing:-.015em;font-weight:650;color:#111}
+.tour-sous{margin:7px 0 15px;font-size:13.2px;line-height:1.55;color:#5b5b63;max-width:52ch}
+.tour-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tour-go{background:#111!important;color:#fff!important;border:1px solid #111!important;
+  height:34px;padding:0 16px;font-weight:600;text-decoration:none}
+.tour-skip{background:none;border:0;font:inherit;font-size:12.5px;color:#8a8a93;cursor:pointer;
+  padding:6px 4px;text-decoration:underline}
+.tour-skip:hover{color:#111}
+.tour-off{display:block;width:100%;margin-top:10px;padding-top:10px;border-top:1px solid #F0F0F4;
+  background:none;border-left:0;border-right:0;border-bottom:0;font:inherit;font-size:11.5px;
+  color:#a8a8b0;cursor:pointer;text-align:left}
+.tour-off:hover{color:#111}
 .tour-pill{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:8000;
   display:flex;align-items:center;gap:10px;background:#111;color:#fff;border-radius:999px;
   padding:8px 10px 8px 16px;font-size:12.5px;box-shadow:0 20px 40px -18px rgba(0,0,0,.6)}
 .tour-pill a{background:#fff;color:#111}
+/* la carte ne doit jamais recouvrir ce qu'elle montre */
+.tour-card.en-haut{bottom:auto;top:18px}
+.tour-card.en-haut::after{display:none}
 @keyframes tourIn{from{opacity:0}to{opacity:1}}
 @keyframes tourCligne{0%,100%{box-shadow:0 0 0 3px #fff,0 0 0 7px rgba(17,17,17,.85)}
   50%{box-shadow:0 0 0 3px #fff,0 0 0 12px rgba(17,17,17,.35)}}
 @media (prefers-reduced-motion:reduce){.tour-clignote{animation:none}}
 @media (max-width:640px){
   .tour-card{left:12px;right:12px;transform:none;width:auto;bottom:12px;padding:14px}
-  .tour-off{margin-left:0}
 }
 </style>
 <script data-tour>
@@ -287,6 +305,19 @@ const bloc = (store, page) => {
     try { cible = document.querySelector(sl[i].trim()) } catch (_) {}
   }
   if (cible) {
+    /* La cible doit être à l'écran AVANT de poser le voile. Sans ça, on
+       assombrissait une page où l'élément à montrer était plus bas : le
+       marchand voyait un écran sombre sans rien dedans. */
+    try { cible.scrollIntoView({ block: "center", behavior: "smooth" }) } catch (_) {}
+    var card = document.getElementById("tourCard")
+    window.setTimeout(function () {
+      try {
+        var r = cible.getBoundingClientRect()
+        var place = window.innerHeight - r.bottom
+        /* moins de 210 px de libre sous la cible : la carte passe en haut */
+        if (card && place < 210) card.classList.add("en-haut")
+      } catch (_) {}
+    }, 420)
     cible.classList.add("tour-cible")
     if (D.clignote) cible.classList.add("tour-clignote")
     /* le champ à remplir est déjà prêt : on met le curseur dedans */
