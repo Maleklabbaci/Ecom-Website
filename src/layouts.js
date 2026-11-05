@@ -622,6 +622,10 @@ const inlineOrderForm = (store, p, variants) => {
   const flow = CF.pieces(store)
   const noteLast = flow.length && flow[flow.length - 1].id === "paynote"
   const parts = []
+  /* Le sélecteur de variantes liées doit être vu, même si le bloc « variantes »
+     n'est pas coché dans l'écran Formulaire : sans lui, le client ne peut pas
+     choisir sa combinaison. On le pose en tête, à sa place. */
+  let variantesPosees = false
   let fieldBuf = []
   const flush = () => {
     if (!fieldBuf.length) return
@@ -635,7 +639,7 @@ const inlineOrderForm = (store, p, variants) => {
       continue
     }
     flush()
-    if (piece.id === "variants" && choices) parts.push(choices)
+    if (piece.id === "variants" && choices) { parts.push(choices); variantesPosees = true }
     else if (piece.id === "qty") parts.push(qtyBlock(p, open, CF.pieceText(store, "qty", lang)))
     else if (piece.id === "delivery") {
       deliveryOn = true
@@ -647,6 +651,7 @@ const inlineOrderForm = (store, p, variants) => {
     }
   }
   flush()
+  if (choices && !variantesPosees) parts.unshift(choices)
   if (!deliveryOn) parts.push(`<input type="hidden" name="delivery" value="home">`)
   /* Le bouton « Commander » : le marchand choisit le mot, le fond, la police… */
   const buy = CF.btnText(look, say("Commander"))
@@ -658,8 +663,11 @@ const inlineOrderForm = (store, p, variants) => {
   const note = noteLast ? `<p class="ndz-buyform-note">${icon("shield", 13)} ${esc(CF.pieceText(store, "paynote", lang))}</p>` : ""
   const lock = look.lang === "fr"
   const form = `
-<form class="ndz-buyform ck-shell ck-shell-${look.model}${lang === "ar" ? " ck-ar" : ""}" style="${CF.lookStyle(look)}" method="post" action="/${esc(store.slug)}/checkout" dir="${lang === "ar" ? "rtl" : "ltr"}" data-price="${Number(p.price_cents) || 0}" data-cur="${esc(cur(store))}" data-slug="${esc(store.slug)}" data-lang="${esc(lang)}">
+<form class="ndz-buyform varform ck-shell ck-shell-${look.model}${lang === "ar" ? " ck-ar" : ""}" data-p="${p.id}" style="${CF.lookStyle(look)}" method="post" action="/${esc(store.slug)}/checkout" dir="${lang === "ar" ? "rtl" : "ltr"}" data-price="${Number(p.price_cents) || 0}" data-cur="${esc(cur(store))}" data-slug="${esc(store.slug)}" data-lang="${esc(lang)}">
   <input type="hidden" name="buy_id" value="${p.id}">
+  /* le choix de variantes liées : la clé pour le stock, le libellé pour la commande */
+  <input type="hidden" name="combo" value="">
+  <input type="hidden" name="opts" value="">
   ${parts.join("\n  ")}
   ${deliveryOn ? deskSlot(store) : ""}
   ${gf}<button class="btn btn-primary${btnLook.full ? " btn-block" : ""} btn-lg ndz-buyform-btn" type="submit"

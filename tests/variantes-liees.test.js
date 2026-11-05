@@ -280,3 +280,22 @@ test("une grille jamais remplie ne rend pas le produit invendable", async () => 
   assert.ok(nb >= 1, "la commande est enregistrée")
   assert.equal(apres, stockProduit - 1, "le stock du produit est décompté, comme avant")
 })
+
+test("le sélecteur reste visible même si le bloc « variantes » est décoché dans le formulaire", async () => {
+  /* Une boutique qui a déjà enregistré son formulaire passe par le formulaire
+     en ligne. Le bloc « variantes » y est décoché par défaut : le client doit
+     quand même pouvoir choisir sa combinaison. */
+  const r = await req("/dashboard/formulaire", form({
+    form_model: "classique", form_color: "#111111",
+    btn_text: "Je commande", btn_bg: "#0f766e", btn_ink: "#ffffff", btn_size: "grand",
+  }))
+  assert.equal(r.status, 302)
+  const p = await ouvrir(`/${SLUG}/p/${PRODUIT.id}`, 600)
+  try {
+    assert.ok(p.doc.querySelector(".opt-pick"), "le sélecteur est affiché")
+    assert.equal(p.doc.querySelectorAll(".opt-grp").length, 2, "les deux titres sont là")
+    const form = p.doc.querySelector("form.varform") || p.doc.querySelector("form.ndz-buyform")
+    assert.ok(form, "un formulaire d'achat est présent")
+    assert.ok(form.querySelector('input[name="combo"]'), "il reçoit la combinaison")
+  } finally { p.close() }
+})
