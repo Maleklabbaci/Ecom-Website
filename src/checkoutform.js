@@ -66,6 +66,95 @@ const inkFor = (hex) => {
 const asList = (v) => (Array.isArray(v) ? v.map((x) => String(x)).slice(0, 40) : [])
 const asMap = (v) => (v && typeof v === "object" && !Array.isArray(v) ? v : {})
 
+/* --------------------------- BOUTON « COMMANDER » ---------------------------
+   Le marchand règle tout : le nom, le fond, la couleur du texte, la police,
+   la taille, l'arrondi, le gras, l'italique, les majuscules et l'ombre.      */
+const BTN_FONTS = {
+  "": { label: "Celle de la boutique", stack: "" },
+  system: { label: "Système (la plus rapide)", stack: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" },
+  inter: { label: "Inter — neutre", stack: "'Inter', system-ui, sans-serif" },
+  grotesque: { label: "Helvetica — nette", stack: "'Helvetica Neue', Helvetica, Arial, sans-serif" },
+  geometric: { label: "Géométrique — Futura", stack: "Futura, 'Century Gothic', 'Avenir Next', sans-serif" },
+  condensed: { label: "Condensée — serrée", stack: "'Arial Narrow', 'Roboto Condensed', Arial, sans-serif" },
+  serif: { label: "Serif — éditorial", stack: "Georgia, 'Times New Roman', serif" },
+  didone: { label: "Didone — magazine", stack: "'Didot', 'Bodoni MT', 'Playfair Display', Georgia, serif" },
+  slab: { label: "Slab — affiche", stack: "Rockwell, 'Roboto Slab', Georgia, serif" },
+  mono: { label: "Mono — technique", stack: "'SF Mono', Consolas, 'Courier New', monospace" },
+  "gf-cairo": { google: "Cairo", label: "Cairo — arabe", stack: "'Cairo', system-ui, sans-serif" },
+  "gf-tajawal": { google: "Tajawal", label: "Tajawal — arabe", stack: "'Tajawal', system-ui, sans-serif" },
+  "gf-outfit": { google: "Outfit", label: "Outfit — arrondie", stack: "'Outfit', system-ui, sans-serif" },
+  "gf-manrope": { google: "Manrope", label: "Manrope — douce", stack: "'Manrope', system-ui, sans-serif" },
+}
+const BTN_SIZES = ["petit", "moyen", "grand"]
+const BTN_PADS = { petit: ["9px 16px", "14px"], moyen: ["13px 22px", "16px"], grand: ["16px 26px", "18px"] }
+
+const btnOf = (raw) => {
+  const r = asMap(raw)
+  const radius = parseInt(r.radius, 10)
+  return {
+    text: String(r.text || "").slice(0, 40),
+    bg: hexOk(r.bg) ? String(r.bg) : "",
+    ink: hexOk(r.ink) ? String(r.ink) : "",
+    font: BTN_FONTS[r.font] ? String(r.font) : "",
+    size: BTN_SIZES.includes(r.size) ? r.size : "grand",
+    full: r.full !== false,
+    radius: Number.isFinite(radius) ? Math.max(0, Math.min(40, radius)) : "",
+    bold: r.bold !== false,
+    italic: r.italic === true,
+    upper: r.upper === true,
+    shadow: r.shadow === true,
+  }
+}
+const btnFromBody = (b = {}) => {
+  const radius = String(b.btn_radius || "").trim()
+  /* « Garder les couleurs de la boutique » : le bouton suit le thème. */
+  const reset = b.btn_reset === "1" || b.btn_reset === "on" || b.btn_reset === true
+  return {
+    text: String(b.btn_text || "").trim().slice(0, 40),
+    bg: !reset && hexOk(b.btn_bg) ? String(b.btn_bg) : "",
+    ink: !reset && hexOk(b.btn_ink) ? String(b.btn_ink) : "",
+    font: BTN_FONTS[b.btn_font] ? String(b.btn_font) : "",
+    size: BTN_SIZES.includes(b.btn_size) ? b.btn_size : "grand",
+    full: b.btn_full === "1" || b.btn_full === "on" || b.btn_full === true,
+    radius: radius === "" ? "" : Math.max(0, Math.min(40, parseInt(radius, 10) || 0)),
+    bold: b.btn_bold === "1" || b.btn_bold === "on" || b.btn_bold === true,
+    italic: b.btn_italic === "1" || b.btn_italic === "on" || b.btn_italic === true,
+    upper: b.btn_upper === "1" || b.btn_upper === "on" || b.btn_upper === true,
+    shadow: b.btn_shadow === "1" || b.btn_shadow === "on" || b.btn_shadow === true,
+  }
+}
+/** Le style du bouton, écrit directement dans la page (pas de CSS à recharger). */
+const btnStyle = (look) => {
+  const b = btnOf(look && look.btn)
+  const out = []
+  if (b.bg) out.push(`background:${b.bg}`, `border-color:${b.bg}`)
+  if (b.ink) out.push(`color:${b.ink}`)
+  if (b.font && BTN_FONTS[b.font].stack) out.push(`font-family:${BTN_FONTS[b.font].stack}`)
+  if (b.radius !== "" && b.radius != null) out.push(`border-radius:${b.radius}px`)
+  if (b.italic) out.push("font-style:italic")
+  if (b.upper) out.push("text-transform:uppercase", "letter-spacing:.06em")
+  if (b.shadow) out.push("box-shadow:0 8px 22px rgba(0,0,0,.18)")
+  out.push(`font-weight:${b.bold ? 700 : 400}`)
+  const pad = BTN_PADS[b.size] || BTN_PADS.grand
+  out.push(`padding:${pad[0]}`, `font-size:${pad[1]}`)
+  if (!b.full) out.push("width:auto", "display:inline-flex", "align-items:center", "justify-content:center")
+  return out.join(";")
+}
+/** Vrai seulement si le marchand a vraiment touché au bouton : une boutique
+    qui n'a rien demandé garde exactement le bouton de son thème. */
+const btnCustomized = (look) => {
+  const b = btnOf(look && look.btn)
+  const d = btnOf()
+  return !!b.text || !!b.bg || !!b.ink || !!b.font || b.radius !== ""
+    || b.size !== d.size || b.full !== d.full || b.bold !== d.bold
+    || b.italic || b.upper || b.shadow
+}
+/** Le mot écrit sur le bouton : celui du marchand, sinon « Commander ». */
+const btnText = (look, fallback = "Commander") => {
+  const b = btnOf(look && look.btn)
+  return b.text || fallback
+}
+
 const lookOf = (store) => {
   let raw = {}
   try { raw = JSON.parse((store && store.form_look) || "{}") || {} } catch (_) { raw = {} }
@@ -82,6 +171,7 @@ const lookOf = (store) => {
     idle: asList(raw.idle),
     labels: asMap(raw.labels),
     labels_ar: asMap(raw.labels_ar),
+    btn: btnOf(raw.btn),
   }
 }
 const cleanLook = (body = {}) => {
@@ -92,6 +182,7 @@ const cleanLook = (body = {}) => {
     variants: body.form_variants === "1" || body.form_variants === "on",
     delivery: body.form_delivery === "1" || body.form_delivery === "on",
     lang: body.form_lang === "ar" || body.form_lang === "fr" ? body.form_lang : "",
+    btn: btnFromBody(body),
   }
 }
 const lookStyle = (look) => `--ck:${look.color};--ck-ink:${look.ink}`
@@ -233,6 +324,7 @@ const persistLook = (db, storeId, look) => {
     idle: asList(look.idle),
     labels: asMap(look.labels),
     labels_ar: asMap(look.labels_ar),
+    btn: btnOf(look.btn),
   }
   db.prepare("UPDATE stores SET form_look = ? WHERE id = ?").run(JSON.stringify(row), storeId)
 }
@@ -486,5 +578,6 @@ const collect = (store, body = {}) => {
 module.exports = {
   fields, renderField, collect, getFields, saveFields, activeFields, wilayaSelect, communeField,
   DEFAULT_FIELDS, SYSTEM_KEYS, lookOf, cleanLook, lookStyle, MODELS, FORM_COLORS, PRESETS,
+  btnOf, btnFromBody, btnStyle, btnText, btnCustomized, BTN_FONTS, BTN_SIZES,
   BLOCKS, pieces, formLang, pieceText, geoBlock, saveFromBody, restorePiece, NOTE_FR,
 }

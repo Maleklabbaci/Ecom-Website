@@ -293,7 +293,7 @@ test("produit : la première photo de la liste devient la photo principale en ba
 test("produit : plusieurs titres de variante, chacun avec ses options", async () => {
   await login()
   const page = await req("/dashboard/products/1")
-  assert.match(page.text, /Titres de variante/)
+  assert.match(page.text, /Variantes liées/)
   assert.match(page.text, /id="ogList"/)
   assert.match(page.text, /name="option_groups"/)
 
@@ -313,17 +313,20 @@ test("produit : plusieurs titres de variante, chacun avec ses options", async ()
   const db = dbFile()
   const saved = JSON.parse(db.prepare("SELECT option_groups FROM products WHERE id = ?").get(p.id).option_groups)
   db.close()
-  assert.equal(saved.length, 2)
-  assert.equal(saved[0].name, "Taille")
-  assert.deepEqual(saved[0].options, ["S", "M", "L"])
-  assert.equal(saved[1].name, "Couleur")
-  assert.deepEqual(saved[1].options, ["Rouge", "Bleu"])
+  /* le rangement nouveau format : une grille, lisible par le module */
+  const V = require("../src/variantes")
+  const lu = V.lire(saved)
+  assert.equal(lu.groups.length, 2)
+  assert.equal(lu.groups[0].name, "Taille")
+  assert.deepEqual(lu.groups[0].options.map((o) => o.label), ["S", "M", "L"])
+  assert.equal(lu.groups[1].name, "Couleur")
+  assert.deepEqual(lu.groups[1].options.map((o) => o.label), ["Rouge", "Bleu"])
 
-  /* la vitrine propose les deux titres, et le choix arrive dans le panier */
+  /* la vitrine propose les deux titres, hors du formulaire, et le choix arrive dans le panier */
   const shop = await req(`/amina-mode/p/${p.id}`)
   assert.match(shop.text, /Taille/)
   assert.match(shop.text, /Couleur/)
-  assert.match(shop.text, /data-group="Taille"/)
+  assert.match(shop.text, /class="opt-grp"/)
   assert.match(shop.text, /name="opts"/)
 
   await req("/amina-mode")
@@ -358,9 +361,11 @@ test("produit : les titres de variante sont nettoyés (doublons, vides, trop lon
   const db = dbFile()
   const saved = JSON.parse(db.prepare("SELECT option_groups FROM products WHERE id = ?").get(p.id).option_groups)
   db.close()
-  assert.equal(saved.length, 3, "3 titres maximum, les vides sont ignorés")
-  assert.equal(saved[0].name, "Taille")
-  assert.deepEqual(saved[0].options, ["S", "M"], "les doublons et les vides sont retirés")
-  assert.equal(saved[1].name, "Matière")
-  assert.equal(saved[2].name, "En trop")
+  const V2 = require("../src/variantes")
+  const gardes = V2.lire(saved).groups
+  assert.equal(gardes.length, 3, "les titres vides et sans option sont ignorés")
+  assert.equal(gardes[0].name, "Taille")
+  assert.deepEqual(gardes[0].options.map((o) => o.label), ["S", "M"], "les doublons et les vides sont retirés")
+  assert.equal(gardes[1].name, "Matière")
+  assert.equal(gardes[2].name, "En trop")
 })

@@ -8,6 +8,7 @@
  * remboursement, réassort, correction d'inventaire, retour client).
  */
 const db = require("./db")
+const VARIANTES = require("./variantes")
 
 /* ------------------------------ schéma ------------------------------ */
 db.exec(`
@@ -76,6 +77,28 @@ const levels = (storeId) => {
     .all(storeId)
   return products.map((p) => {
     const vars = db.prepare("SELECT * FROM variants WHERE product_id = ? ORDER BY position, id").all(p.id)
+    /* Variantes liées : le stock vit dans la grille, une ligne par combinaison
+       (« iphone 11 · noir », « iphone 12 · rose »…). */
+    let grille = null
+    try { grille = VARIANTES.lire(p.option_groups) } catch (_) { grille = null }
+    if (grille && grille.groups.length) {
+      const cases = grille.combos.filter((c) => c.on !== false)
+      const rows = cases.map((c, i) => ({
+        variantId: 0,
+        combo: VARIANTES.cle(c.picks),
+        label: VARIANTES.etiquette(grille, c.picks),
+        stock: c.stock,
+        unlimited: !!(c.unlimited || grille.unlimited),
+        first: i === 0,
+      }))
+      return {
+        ...p,
+        variants: vars,
+        grid: true,
+        rows: rows.length ? rows : [{ variantId: 0, label: "", stock: 0 }],
+        total: rows.reduce((s, r) => s + r.stock, 0),
+      }
+    }
     return {
       ...p,
       variants: vars,
@@ -143,14 +166,43 @@ const applyDelta = (storeId, productId, variantId, delta, reason = "ajustement",
   return next
 }
 
-const adjust = (storeId, productId, variantId, delta, reason = "ajustement", opts = {}) =>
-  db.transaction(() => applyDelta(storeId, productId, variantId, delta, reason, opts))()
+const adjust = (storeId, productId, variantId, delta, reason = "ajustement", opts = {}) => {
+  /* Variante liée : on décale la case de la grille. */
+  if (opts && opts.combo) {
+    const p = db.prepare("SELECT option_groups FROM products WHERE id = ? AND store_id = ?").get(productId, storeId)
+    if (!p) throw new Error("Produit introuvable")
+    const d = VARIANTES.lire(p.option_groups)
+    const c = VARIANTES.parCle(d, opts.combo)
+    if (!c) throw new Error("Cette combinaison n'existe plus. Recharge la page.")
+    return setCombo(storeId, productId, opts.combo, c.stock + (parseInt(delta, 10) || 0), reason)
+  }
+  return db.transaction(() => applyDelta(storeId, productId, variantId, delta, reason, opts))()
+}
 
-const setLevel = (storeId, productId, variantId, target, reason = "inventaire", opts = {}) =>
-  db.transaction(() => {
+const setLevel = (storeId, productId, variantId, target, reason = "inventaire", opts = {}) => {
+  /* Variante liée : on écrit directement dans la case de la grille. */
+  if (opts && opts.combo) return setCombo(storeId, productId, opts.combo, target, reason)
+  return db.transaction(() => {
     const before = levelOf(productId, variantId)
     return applyDelta(storeId, productId, variantId, target - before, reason, opts)
   })()
+}
+
+/** Écrit le stock d'UNE combinaison de la grille, et garde une trace du mouvement. */
+const setCombo = (storeId, productId, combo, target, reason = "inventaire") => {
+  const p = db.prepare("SELECT option_groups FROM products WHERE id = ? AND store_id = ?").get(productId, storeId)
+  if (!p) throw new Error("Produit introuvable")
+  const d = VARIANTES.lire(p.option_groups)
+  const c = VARIANTES.parCle(d, combo)
+  if (!c) throw new Error("Cette combinaison n'existe plus. Recharge la page.")
+  const avant = c.stock
+  const apres = Math.max(0, parseInt(target, 10) || 0)
+  c.stock = apres
+  db.prepare("UPDATE products SET option_groups = ? WHERE id = ?").run(JSON.stringify(d), productId)
+  record(storeId, productId, null, apres - avant, apres, reason, null,
+    VARIANTES.etiquette(d, c.picks))
+  return apres
+}
 
 /**
  * Décrémente ATOMIQUEMENT le stock d'une commande.
@@ -195,5 +247,5 @@ const releaseOrder = (order, reason = "annulation") =>
 
 module.exports = {
   REASONS, available, levelOf, threshold, levels, lowStock, movements, valuation,
-  adjust, setLevel, reserve, releaseOrder, record,
+  adjust, setLevel, setCombo, reserve, releaseOrder, record,
 }

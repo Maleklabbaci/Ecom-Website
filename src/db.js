@@ -222,6 +222,7 @@ if (!cols("orders").includes("promo_code")) {
 const addCol = (table, name, def) => {
   if (!cols(table).includes(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${def}`)
 }
+addCol("categories", "image", "TEXT")
 addCol("stores", "legal_name", "TEXT")
 addCol("stores", "legal_address", "TEXT")
 addCol("stores", "legal_rc", "TEXT")

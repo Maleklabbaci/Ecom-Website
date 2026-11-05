@@ -1,3 +1,4 @@
+const VARIANTES = require("./variantes") /* variantes liées : options croisées, stock par combinaison */
 "use strict"
 /**
  * Layouts de vitrine — quatre structures réellement différentes.
@@ -115,10 +116,15 @@ const payDirectButtons = (store, p) => {
   const methods = PAY.list(store)
   if (!methods.length) return ""
   /* « Commander » est un mot de l'interface : il suit la langue de la page,
-     alors que le nom du moyen de paiement est celui du marchand */
-  const buy = I18N.t(I18N.langNow(store), "Commander")
+     alors que le nom du moyen de paiement est celui du marchand.
+     Si le marchand a réglé son bouton dans l'écran Formulaire, ses réglages
+     s'appliquent ici aussi — sinon le thème garde la main. */
+  const look = CF.lookOf(store)
+  const fait = CF.btnCustomized(look)
+  const buy = fait ? CF.btnText(look, I18N.t(I18N.langNow(store), "Commander")) : I18N.t(I18N.langNow(store), "Commander")
+  const st = fait ? ` style="${esc(CF.btnStyle(look))}"` : ""
   return methods.map((m) => `<button class="ndz-paybtn" formaction="${slug(store)}/direct"
-    name="payment" value="${esc(m.id)}" ${p.stock === 0 ? "disabled" : ""}>${buy} · ${esc(m.name)}</button>`).join("")
+    name="payment" value="${esc(m.id)}" ${p.stock === 0 ? "disabled" : ""}${st}>${buy} · ${esc(m.name)}</button>`).join("")
 }
 
 const buyButtons = (store, p, cls, label) => {
@@ -612,7 +618,7 @@ const inlineOrderForm = (store, p, variants) => {
   const varTitle = CF.pieceText(store, "variants", lang)
   const choices = stocked.length
     ? (open ? variantPills(stocked, store, p, varTitle) : `<label class="ck-f ck-wide"><span>${esc(varTitle)}</span><select name="buy_variant">${stocked.map((v) => `<option value="${v.id}">${esc(v.label)}${v.price_cents && Number(v.price_cents) !== Number(p.price_cents) ? " — " + cash(store, v.price_cents) : ""}</option>`).join("")}</select></label>`)
-    : (groups.length ? optionPicker(store, p, groups) : "")
+    : (groups.length ? optionPicker(store, p, VARIANTES.lire(p.option_groups)) : "")
   const flow = CF.pieces(store)
   const noteLast = flow.length && flow[flow.length - 1].id === "paynote"
   const parts = []
@@ -642,7 +648,13 @@ const inlineOrderForm = (store, p, variants) => {
   }
   flush()
   if (!deliveryOn) parts.push(`<input type="hidden" name="delivery" value="home">`)
-  const buy = say("Commander")
+  /* Le bouton « Commander » : le marchand choisit le mot, le fond, la police… */
+  const buy = CF.btnText(look, say("Commander"))
+  const btnLook = CF.btnOf(look.btn)
+  const gfNom = (CF.BTN_FONTS[btnLook.font] || {}).google
+  const gf = gfNom
+    ? `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(gfNom).replace(/%20/g, "+")}:wght@400;700&display=swap">`
+    : "" 
   const note = noteLast ? `<p class="ndz-buyform-note">${icon("shield", 13)} ${esc(CF.pieceText(store, "paynote", lang))}</p>` : ""
   const lock = look.lang === "fr"
   const form = `
@@ -650,7 +662,8 @@ const inlineOrderForm = (store, p, variants) => {
   <input type="hidden" name="buy_id" value="${p.id}">
   ${parts.join("\n  ")}
   ${deliveryOn ? deskSlot(store) : ""}
-  <button class="btn btn-primary btn-block btn-lg ndz-buyform-btn" type="submit" data-label="${esc(buy)}">
+  ${gf}<button class="btn btn-primary${btnLook.full ? " btn-block" : ""} btn-lg ndz-buyform-btn" type="submit"
+    data-label="${esc(buy)}" style="${esc(CF.btnStyle(look))}">
     ${esc(buy)} — ${price(store, p.price_cents)}
   </button>
   ${note}
@@ -660,41 +673,115 @@ const inlineOrderForm = (store, p, variants) => {
 
 /** Titres de variante enregistrés sur le produit : [{ name, options: [] }]. */
 const optionGroupsOf = (p) => {
-  let list = []
-  try { list = JSON.parse((p && p.option_groups) || "[]") } catch (_) { list = [] }
-  return Array.isArray(list) ? list.filter((g) => g && g.name && Array.isArray(g.options) && g.options.length) : []
+  /* Les variantes liées : on lit avec le module, qui comprend l'ancienne
+     écriture (une simple liste) comme la nouvelle (une grille avec stock). */
+  try { return VARIANTES.lire(p && p.option_groups).groups || [] } catch (_) { return [] }
 }
 
 /**
- * Choix des options (Taille, Couleur…) : un menu par titre.
- * Le choix part dans le panier sous la forme « Taille : M · Couleur : Rouge ».
+ * Choix des variantes liées : un titre par choix, et SES options.
+ *
+ * Le sélecteur est rendu HORS du formulaire (le marchand l'a demandé) : on le
+ * pose au-dessus, puis la main parle au formulaire par deux champs cachés —
+ * « combo » (la clé stable, pour le stock) et « opts » (le libellé lisible,
+ * pour la commande).
+ *
+ * Huit styles : boutons, liste, menu déroulant, pastilles, grille, cadres,
+ * rayures, ronds. Le marchand choisit dans sa fiche produit.
+ *
+ * Chaque croisement connaît son stock : une combinaison épuisée est grisée, et
+ * le bouton d'achat se bloque — sauf si le produit est en « stock illimité »,
+ * où l'on continue de recevoir les commandes même à zéro.
  */
-const optionPicker = (store, p, groups) => `
-<div class="opt-pick">
-  ${groups.map((g, i) => `<label class="opt-row">
-    <span>${esc(g.name)}</span>
-    <select name="opt_${i}" data-group="${esc(g.name)}" aria-label="${esc(g.name)}">
-      ${g.options.map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join("")}
-    </select>
-  </label>`).join("")}
-  <input type="hidden" name="opts" value="">
+const optionPicker = (store, p, data) => {
+  const groups = (data && data.groups) || []
+  if (!groups.length) return ""
+  const style = VARIANTES.STYLES.includes(data && data.style) ? data.style : "boutons"
+  const ref = "pk" + p.id
+  const corps = groups.map((g) => {
+    if (style === "deroulant") {
+      return `<label class="opt-grp">
+        <span class="opt-titre">${esc(g.name)}</span>
+        <select data-g="${esc(g.id)}" aria-label="${esc(g.name)}">
+          ${g.options.map((o) => `<option value="${esc(o.id)}">${esc(o.label)}</option>`).join("")}
+        </select>
+      </label>`
+    }
+    return `<div class="opt-grp" role="group" aria-label="${esc(g.name)}">
+      <span class="opt-titre">${esc(g.name)}</span>
+      <div class="opt-liste">
+        ${g.options.map((o, i) => `<label class="vp-opt">
+          <input type="radio" name="${ref}_${esc(g.id)}" value="${esc(o.id)}" data-g="${esc(g.id)}"${i === 0 ? " checked" : ""}>
+          <span class="vp-box"><span class="vp-label">${esc(o.label)}</span></span>
+        </label>`).join("")}
+      </div>
+    </div>`
+  }).join("")
+  const cases = (data.combos || []).map((c) => ({
+    k: VARIANTES.cle(c.picks), s: c.stock, p: c.price,
+    u: !!(c.unlimited || data.unlimited), on: c.on !== false,
+  }))
+  return `
+<div class="opt-pick vp-${esc(style)}" data-pick="${p.id}">
+  ${corps}
+  <p class="opt-etat" id="${ref}_etat" aria-live="polite"></p>
 </div>
 <script>
 (function(){
-  var f = document.currentScript.parentNode;
-  function sync(){
-    var parts = [];
-    Array.prototype.forEach.call(f.querySelectorAll('.opt-pick select[data-group]'), function(s){
-      if (s.value) parts.push(s.getAttribute('data-group') + ' : ' + s.value);
-    });
-    var h = f.querySelector('input[name=opts]');
-    if (h) h.value = parts.join(' · ');
+  var box = document.getElementById("${ref}_etat");
+  if (!box) return;
+  var wrap = box.parentNode;
+  var CASES = ${JSON.stringify(cases)};
+  var form = document.querySelector('form.varform[data-p="${p.id}"]');
+  function cle(picks){
+    return Object.keys(picks).sort().map(function(k){ return k + ":" + picks[k]; }).join("|");
   }
-  f.addEventListener('change', function(e){ if (e.target.closest('.opt-pick')) sync(); });
-  f.addEventListener('submit', sync);
-  sync();
+  function lire(){
+    var picks = {};
+    Array.prototype.forEach.call(wrap.querySelectorAll("[data-g]"), function(el){
+      if (el.type === "radio" && !el.checked) return;
+      picks[el.getAttribute("data-g")] = el.value;
+    });
+    return picks;
+  }
+  function trouver(){
+    var k = cle(lire());
+    for (var i = 0; i < CASES.length; i++) if (CASES[i].k === k) return CASES[i];
+    return null;
+  }
+  function maj(){
+    var c = trouver();
+    var texte = "";
+    if (c && !c.on) texte = "Cette variante n'est plus proposée.";
+    else if (c && (c.u || c.s > 0)) texte = c.s > 0 ? (c.s <= 3 ? "Plus que " + c.s + " pièce" + (c.s > 1 ? "s" : "") : c.s + " pièces en stock") : "Disponible sur commande";
+    else if (c) texte = "Épuisé";
+    box.textContent = texte;
+    if (form) {
+      var o = form.querySelector('input[name="opts"]');
+      var k = form.querySelector('input[name="combo"]');
+      if (k) k.value = cle(lire());
+      if (o) {
+        var parts = [];
+        Array.prototype.forEach.call(wrap.querySelectorAll("[data-g]"), function(el){
+          if (el.type === "radio" && !el.checked) return;
+          var grp = el.closest(".opt-grp");
+          var nom = grp ? (grp.querySelector(".opt-titre") || {}).textContent : "";
+          var lib = el.tagName === "SELECT" ? el.options[el.selectedIndex].textContent : (el.parentNode.querySelector(".vp-label") || {}).textContent;
+          if (nom && lib) parts.push(nom + " : " + lib);
+        });
+        o.value = parts.join(" · ");
+      }
+      var bloque = !c || !c.on || (!c.u && c.s < 1);
+      Array.prototype.forEach.call(form.querySelectorAll("button"), function(b){ b.disabled = bloque; });
+    }
+  }
+  wrap.addEventListener("change", maj);
+  wrap.addEventListener("click", function(e){ if (e.target.closest(".vp-opt")) setTimeout(maj, 0); });
+  if (form) form.addEventListener("submit", maj);
+  maj();
 })();
 </script>`
+}
 
 const addFormV = (store, p, cls, label, variants) => {
   const extraBlocks = favButton(store, p) + stockNote(store, p) + bundleBlock(store, p)
@@ -704,11 +791,13 @@ const addFormV = (store, p, cls, label, variants) => {
   const list = variants || []
   const groups = list.length ? [] : optionGroupsOf(p)
   if (!list.length && groups.length) {
-    /* produit à options : le client choisit, puis ajoute au panier */
-    return `
-<form class="varform ndz-buy optform" method="post" action="/${esc(store.slug)}/${buyAction(store)}">
+    /* produit à variantes liées : le sélecteur est posé AVANT le formulaire
+       (demande du marchand), et il lui parle par deux champs cachés. */
+    return optionPicker(store, p, VARIANTES.lire(p.option_groups)) + `
+<form class="varform ndz-buy optform" data-p="${p.id}" method="post" action="/${esc(store.slug)}/${buyAction(store)}">
   <input type="hidden" name="product_id" value="${p.id}">
-  ${optionPicker(store, p, groups)}
+  <input type="hidden" name="combo" value="">
+  <input type="hidden" name="opts" value="">
   ${buyButtons(store, p, cls, label)}
 </form>` + buyFinish(store, p) + extraBlocks + stickyBuyBar(store, p)
   }

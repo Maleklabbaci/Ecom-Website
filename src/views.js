@@ -1303,25 +1303,113 @@ ${mode === "merchant" ? `<div class="actions">
 </body></html>`
 
 /* ============================== DASHBOARD : CATÉGORIES ============================== */
-const dashCategories = (user, store, cats) => dashLayout(user, store, `
-<header class="dash-head"><div><h1>Catégories</h1><p class="muted">Ranger le catalogue et filtrer la boutique.</p></div></header>
+const dashCategories = (user, store, cats, saved) => dashLayout(user, store, `
+<header class="dash-head"><div><h1>Catégories</h1><p class="muted">Ranger le catalogue et filtrer la boutique. Une photo par catégorie, et un produit ajouté dedans en un clic.</p></div></header>
+${saved ? `<div class="alert ok">Catégorie enregistrée.</div>` : ""}
+
 <section class="panel">
-  <form class="inline-form" method="post" action="/dashboard/categories">
-    <input name="name" required placeholder="Robes, Sacs, Chaussures…" maxlength="40">
-    <button class="btn btn-primary">Ajouter</button>
+  <div class="panel-head"><h2>Nouvelle catégorie</h2></div>
+  <form class="cat-new" method="post" action="/dashboard/categories">
+    <label>Nom
+      <input name="name" required placeholder="Robes, Sacs, Chaussures…" maxlength="40">
+    </label>
+    <div class="cat-photo" data-cat-photo>
+      <span class="cat-photo-box" data-cat-aperçu>${icon("bag", 24)}</span>
+      <span class="cat-photo-btns">
+        <button type="button" class="btn" data-cat-choisir>Choisir une photo</button>
+        <button type="button" class="link-danger" data-cat-retirer hidden>Retirer la photo</button>
+        <span class="muted small">Carrée de préférence. Elle s'affiche sur la boutique.</span>
+      </span>
+      <input type="hidden" name="image" data-cat-url value="">
+    </div>
+    <div class="cat-new-actions">
+      <button class="btn btn-primary" name="then" value="">Créer la catégorie</button>
+      <button class="btn" name="then" value="product">Créer et ajouter un produit dedans</button>
+    </div>
   </form>
-  ${cats.length ? `<table class="table">
-    <thead><tr><th>Catégorie</th><th>Adresse</th><th>Produits</th><th></th></tr></thead>
-    <tbody>${cats.map((c) => `<tr>
-      <td><b>${esc(c.name)}</b></td>
-      <td><a class="link" target="_blank" href="/${esc(store.slug)}?cat=${esc(c.slug)}">?cat=${esc(c.slug)}</a></td>
-      <td>${c.n}</td>
-      <td class="right"><form method="post" action="/dashboard/categories/${c.id}/delete" class="inline">
-        <button class="link-danger">Supprimer</button></form></td>
-    </tr>`).join("")}</tbody>
-  </table>` : `<div class="empty-state">${icon("box", 22)}<h3>Aucune catégorie</h3>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Vos catégories</h2><span class="muted">${cats.length} catégorie(s)</span></div>
+  ${cats.length ? `<div class="cat-list">${cats.map((c) => `
+    <div class="cat-card">
+      <div class="cat-card-top">
+        <span class="cat-thumb">${c.image ? `<img src="${esc(c.image)}" alt="${esc(c.name)}">` : icon("bag", 22)}</span>
+        <div class="cat-card-id">
+          <b>${esc(c.name)}</b>
+          <a class="link small" target="_blank" href="/${esc(store.slug)}?cat=${esc(c.slug)}">?cat=${esc(c.slug)}</a>
+          <span class="muted small">${c.n} produit(s)</span>
+        </div>
+        <a class="btn btn-primary" href="/dashboard/products/new?category=${c.id}">Ajouter un produit</a>
+      </div>
+      <details class="cat-edit">
+        <summary>Modifier le nom ou la photo</summary>
+        <form class="cat-edit-form" method="post" action="/dashboard/categories/${c.id}/update" enctype="multipart/form-data">
+          <label>Nom<input name="name" value="${esc(c.name)}" maxlength="40"></label>
+          <div class="cat-photo" data-cat-photo>
+            <span class="cat-photo-box" data-cat-aperçu>${c.image ? `<img src="${esc(c.image)}" alt="">` : icon("bag", 24)}</span>
+            <span class="cat-photo-btns">
+              <button type="button" class="btn" data-cat-choisir>${c.image ? "Changer la photo" : "Ajouter une photo"}</button>
+              <label class="cat-del"><input type="checkbox" name="delimage" value="1"> Retirer la photo</label>
+            </span>
+            <input type="hidden" name="image" data-cat-url value="">
+          </div>
+          <button class="btn btn-primary">Enregistrer</button>
+        </form>
+      </details>
+      <form method="post" action="/dashboard/categories/${c.id}/delete" class="cat-del-form">
+        <button class="link-danger">Supprimer la catégorie</button></form>
+    </div>`).join("")}</div>` : `<div class="empty-state">${icon("box", 22)}<h3>Aucune catégorie</h3>
   <p>Les catégories s'affichent comme filtres sur la boutique et dans le menu.</p></div>`}
-</section>`, "categories")
+</section>
+
+<script>
+/* Photo de catégorie : réduite par le navigateur avant l'envoi, comme les produits. */
+(function () {
+  function reduire(file, done) {
+    var r = new FileReader()
+    r.onload = function () {
+      var im = new Image()
+      im.onload = function () {
+        var c = document.createElement("canvas"), t = 600
+        var k = Math.min(1, t / Math.max(im.width, im.height))
+        c.width = Math.round(im.width * k); c.height = Math.round(im.height * k)
+        c.getContext("2d").drawImage(im, 0, 0, c.width, c.height)
+        done(c.toDataURL("image/jpeg", 0.82))
+      }
+      im.onerror = function () { done("") }
+      im.src = r.result
+    }
+    r.onerror = function () { done("") }
+    r.readAsDataURL(file)
+  }
+  document.querySelectorAll("[data-cat-photo]").forEach(function (box) {
+    var url = box.querySelector("[data-cat-url]")
+    var ap = box.querySelector("[data-cat-aperçu]")
+    var btn = box.querySelector("[data-cat-choisir]")
+    var ret = box.querySelector("[data-cat-retirer]")
+    var input = document.createElement("input")
+    input.type = "file"; input.accept = "image/*"; input.hidden = true
+    box.appendChild(input)
+    btn.addEventListener("click", function () { input.click() })
+    input.addEventListener("change", function () {
+      var f = input.files && input.files[0]
+      if (!f) return
+      btn.textContent = "Patiente…"
+      reduire(f, function (d) {
+        btn.textContent = "Changer la photo"
+        if (!d) return
+        url.value = d
+        ap.innerHTML = '<img src="' + d + '" alt="">'
+        if (ret) ret.hidden = false
+      })
+    })
+    if (ret) ret.addEventListener("click", function () {
+      url.value = ""; ap.innerHTML = ""; ret.hidden = true
+    })
+  })
+})()
+</script>`, "categories")
 
 /* ============================== DASHBOARD : LIVRAISON ============================== */
 const dashShipping = (user, store, rates, saved, err = "") => dashLayout(user, store, `
@@ -2426,6 +2514,7 @@ const startBlock = (store, steps, done) => {
 
 const dashForm = (user, store, list, ok) => {
   const look = CF.lookOf(store)
+  const btn = look.btn || CF.btnOf()
   const typeName = (f) => f.type === "wilaya" ? "Wilaya" : f.type === "commune" ? "Commune" : f.type === "select" ? "Liste" : f.type === "tel" ? "Téléphone" : f.type === "email" ? "E-mail" : f.type === "textarea" ? "Texte long" : "Texte"
   const rows = CF.pieces(store, { all: true })
   const gone = CF.pieces(store, { all: true }).length
@@ -2520,6 +2609,50 @@ ${ok ? `<div class="alert ok">Formulaire enregistré. Il est déjà sur la bouti
     <input type="checkbox" name="form_delivery" value="1" ${look.delivery ? "checked" : ""} hidden>
   </section>
 
+  <section class="fm-block" id="btnBlock">
+    <h2>Bouton « Commander »</h2>
+    <p class="muted small">Le mot, le fond, la police, la taille : tout se règle ici.</p>
+    <label>Écrit sur le bouton
+      <input type="text" name="btn_text" maxlength="40" value="${esc(btn.text)}" placeholder="Commander" data-btn="text">
+    </label>
+    <div class="fm-btn-row">
+      <label>Fond
+        <input type="color" name="btn_bg" value="${esc(btn.bg || look.color)}" data-btn="bg">
+      </label>
+      <label>Texte
+        <input type="color" name="btn_ink" value="${esc(btn.ink || look.ink)}" data-btn="ink">
+      </label>
+      <label class="fm-btn-reset"><input type="checkbox" name="btn_reset" value="1" data-btn="reset">
+        Garder les couleurs de la boutique</label>
+    </div>
+    <div class="fm-btn-row">
+      <label>Police
+        <select name="btn_font" data-btn="font">
+          ${Object.entries(CF.BTN_FONTS).map(([id, f]) => `<option value="${id}" ${btn.font === id ? "selected" : ""}>${esc(f.label)}</option>`).join("")}
+        </select>
+      </label>
+      <label>Taille
+        <select name="btn_size" data-btn="size">
+          ${CF.BTN_SIZES.map((id) => `<option value="${id}" ${btn.size === id ? "selected" : ""}>${id === "petit" ? "Petit" : id === "moyen" ? "Moyen" : "Grand"}</option>`).join("")}
+        </select>
+      </label>
+      <label>Arrondi (px)
+        <input type="number" name="btn_radius" min="0" max="40" step="1" value="${btn.radius === "" ? "" : btn.radius}" placeholder="celui du thème" data-btn="radius">
+      </label>
+    </div>
+    <div class="fm-btn-toggles">
+      <label><input type="checkbox" name="btn_full" value="1" ${btn.full ? "checked" : ""} data-btn="full"> Toute la largeur</label>
+      <label><input type="checkbox" name="btn_bold" value="1" ${btn.bold ? "checked" : ""} data-btn="bold"> Gras</label>
+      <label><input type="checkbox" name="btn_italic" value="1" ${btn.italic ? "checked" : ""} data-btn="italic"> Italique</label>
+      <label><input type="checkbox" name="btn_upper" value="1" ${btn.upper ? "checked" : ""} data-btn="upper"> MAJUSCULES</label>
+      <label><input type="checkbox" name="btn_shadow" value="1" ${btn.shadow ? "checked" : ""} data-btn="shadow"> Ombre</label>
+    </div>
+    <div class="fm-btn-preview">
+      <span class="muted small">Aperçu</span>
+      <button type="button" class="btn btn-primary" id="btnApercu" data-btn-out>${esc(btn.text || "Commander")} — 2 500 DA</button>
+    </div>
+  </section>
+
   <section class="fm-block">
     <h2>Ajouter un détail</h2>
     <div class="fm-add">
@@ -2555,7 +2688,47 @@ ${ok ? `<div class="alert ok">Formulaire enregistré. Il est déjà sur la bouti
 </aside>
 </div>
 <script type="application/json" id="fmBoot">${boot}</script>
-<script src="/formulaire.js"></script>`, "form")
+<script src="/formulaire.js"></script>
+<script>
+/* Bouton « Commander » : l'aperçu suit les réglages en direct. */
+(function () {
+  var box = document.getElementById("btnBlock")
+  if (!box) return
+  var out = box.querySelector("[data-btn-out]")
+  var reset = box.querySelector('[data-btn="reset"]')
+  var PADS = { petit: ["9px 16px", "14px"], moyen: ["13px 22px", "16px"], grand: ["16px 26px", "18px"] }
+  var FONTS = ${JSON.stringify(Object.fromEntries(Object.entries(CF.BTN_FONTS).map(([k, v]) => [k, v.stack])))}
+  function val(n) { var e = box.querySelector('[data-btn="' + n + '"]'); return e ? e.value : "" }
+  function on(n) { var e = box.querySelector('[data-btn="' + n + '"]'); return !!(e && e.checked) }
+  function draw() {
+    var st = []
+    if (!on("reset")) {
+      var bg = val("bg"); if (bg) { st.push("background:" + bg, "border-color:" + bg) }
+      var ink = val("ink"); if (ink) st.push("color:" + ink)
+    }
+    var f = val("font"); if (FONTS[f]) st.push("font-family:" + FONTS[f])
+    var r = val("radius"); if (r !== "") st.push("border-radius:" + Math.max(0, Math.min(40, parseInt(r, 10) || 0)) + "px")
+    if (on("italic")) st.push("font-style:italic")
+    if (on("upper")) st.push("text-transform:uppercase", "letter-spacing:.06em")
+    if (on("shadow")) st.push("box-shadow:0 8px 22px rgba(0,0,0,.18)")
+    st.push("font-weight:" + (on("bold") ? 700 : 400))
+    var pad = PADS[val("size")] || PADS.grand
+    st.push("padding:" + pad[0], "font-size:" + pad[1])
+    if (!on("full")) st.push("width:auto", "display:inline-flex", "align-items:center", "justify-content:center")
+    if (out) {
+      out.setAttribute("style", st.join(";"))
+      out.textContent = (val("text") || "Commander") + " — 2 500 DA"
+    }
+    ;["bg", "ink"].forEach(function (k) {
+      var e = box.querySelector('[data-btn="' + k + '"]')
+      if (e) e.disabled = on("reset")
+    })
+  }
+  box.addEventListener("input", draw)
+  box.addEventListener("change", draw)
+  draw()
+})()
+</script>`, "form")
 }
 /* côté vendeur aussi : le prix s'affiche dans le format qu'il a choisi */
 const cashOf = (store, cents) => SECTIONS.moneyOf(store, cents)
@@ -2913,6 +3086,8 @@ const productForm = (user, store, product, extra = {}) => {
   const cats = extra.categories || []
   const gallery = extra.gallery || []
   const variants = extra.variants || []
+  /* Arrivée depuis l'écran Catégories : elle est déjà sélectionnée. */
+  const presetCategory = parseInt(extra.presetCategory, 10) || 0
   return dashLayout(user, store, `
 <header class="dash-head"><div><h1>${product ? "Modifier le produit" : "Nouveau produit"}</h1>
 <p class="muted">Photos, variantes et catégorie — tout se règle ici.</p></div>
@@ -2951,12 +3126,17 @@ const productForm = (user, store, product, extra = {}) => {
       <input name="video" type="text" value="${esc(product?.video || "")}" placeholder="/uploads/video.mp4">
       <span class="field-hint">Un fichier MP4/WEBM de tes dossiers. Le client la lance depuis la photo.</span></label>
   </div>
-  <div class="form-row two">
+  <div class="form-row three">
     <label>Catégorie
-      <select name="category_id">
+      <select name="category_id" data-cat-select>
         <option value="0">— Aucune —</option>
-        ${cats.map((c) => `<option value="${c.id}" ${product && product.category_id === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}
+        ${cats.map((c) => `<option value="${c.id}" ${(product ? product.category_id : presetCategory) === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}
       </select>
+      <span class="field-hint">Pas encore de catégorie ? Écris-la juste en dessous, elle sera créée.</span>
+    </label>
+    <label>Nouvelle catégorie
+      <input name="new_category" maxlength="40" placeholder="Coques iPhone, Robes d'été…" data-new-cat>
+      <span class="field-hint">Elle n'existe pas encore ? Écris son nom ici : elle est créée et rangée dans Catégories.</span>
     </label>
     <label>Cadrage de la photo
       <select name="focal">
@@ -2978,10 +3158,14 @@ const productForm = (user, store, product, extra = {}) => {
   </div>
 
   <div class="sub-block">
-    <div class="sub-head"><b>Titres de variante</b>
-      <span>Taille, Couleur… un titre par choix proposé, avec ses options. Le client choisira à la commande.</span></div>
+    <div class="sub-head"><b>Variantes liées</b>
+      <span>Un titre par choix (« votre iphone », « couleur »), ses options, puis la grille : chaque croisement a son stock et son prix. « iphone 11 en noir : 2 pièces ».</span></div>
     <div class="og-list" id="ogList"></div>
     <button type="button" class="btn btn-ghost img-btn" id="ogAdd">+ Ajouter un titre de variante</button>
+    <div id="ogGridWrap"></div>
+    <label class="check"><input type="checkbox" id="ogUnlimited"> Recevoir les commandes même en rupture de stock</label>
+    <label class="fld"><span>Style des variantes sur la page produit</span>
+      <select id="ogStyle" aria-label="Style des variantes"></select></label>
     <input type="hidden" name="option_groups" id="ogJson">
   </div>
 
@@ -3177,79 +3361,182 @@ const productForm = (user, store, product, extra = {}) => {
     openCrop(PHOTOS[0], function (u) { PHOTOS[0] = u; state.textContent = 'Recadrée'; renderPhotos(); });
   });
 
-  /* ---------- titres de variante : un titre, ses options ---------- */
-  var varList = document.getElementById('varList'), varJson = document.getElementById('varJson');
+  /* ---------- variantes liées : un titre, ses options, et la grille ----------
+     « votre iphone » (11, 12) × « couleur » (noir, rose) donne quatre cases :
+     11/noir, 11/rose, 12/noir, 12/rose. Chaque case a son stock et son prix.
+     C'est exactement « linker et stock ». */
   var ogList = document.getElementById('ogList'), ogJson = document.getElementById('ogJson');
-  var GROUPS = (function(){
-    var raw = OPTION_GROUPS;
-    if (Array.isArray(raw)) return raw;
-    try { return JSON.parse(raw || '[]'); } catch (_) { return []; }
-  })();
+  var ogGridWrap = document.getElementById('ogGridWrap');
+  var ogUnlimited = document.getElementById('ogUnlimited'), ogStyle = document.getElementById('ogStyle');
+  var STYLES = [['boutons', 'Boutons'], ['liste', 'Liste à cocher'], ['deroulant', 'Menu déroulant'],
+    ['pastilles', 'Pastilles'], ['grille', 'Grille'], ['cadres', 'Cadres'],
+    ['rayures', 'Rayures'], ['ronds', 'Ronds']];
 
-  function syncGroups(){ ogJson.value = GROUPS.length ? JSON.stringify(GROUPS) : ''; }
-  function renderGroups(){
-    ogList.innerHTML = GROUPS.map(function(g, i){
-      return '<div class="og-card" data-i="'+i+'">' +
+  var ETAT = (function () {
+    var raw = OPTION_GROUPS;
+    if (raw && !Array.isArray(raw) && Array.isArray(raw.groups)) return raw;
+    if (Array.isArray(raw)) return {
+      groups: raw.map(function (g, i) {
+        return { id: 'g' + (i + 1), name: g.name || '', options: (g.options || []).map(function (o, j) { return { id: 'g' + (i + 1) + 'o' + (j + 1), label: o }; }) };
+      }), combos: [], unlimited: false, style: 'boutons'
+    };
+    return { groups: [], combos: [], unlimited: false, style: 'boutons' };
+  })();
+  ETAT.groups = ETAT.groups || []; ETAT.combos = ETAT.combos || [];
+
+  var seq = 0;
+  function escHtml(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function uid(p) { seq++; return p + Date.now().toString(36) + seq.toString(36); }
+  function cle(picks) { return Object.keys(picks || {}).sort().map(function (k) { return k + ':' + picks[k]; }).join('|'); }
+  function matrice() {
+    var out = [{}];
+    ETAT.groups.forEach(function (g) {
+      var next = [];
+      out.forEach(function (p) {
+        g.options.forEach(function (o) { var q = {}; Object.keys(p).forEach(function (k) { q[k] = p[k]; }); q[g.id] = o.id; next.push(q); });
+      });
+      out = next.length ? next : [{}];
+    });
+    return out.slice(0, 240);
+  }
+  function etiquette(picks) {
+    var parts = [];
+    ETAT.groups.forEach(function (g) {
+      for (var i = 0; i < g.options.length; i++) {
+        if (g.options[i].id === picks[g.id]) { parts.push(g.name + ' : ' + g.options[i].label); break; }
+      }
+    });
+    return parts.join(' · ');
+  }
+  /* on garde ce qui était déjà saisi quand la grille change de forme */
+  function rebuildCombos() {
+    var garde = {};
+    ETAT.combos.forEach(function (c) { garde[cle(c.picks)] = c; });
+    ETAT.combos = matrice().map(function (picks) {
+      var old = garde[cle(picks)];
+      return { picks: picks, stock: old ? old.stock : 0, price: old ? old.price : '', unlimited: old ? !!old.unlimited : false, on: old ? old.on !== false : true };
+    });
+  }
+  function sync() {
+    ogJson.value = ETAT.groups.length ? JSON.stringify({ groups: ETAT.groups, combos: ETAT.combos, unlimited: !!ETAT.unlimited, style: ETAT.style || 'boutons' }) : '';
+  }
+
+  function renderGroups() {
+    ogList.innerHTML = ETAT.groups.map(function (g, i) {
+      return '<div class="og-card" data-i="' + i + '">' +
         '<div class="og-head">' +
-          '<input type="text" class="og-name" value="'+escHtml(g.name)+'" placeholder="Titre (ex. Taille)" ' +
-            'data-i="'+i+'" data-k="name" maxlength="30" aria-label="Titre de variante">' +
-          '<button type="button" class="og-del" data-rm="'+i+'" title="Supprimer ce titre" aria-label="Supprimer ce titre">\u2715</button>' +
+          '<input type="text" class="og-name" value="' + escHtml(g.name) + '" placeholder="Titre (ex. votre iphone)" ' +
+            'data-i="' + i + '" data-k="name" maxlength="40" aria-label="Titre de variante">' +
+          '<button type="button" class="og-del" data-rm="' + i + '" title="Supprimer ce titre" aria-label="Supprimer ce titre">✕</button>' +
         '</div>' +
         '<div class="og-chips">' +
-          (g.options || []).map(function(o, j){
-            return '<span class="og-chip">'+escHtml(o)+
-              '<button type="button" data-rj="'+i+'" data-oj="'+j+'" title="Retirer cette option" aria-label="Retirer cette option">\u2715</button></span>';
+          g.options.map(function (o, j) {
+            return '<span class="og-chip">' + escHtml(o.label) +
+              '<button type="button" data-rj="' + i + '" data-oj="' + j + '" title="Retirer cette option" aria-label="Retirer cette option">✕</button></span>';
           }).join('') +
           '<span class="og-addopt">' +
-            '<input type="text" class="og-new" data-i="'+i+'" placeholder="Ajouter une option (ex. M)" maxlength="30" aria-label="Nouvelle option">' +
-            '<button type="button" data-add="'+i+'" title="Ajouter cette option" aria-label="Ajouter cette option">+</button>' +
+            '<input type="text" class="og-new" data-i="' + i + '" placeholder="Ajouter une option (ex. 11)" maxlength="40" aria-label="Nouvelle option">' +
+            '<button type="button" data-add="' + i + '" title="Ajouter cette option" aria-label="Ajouter cette option">+</button>' +
           '</span>' +
         '</div>' +
       '</div>';
     }).join('') || '<p class="muted small">Aucun titre de variante : le produit est vendu sans choix.</p>';
-    syncGroups();
+    renderGrid();
+    sync();
   }
-  function escHtml(v){
-    return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  /* LA GRILLE : une ligne par croisement, avec son stock et son prix */
+  function renderGrid() {
+    if (!ETAT.groups.length || !ETAT.combos.length) { ogGridWrap.innerHTML = ''; return; }
+    var lignes = ETAT.combos.map(function (c, i) {
+      var nom = etiquette(c.picks);
+      return '<tr data-c="' + i + '">' +
+        '<th scope="row">' + escHtml(nom) + '</th>' +
+        '<td><input type="number" min="0" step="1" inputmode="numeric" value="' + (c.stock || 0) + '" data-c="' + i + '" data-k="stock" aria-label="Stock de ' + escHtml(nom) + '"></td>' +
+        '<td><input type="text" inputmode="decimal" placeholder="celui du produit" value="' + escHtml(c.price || '') + '" data-c="' + i + '" data-k="price" aria-label="Prix de ' + escHtml(nom) + '"></td>' +
+        '<td><input type="checkbox" data-c="' + i + '" data-k="unlimited"' + (c.unlimited ? ' checked' : '') + ' aria-label="Stock illimité pour ' + escHtml(nom) + '"></td>' +
+        '<td><input type="checkbox" data-c="' + i + '" data-k="on"' + (c.on === false ? '' : ' checked') + ' aria-label="Proposer ' + escHtml(nom) + '"></td>' +
+      '</tr>';
+    }).join('');
+    ogGridWrap.innerHTML =
+      '<div class="og-grid-head"><b>Stock et prix de chaque variante</b>' +
+      '<span>' + ETAT.combos.length + ' variante' + (ETAT.combos.length > 1 ? 's' : '') + ' — laisse le prix vide pour garder celui du produit.</span></div>' +
+      '<table class="og-grid"><thead><tr>' +
+        '<th>Variante</th><th>Stock</th><th>Prix</th><th>Illimité</th><th>Proposée</th>' +
+      '</tr></thead><tbody>' + lignes + '</tbody></table>';
   }
-  ogList.addEventListener('input', function(e){
+
+  function addOption(i, value, input) {
+    var g = ETAT.groups[i]; if (!g) return;
+    var parts = String(value || '').split(',').map(function (v) { return v.trim(); }).filter(Boolean);
+    parts.forEach(function (p) {
+      if (g.options.length >= 20) return;
+      if (g.options.filter(function (o) { return o.label.toLowerCase() === p.toLowerCase(); }).length) return;
+      g.options.push({ id: uid('o'), label: p.slice(0, 40) });
+    });
+    if (input) input.value = '';
+    rebuildCombos(); renderGroups();
+    if (input) { var again = ogList.querySelector('.og-new[data-i="' + i + '"]'); if (again) again.focus(); }
+  }
+
+  ogList.addEventListener('input', function (e) {
     var t = e.target, i = t.getAttribute('data-i');
     if (i === null || t.getAttribute('data-k') !== 'name') return;
-    GROUPS[+i].name = t.value; syncGroups();
+    ETAT.groups[+i].name = t.value; sync(); renderGrid();
   });
-  ogList.addEventListener('keydown', function(e){
+  ogList.addEventListener('keydown', function (e) {
     if (e.key !== 'Enter') return;
     var t = e.target;
     if (t.classList.contains('og-new')) { e.preventDefault(); addOption(+t.getAttribute('data-i'), t.value, t); }
   });
-  ogList.addEventListener('click', function(e){
+  ogList.addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b) return;
-    var i;
-    if ((i = b.getAttribute('data-rm')) !== null) { GROUPS.splice(+i, 1); renderGroups(); return; }
-    if ((i = b.getAttribute('data-add')) !== null) {
-      var inp = ogList.querySelector('.og-new[data-i="'+i+'"]');
-      addOption(+i, inp ? inp.value : '', inp); return;
-    }
+    var i = b.getAttribute('data-rm');
+    if (i !== null) { ETAT.groups.splice(+i, 1); rebuildCombos(); renderGroups(); return; }
+    i = b.getAttribute('data-add');
+    if (i !== null) { var inp = ogList.querySelector('.og-new[data-i="' + i + '"]'); addOption(+i, inp ? inp.value : '', inp); return; }
     var rj = b.getAttribute('data-rj');
     if (rj !== null) {
-      GROUPS[+rj].options.splice(+b.getAttribute('data-oj'), 1);
-      if (!GROUPS[+rj].options.length) GROUPS.splice(+rj, 1);
-      renderGroups();
+      ETAT.groups[+rj].options.splice(+b.getAttribute('data-oj'), 1);
+      if (!ETAT.groups[+rj].options.length) ETAT.groups.splice(+rj, 1);
+      rebuildCombos(); renderGroups();
     }
   });
-  function addOption(i, value, input){
-    var g = GROUPS[i]; if (!g) return;
-    var parts = String(value || '').split(',').map(function(v){ return v.trim(); }).filter(Boolean);
-    parts.forEach(function(p){ if (g.options.indexOf(p) < 0 && g.options.length < 15) g.options.push(p.slice(0, 30)); });
-    if (input) input.value = '';
-    renderGroups();
-    if (input) { var again = ogList.querySelector('.og-new[data-i="'+i+'"]'); if (again) again.focus(); }
-  }
-  document.getElementById('ogAdd').addEventListener('click', function(){
-    if (GROUPS.length >= 3) return;
-    GROUPS.push({ name: '', options: [] }); renderGroups();
-    var f = ogList.querySelector('.og-name'); if (f) f.focus();
+  document.getElementById('ogAdd').addEventListener('click', function () {
+    if (ETAT.groups.length >= 4) return;
+    ETAT.groups.push({ id: uid('g'), name: '', options: [] });
+    rebuildCombos(); renderGroups();
+    var f = ogList.querySelectorAll('.og-name'); if (f.length) f[f.length - 1].focus();
   });
+
+  /* la grille se remplit au fil de la frappe */
+  ogGridWrap.addEventListener('input', function (e) {
+    var t = e.target, i = t.getAttribute('data-c'), k = t.getAttribute('data-k');
+    if (i === null || !k) return;
+    var c = ETAT.combos[+i]; if (!c) return;
+    if (k === 'stock') c.stock = Math.max(0, parseInt(t.value, 10) || 0);
+    else if (k === 'price') c.price = String(t.value || '').trim();
+    sync();
+  });
+  ogGridWrap.addEventListener('change', function (e) {
+    var t = e.target, i = t.getAttribute('data-c'), k = t.getAttribute('data-k');
+    if (i === null || !k || t.type !== 'checkbox') return;
+    var c = ETAT.combos[+i]; if (!c) return;
+    if (k === 'unlimited') c.unlimited = !!t.checked;
+    if (k === 'on') c.on = !!t.checked;
+    sync();
+  });
+
+  if (ogUnlimited) {
+    ogUnlimited.checked = !!ETAT.unlimited;
+    ogUnlimited.addEventListener('change', function () { ETAT.unlimited = !!ogUnlimited.checked; sync(); });
+  }
+  if (ogStyle) {
+    ogStyle.innerHTML = STYLES.map(function (s) { return '<option value="' + s[0] + '">' + s[1] + '</option>'; }).join('');
+    ogStyle.value = STYLES.filter(function (s) { return s[0] === (ETAT.style || 'boutons'); }).length ? (ETAT.style || 'boutons') : 'boutons';
+    ogStyle.addEventListener('change', function () { ETAT.style = ogStyle.value; sync(); });
+  }
+  rebuildCombos(); renderGroups();
 
   /* variantes avec prix et stock (facultatif) */
   function renderVar(){
@@ -3879,14 +4166,15 @@ ${data.alerts.length ? `<section class="panel panel-warn">
           ? `<span class="stock-prod"><span class="t-thumb">${pThumb(p)}</span><b class="stock-title">${esc(p.title)}</b></span>`
           : `<span class="stock-sub">↳ ${esc(r.label)}</span>`}</td>
         <td class="muted">${i === 0 && p.sku ? esc(p.sku) : ""}</td>
-        <td>${r.variantId ? esc(r.label) : `<span class="muted">—</span>`}</td>
-        <td><b>${r.stock}</b></td>
+        <td>${r.variantId || r.combo ? esc(r.label) : `<span class="muted">—</span>`}</td>
+        <td><b>${r.stock}</b>${r.unlimited ? `<span class="pill ok">illimité</span>` : ""}</td>
         <td class="muted">${i === 0 ? p.sold : ""}</td>
         <td><span class="pill ${tone(r.stock)}">${label(r.stock)}</span></td>
         <td class="stock-cell">
           <form class="stock-form" method="post" action="/dashboard/stock/adjust">
             <input type="hidden" name="product_id" value="${p.id}">
             <input type="hidden" name="variant_id" value="${r.variantId || 0}">
+            ${r.combo ? `<input type="hidden" name="combo" value="${esc(r.combo)}">` : ""}
             <div class="stock-ctrl">
               <span class="stock-step">
                 <button type="submit" name="act" value="minus" title="Retirer la quantité" aria-label="Retirer">−</button>

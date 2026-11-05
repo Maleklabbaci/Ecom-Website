@@ -30,6 +30,7 @@ const UPLOADS = require("./src/uploads")
 const ASSIGN = require("./src/assign")
 const SHOP = require("./src/shop")
 const INV = require("./src/inventory")
+const VARIANTES = require("./src/variantes") /* variantes liées : options croisées, stock et prix par combinaison */
 const SEC = require("./src/security")
 const PX = require("./src/pixels")
 const LAND = require("./src/landings")
@@ -490,20 +491,11 @@ const bundleIds = (v) => {
 }
 /** Titres de variante (JSON) : [{ name: "Taille", options: ["S","M","L"] }] — nettoyé et borné. */
 const cleanOptionGroups = (raw) => {
-  let list = []
-  try { list = JSON.parse(raw || "[]") } catch (_) { list = [] }
-  if (!Array.isArray(list)) return ""
-  const out = []
-  for (const g of list) {
-    if (out.length >= 3) break
-    const name = String((g && g.name) || "").trim().slice(0, 30)
-    if (!name) continue
-    const opts = (Array.isArray(g.options) ? g.options : [])
-      .map((o) => String(o || "").trim().slice(0, 30)).filter(Boolean)
-    const uniq = [...new Set(opts)].slice(0, 15)
-    if (uniq.length) out.push({ name, options: uniq })
-  }
-  return out.length ? JSON.stringify(out) : ""
+  /* Les variantes liées : « votre iphone » (11, 12) × « couleur » (noir, rose).
+     Chaque croisement garde son stock et son prix. L'ancienne écriture (une
+     simple liste de groupes) est encore acceptée : les boutiques d'avant
+     continuent de tourner, et la grille se remplit toute seule. */
+  try { return VARIANTES.ecrire(VARIANTES.lire(raw)) } catch (_) { return "" }
 }
 
 /** Vidéo du produit : un fichier du site ou un lien direct MP4/WEBM. Rien d'autre. */
@@ -514,7 +506,14 @@ const cleanVideo = (raw) => {
 
 const saveExtras = (productId, body) => {
   if (body.option_groups !== undefined) {
-    db.prepare("UPDATE products SET option_groups = ? WHERE id = ?").run(cleanOptionGroups(body.option_groups), productId)
+    const brut = cleanOptionGroups(body.option_groups)
+    db.prepare("UPDATE products SET option_groups = ? WHERE id = ?").run(brut, productId)
+    /* « Recevoir les commandes même en rupture » : c'est la case que tout le
+       reste du code connaît déjà (stock, inventaire, alertes). */
+    try {
+      const d = VARIANTES.lire(brut)
+      if (d.unlimited) db.prepare("UPDATE products SET continue_selling = 1 WHERE id = ?").run(productId)
+    } catch (_) {}
   }
   let gallery = []
   let variants = []
@@ -1020,11 +1019,36 @@ app.get("/dashboard/products", requireAuth, requireStore, (req, res) => {
   res.send(V.dashProducts(req.user, req.store, products))
 })
 
-app.get("/dashboard/products/new", requireAuth, requireStore, (req, res) =>
+app.get("/dashboard/products/new", requireAuth, requireStore, (req, res) => {
+  const cats = SHOP.categories(req.store.id)
+  /* Arrivée depuis une catégorie : elle est déjà choisie dans le formulaire. */
+  const want = parseInt(req.query.category, 10) || 0
+  const pre = cats.some((c) => c.id === want) ? want : 0
   res.send(V.productForm(req.user, req.store, null, {
-    categories: SHOP.categories(req.store.id), gallery: [], variants: [], optionGroups: [],
+    categories: cats, gallery: [], variants: [], optionGroups: [], presetCategory: pre,
     products: db.prepare("SELECT id, title FROM products WHERE store_id = ? ORDER BY title").all(req.store.id),
-  })))
+  }))
+})
+
+/**
+ * La catégorie d'un produit : celle cochée dans la liste, sinon celle écrite à
+ * la main (qui est créée à la volée, sans quitter la fiche produit).
+ */
+const categorieChoisie = (storeId, idBrut, nomNeuf) => {
+  const id = parseInt(idBrut, 10) || 0
+  if (id) {
+    const c = db.prepare("SELECT id FROM categories WHERE id = ? AND store_id = ?").get(id, storeId)
+    if (c) return c.id
+  }
+  const nom = String(nomNeuf || "").trim().slice(0, 40)
+  if (!nom) return null
+  const deja = db.prepare("SELECT id FROM categories WHERE store_id = ? AND slug = ?").get(storeId, SHOP.slugify(nom))
+  if (deja) return deja.id
+  const max = db.prepare("SELECT COALESCE(MAX(position), 0) p FROM categories WHERE store_id = ?").get(storeId).p
+  const r = db.prepare("INSERT INTO categories (store_id, name, slug, position, image) VALUES (?, ?, ?, ?, '')")
+    .run(storeId, nom, SHOP.slugify(nom), max + 1)
+  return Number(r.lastInsertRowid) || null
+}
 
 app.post("/dashboard/products", requireAuth, requireStore, (req, res) => {
   const { title, description } = req.body
@@ -1037,10 +1061,12 @@ app.post("/dashboard/products", requireAuth, requireStore, (req, res) => {
   const compare = String(req.body.compare || "").trim() ? parseDzdCents(req.body.compare) : 0
   if (compare === null) return fail("Le prix barré est invalide. Écris un nombre, ou laisse le champ vide.")
   const cost = String(req.body.cost || "").trim() ? parseDzdCents(req.body.cost) : 0
+  /* Catégorie écrite à la volée depuis la fiche produit. */
+  const cat = categorieChoisie(req.store.id, req.body.category_id, req.body.new_category)
   const info = db.prepare(`INSERT INTO products (store_id, title, description, price_cents, image, category_id, focal, stock, active, compare_cents, bundle_ids, cost_cents, video)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(req.store.id, String(title).trim().slice(0, 140), String(description || "").slice(0, 5000), price, req.body.image || null,
-      parseInt(req.body.category_id, 10) || null, req.body.focal || "center", stock, req.body.active ? 1 : 0,
+      cat, req.body.focal || "center", stock, req.body.active ? 1 : 0,
       compare, bundleIds(req.body.bundle_ids), cost === null ? 0 : cost, cleanVideo(req.body.video))
   saveExtras(info.lastInsertRowid, req.body)
   if (stock) INV.record(req.store.id, info.lastInsertRowid, null, stock, stock, "creation", null, "Stock initial")
@@ -1054,7 +1080,7 @@ app.get("/dashboard/products/:id", requireAuth, requireStore, (req, res) => {
     categories: SHOP.categories(req.store.id),
     gallery: SHOP.images(product.id),
     variants: SHOP.variants(product.id),
-    optionGroups: (() => { try { return JSON.parse(product.option_groups || "[]") } catch (_) { return [] } })(),
+    optionGroups: VARIANTES.lire(product.option_groups),
     products: db.prepare("SELECT id, title FROM products WHERE store_id = ? AND id != ? ORDER BY title")
       .all(req.store.id, product.id),
   }))
@@ -1071,10 +1097,11 @@ app.post("/dashboard/products/:id", requireAuth, requireStore, (req, res) => {
   if (compare === null) return fail("Le prix barré est invalide. Écris un nombre, ou laisse le champ vide.")
   const prev = db.prepare("SELECT image, stock FROM products WHERE id = ? AND store_id = ?").get(req.params.id, req.store.id)
   const cost = String(req.body.cost || "").trim() ? parseDzdCents(req.body.cost) : 0
+  const cat = categorieChoisie(req.store.id, req.body.category_id, req.body.new_category)
   db.prepare(`UPDATE products SET title = ?, description = ?, price_cents = ?, image = ?, category_id = ?,
               focal = ?, stock = ?, active = ?, compare_cents = ?, bundle_ids = ?, cost_cents = ?, video = ? WHERE id = ? AND store_id = ?`)
     .run(String(req.body.title).trim().slice(0, 140), String(req.body.description || "").slice(0, 5000), price,
-      req.body.image || null, parseInt(req.body.category_id, 10) || null, req.body.focal || "center",
+      req.body.image || null, cat, req.body.focal || "center",
       newStock, req.body.active ? 1 : 0,
       compare,
       bundleIds(req.body.bundle_ids), cost === null ? 0 : cost, cleanVideo(req.body.video), req.params.id, req.store.id)
@@ -2948,18 +2975,55 @@ app.post("/dashboard/categories", requireAuth, requireStore, (req, res) => {
   if (!name) return res.redirect("/dashboard/categories?error=" + encodeURIComponent("Le nom de la catégorie est obligatoire."))
   const slug = SHOP.slugify(name)
   const max = db.prepare("SELECT COALESCE(MAX(position), 0) p FROM categories WHERE store_id = ?").get(req.store.id).p
+  /* photo de catégorie : les images sont déjà réduites par le navigateur */
+  let image = ""
+  if (req.body.image) {
+    const out = UPLOADS.saveDataUrl(req.body.image)
+    if (out.ok) image = out.url
+  }
+  let catId = 0
   try {
-    db.prepare("INSERT INTO categories (store_id, name, slug, position) VALUES (?, ?, ?, ?)")
-      .run(req.store.id, name, slug, max + 1)
+    const r = db.prepare("INSERT INTO categories (store_id, name, slug, position, image) VALUES (?, ?, ?, ?, ?)")
+      .run(req.store.id, name, slug, max + 1, image)
+    catId = r.lastInsertRowid
   } catch (e) {
     return res.redirect("/dashboard/categories?error=" + encodeURIComponent(messageOf(e).includes("existe déjà")
       ? "Cette catégorie existe déjà. Change le nom."
       : messageOf(e)))
   }
+  /* « Ajouter un produit dedans » : on enchaîne directement sur la fiche produit. */
+  if (String(req.body.then || "") === "product" && catId) {
+    return res.redirect(`/dashboard/products/new?category=${catId}`)
+  }
   res.redirect("/dashboard/categories")
 })
 
+/* Renommer une catégorie et changer sa photo, depuis la liste. */
+app.post("/dashboard/categories/:id/update", requireAuth, requireStore, (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  const cat = db.prepare("SELECT * FROM categories WHERE id = ? AND store_id = ?").get(id, req.store.id)
+  if (!cat) return res.redirect("/dashboard/categories?error=" + encodeURIComponent("Cette catégorie n'existe plus."))
+  const name = String(req.body.name || "").trim().slice(0, 40) || cat.name
+  let image = cat.image || ""
+  if (req.body.image) {
+    const out = UPLOADS.saveDataUrl(req.body.image)
+    if (out.ok) {
+      if (image) UPLOADS.removeUrl(image, db)
+      image = out.url
+    }
+  }
+  if (String(req.body.delimage || "") === "1") {
+    if (image) UPLOADS.removeUrl(image, db)
+    image = ""
+  }
+  db.prepare("UPDATE categories SET name = ?, slug = ?, image = ? WHERE id = ? AND store_id = ?")
+    .run(name, SHOP.slugify(name), image, id, req.store.id)
+  res.redirect("/dashboard/categories?ok=1")
+})
+
 app.post("/dashboard/categories/:id/delete", requireAuth, requireStore, (req, res) => {
+  const gone = db.prepare("SELECT image FROM categories WHERE id = ? AND store_id = ?").get(req.params.id, req.store.id)
+  if (gone && gone.image) UPLOADS.removeUrl(gone.image, db)
   db.prepare("UPDATE products SET category_id = NULL WHERE category_id = ? AND store_id = ?")
     .run(req.params.id, req.store.id)
   db.prepare("DELETE FROM categories WHERE id = ? AND store_id = ?").run(req.params.id, req.store.id)
@@ -3072,6 +3136,9 @@ app.get("/dashboard/stock", requireAuth, requireStore, (req, res) => {
 app.post("/dashboard/stock/adjust", requireAuth, requireStore, (req, res) => {
   const productId = parseInt(req.body.product_id, 10)
   const variantId = parseInt(req.body.variant_id, 10) || 0
+  /* Variante liée : la case de la grille visée (« iphone 11 · noir ») */
+  const combo = String(req.body.combo || "").slice(0, 200)
+  const opts = combo ? { combo } : {}
   const raw = parseInt(req.body.value, 10)
   const p = db.prepare("SELECT id FROM products WHERE id = ? AND store_id = ?").get(productId, req.store.id)
   if (!p || Number.isNaN(raw)) return res.redirect("/dashboard/stock?error=" + encodeURIComponent("Produit ou quantité invalide. Choisis un produit et un nombre."))
@@ -3079,15 +3146,21 @@ app.post("/dashboard/stock/adjust", requireAuth, requireStore, (req, res) => {
     const v = db.prepare("SELECT id FROM variants WHERE id = ? AND product_id = ?").get(variantId, productId)
     if (!v) return res.redirect("/dashboard/stock?error=" + encodeURIComponent("Cette variante n'existe plus. Recharge la page."))
   }
+  if (combo) {
+    const opg = db.prepare("SELECT option_groups FROM products WHERE id = ? AND store_id = ?").get(productId, req.store.id)
+    let trouve = false
+    try { trouve = !!VARIANTES.parCle(VARIANTES.lire(opg && opg.option_groups), combo) } catch (_) {}
+    if (!trouve) return res.redirect("/dashboard/stock?error=" + encodeURIComponent("Cette combinaison n'existe plus. Recharge la page."))
+  }
   const reason = ["reassort", "inventaire", "retour"].includes(req.body.reason) ? req.body.reason : "inventaire"
   /* Boutons du tableau : −, +, Définir (quantité toujours positive) */
   const act = String(req.body.act || "")
   const qty = Math.abs(raw)
-  if (act === "set") INV.setLevel(req.store.id, productId, variantId, qty, reason)
-  else if (act === "minus") INV.adjust(req.store.id, productId, variantId, -qty, reason)
-  else if (act === "plus") INV.adjust(req.store.id, productId, variantId, qty, reason)
-  else if (req.body.mode === "set") INV.setLevel(req.store.id, productId, variantId, Math.max(0, raw), reason)
-  else INV.adjust(req.store.id, productId, variantId, raw, reason)
+  if (act === "set") INV.setLevel(req.store.id, productId, variantId, qty, reason, opts)
+  else if (act === "minus") INV.adjust(req.store.id, productId, variantId, -qty, reason, opts)
+  else if (act === "plus") INV.adjust(req.store.id, productId, variantId, qty, reason, opts)
+  else if (req.body.mode === "set") INV.setLevel(req.store.id, productId, variantId, Math.max(0, raw), reason, opts)
+  else INV.adjust(req.store.id, productId, variantId, raw, reason, opts)
   res.redirect("/dashboard/stock?ok=1")
 })
 
@@ -3816,6 +3889,40 @@ app.get("/:slug/checkout", (req, res) => {
   }))
 })
 
+/* ---------- variantes liées : le stock de chaque combinaison ----------
+   Une combinaison épuisée ne peut pas être commandée, sauf si le marchand a
+   coché « recevoir les commandes même en rupture ». C'est vérifié juste avant
+   d'enregistrer la commande, et décompté juste après. */
+function variantesDisponibles(items) {
+  for (const it of items) {
+    if (!it.option_groups) continue
+    let data = null
+    try { data = VARIANTES.lire(it.option_groups) } catch (_) { continue }
+    if (!data.groups.length) continue
+    const c = VARIANTES.parEtiquette(data, it.options || "")
+    if (!c) continue
+    const dispo = VARIANTES.disponible(data, c.picks, it.qty, it.stock)
+    if (!dispo.ok) return { ok: false, nom: VARIANTES.etiquette(data, c.picks), reste: dispo.stock }
+  }
+  return { ok: true }
+}
+function variantesDecompter(items) {
+  for (const it of items) {
+    if (!it.option_groups || !it.id) continue
+    let data = null
+    try { data = VARIANTES.lire(it.option_groups) } catch (_) { continue }
+    if (!data.groups.length) continue
+    const c = VARIANTES.parEtiquette(data, it.options || "")
+    if (!c) continue
+    if (data.unlimited || c.unlimited) continue
+    c.stock = Math.max(0, c.stock - Math.max(1, Number(it.qty) || 1))
+    try {
+      db.prepare("UPDATE products SET option_groups = ? WHERE id = ?").run(VARIANTES.ecrire(data), it.id)
+      INV.record(it.store_id, it.id, null, c.stock, c.stock, "commande", null, VARIANTES.etiquette(data, c.picks))
+    } catch (_) {}
+  }
+}
+
 app.post("/:slug/checkout", rateLimit("checkout", 30, 10 * 60e3), async (req, res) => {
   const store = getStore(req.params.slug)
   if (!store) return res.redirect("/")
@@ -3828,8 +3935,14 @@ app.post("/:slug/checkout", rateLimit("checkout", 30, 10 * 60e3), async (req, re
   const buyId = parseInt(req.body.buy_id, 10)
   if (buyId) {
     const bp = db.prepare("SELECT * FROM products WHERE id = ? AND store_id = ? AND active = 1").get(buyId, store.id)
-    if (bp && bp.stock > 0) {
-      const qty = Math.max(1, Math.min(parseInt(req.body.buy_qty, 10) || 1, bp.stock))
+    /* Un produit à variantes liées peut avoir un stock global à zéro : le stock
+       vit dans la grille, case par case. On ne le refuse donc pas d'emblée —
+       c'est la vérification de la combinaison qui tranche, plus bas. */
+    const aVariantes = bp ? VARIANTES.lire(bp.option_groups).groups.length > 0 : false
+    if (bp && (bp.stock > 0 || aVariantes)) {
+      const qty = bp.stock > 0
+        ? Math.max(1, Math.min(parseInt(req.body.buy_qty, 10) || 1, bp.stock))
+        : Math.max(1, Math.min(parseInt(req.body.buy_qty, 10) || 1, 99))
       const bvid = parseInt(req.body.buy_variant, 10) || 0
       const opts = String(req.body.opts || "").replace(/\s+/g, " ").trim().slice(0, 120)
       const key = opts ? `${buyId}:${bvid || 0}:${encodeURIComponent(opts)}` : (bvid ? `${buyId}:${bvid}` : String(buyId))
@@ -3930,8 +4043,22 @@ app.post("/:slug/checkout", rateLimit("checkout", 30, 10 * 60e3), async (req, re
 
   const risk = SEC.risk(store, { phone, address, ip, geo, captchaScore: cap.score, captchaReason: cap.reason })
 
+  /* variantes liées : la combinaison est-elle encore disponible ? */
+  const varOk = variantesDisponibles(items)
+  if (!varOk.ok) {
+    return res.status(400).send(V.checkoutPage(store, items, totals, items.reduce((a, b) => a + b.qty, 0),
+      varOk.reste > 0
+        ? `Il ne reste que ${varOk.reste} pièce(s) de « ${varOk.nom} ». Réduis la quantité.`
+        : `« ${varOk.nom} » n'est plus en stock. Choisis une autre variante.`,
+      { wilayas: SHOP.WILAYAS, shipping: SHOP.shippingTable(store.id), payments: PAY.list(store), delivery: types }))
+  }
+
   const ref = REFS.uniqueRef(db, store.id)
-  const stockRows = items.map((it) => ({ productId: it.id, variantId: it.variant ? it.variant.id : null, qty: it.qty }))
+  const stockRows = items
+    /* Un produit à variantes liées compte son stock dans la grille, case par
+       case : le stock global du produit ne doit pas être décompté en plus. */
+    .filter((it) => VARIANTES.lire(it.option_groups).groups.length === 0)
+    .map((it) => ({ productId: it.id, variantId: it.variant ? it.variant.id : null, qty: it.qty }))
   /* d'où vient le client : conservé sur la commande pour les stats de campagne */
   const attr = ORD.attribution(req)
   const tx = db.transaction(() => {
@@ -3975,6 +4102,8 @@ app.post("/:slug/checkout", rateLimit("checkout", 30, 10 * 60e3), async (req, re
     }
     /* stock : vérifié ET décrémenté dans la même transaction → aucune survente */
     INV.reserve(store.id, stockRows, info.lastInsertRowid)
+    /* variantes liées : on retire les pièces de la combinaison commandée */
+    variantesDecompter(items.map((it) => Object.assign({}, it, { store_id: store.id })))
     ORD.log(store.id, info.lastInsertRowid, "status", "Commande reçue",
       `via ${ORD.sourceLabel(attr.source)}`)
     return info.lastInsertRowid

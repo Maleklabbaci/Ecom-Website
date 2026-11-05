@@ -1615,7 +1615,8 @@ const RENDER = {
     }
     const items = style === "pill"
       ? list.map((c) => `<a class="tpx-pill" href="/${esc(store.slug)}?cat=${esc(c.slug)}">${icon("grid", 15)}<span>${esc(c.name)}</span></a>`).join("")
-      : list.map((c) => `<a class="tpx-cat" href="/${esc(store.slug)}?cat=${esc(c.slug)}">
+      : list.map((c) => `<a class="tpx-cat${c.image ? " tpx-cat-photo" : ""}" href="/${esc(store.slug)}?cat=${esc(c.slug)}">
+        ${c.image ? `<span class="tpx-cat-img"><img src="${esc(c.image)}" alt="${esc(c.name)}" loading="lazy"></span>` : ""}
         <span class="tpx-cat-txt">${esc(c.name)}</span>
         <span class="tpx-cat-n">${c.n || 0} article${c.n > 1 ? "s" : ""}</span>
       </a>`).join("")
