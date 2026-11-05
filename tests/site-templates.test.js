@@ -87,7 +87,7 @@ test("rendu : boutique = produits/panier, vitrine = contact, aucun mélange", ()
 
 test("marchand : choisir un template = brouillon, puis Publier = vitrine", async () => {
   await req("/login", form({ email: "demo@novadz.dz", password: "demo1234" }))
-  const themes = await req("/dashboard/design/themes")
+  const themes = await req("/dashboard/studio/themes")
   assert.match(themes.text, /Templates e-commerce complets/)
   assert.match(themes.text, /\/shots\/site11\.jpg/)
   assert.ok(!themes.text.includes("/shots/site16.jpg"), "aucun template vitrine dans une boutique")
@@ -139,7 +139,7 @@ test("marchand : choisir un template = brouillon, puis Publier = vitrine", async
 test("marchand vitrine : seuls les templates vitrine, contact sans panier", async () => {
   jar.clear()
   await req("/login", form({ email: "vitrine@novadz.dz", password: "demo1234" }))
-  const themes = await req("/dashboard/design/themes")
+  const themes = await req("/dashboard/studio/themes")
   assert.match(themes.text, /Templates vitrine complets/)
   assert.match(themes.text, /\/shots\/site5\.jpg/)
   assert.match(themes.text, /\/shots\/site16\.jpg/)

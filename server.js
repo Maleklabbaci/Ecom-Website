@@ -24,7 +24,8 @@ const TEMPLATES = require("./src/templates")
 const SITES = require("./src/site-templates")
 const STUDIO = require("./src/studio")
 const DESIGN = require("./src/studio-design")
-const PARCOURS = require("./src/parcours") /* le parcours guidé : une étape à la fois */ /* l'atelier : l'état de la page, brouillon et version en ligne */
+const PARCOURS = require("./src/parcours") /* le parcours guidé : une étape à la fois */
+const STUDIO_THEMES = require("./src/studio-themes") /* les thèmes du Studio = ceux de la plateforme */ /* l'atelier : l'état de la page, brouillon et version en ligne */
 const UPLOADS = require("./src/uploads")
 const ASSIGN = require("./src/assign")
 const SHOP = require("./src/shop")
@@ -1389,7 +1390,26 @@ app.get("/dashboard/orders/:id/whatsapp", requireAuth, requireStore, (req, res) 
 
 /* --- réglages --- */
 
-/* ---------------------------- ÉDITEUR DE BOUTIQUE ---------------------------- */
+/* Les actions de la planche de thèmes vivent maintenant sous /dashboard/studio
+   (la planche a déménagé) ; l'ancienne adresse reste acceptée.
+   ---------------------------- ÉDITEUR DE BOUTIQUE ----------------------------
+   Il n'y a plus qu'un seul endroit pour modifier le site : le Studio.
+   L'ancienne page « Design » (et tout ce qui était dessous : la galerie de
+   thèmes, l'éditeur de blocs, la publication d'avant) renvoie au Studio.
+   On garde l'adresse vivante pour les favoris et les liens déjà envoyés,
+   mais elle ne montre plus un deuxième éditeur — c'est ça qui faisait croire
+   qu'il y en avait deux. */
+/* Ce sont les PAGES que le marchand pouvait ouvrir : l'éditeur d'avant et sa
+   galerie de thèmes. Elles n'existent plus — on va au Studio. (Les adresses
+   techniques du même nom, /save /publish /theme, restent en place : c'est la
+   mécanique qui fait tourner les boutiques qui n'ont jamais ouvert le Studio.
+   Un marchand ne les tape jamais à la main et aucun lien n'y mène.) */
+const versStudio = (req, res) => res.redirect("/dashboard/studio")
+app.get("/dashboard/design", requireAuth, requireStore, versStudio)
+app.get("/dashboard/design/themes", requireAuth, requireStore, versStudio)
+app.get("/dashboard/design/themes/apercu/:id", requireAuth, requireStore, versStudio)
+app.get("/dashboard/design/source", requireAuth, requireStore, versStudio)
+
 app.get("/dashboard/design", requireAuth, requireStore, (req, res) => {
   /* Un seul endroit pour modifier le site. Si cette boutique a un site Studio
      (brouillon ou publié), on l'envoie là — l'ancien éditeur ne doit plus
@@ -1518,6 +1538,42 @@ app.post("/dashboard/design/publish", requireAuth, requireStore, (req, res) => {
     .run(req.store.id, JSON.stringify(draft))
   logRow("info", `design publié (${req.store.slug})`, { sections: draft.sections.length })
   res.json({ ok: true, published: true })
+})
+
+/* La planche de thèmes n'était joignable que par l'ancienne page « Design ».
+   Elle déménage dans le Studio : c'est le même écran, « tous les thèmes au
+   même endroit », mais on n'a plus besoin de passer par « design » pour le
+   voir. Les deux adresses techniques en dessous restent en place. */
+app.get("/dashboard/studio/themes", requireAuth, requireStore, (req, res) =>
+  res.send(V.dashThemes(req.user, req.store, TEMPLATES.list(req.store.id), { modele: String(req.query.modele || "") === "1" })))
+app.get("/dashboard/studio/themes/apercu/:id", requireAuth, requireStore, (req, res) => {
+  const id = String(req.params.id || "")
+  const THEME = require("./src/themes")
+  if (!THEME.isTheme(id)) return res.status(404).type("text").send("Ce thème n'existe pas.")
+  const nom = (THEME.THEMES.find((t) => t.id === id) || {}).name || id
+  const base = req.store
+  let store = base
+  try {
+    store = require("./src/public-themes").dressStore({ ...base, theme: id, theme_src: null, _originTheme: id })
+  } catch (_) { store = { ...base, theme: id } }
+  let products = []
+  try { products = SHOP.searchProducts(base.id, {}) } catch (_) { products = [] }
+  let html = V.storefront(store, products, 0, true, {
+    count: products.length,
+    categories: SHOP.categories(base.id).filter((c) => c.n > 0),
+  })
+  const bar = `<div id="ndz-apercu-theme" style="position:fixed;left:0;right:0;bottom:0;z-index:2147483000;display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;padding:12px 16px;background:#111;color:#fff;font:500 13px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+    <span style="opacity:.7">Aperçu — rien n'est publié</span>
+    <b style="font-weight:600">${String(nom).replace(/[<>&"]/g, " ")}</b>
+    <form method="post" action="/dashboard/design/theme" style="margin:0">
+      <input type="hidden" name="theme" value="${String(id).replace(/[^a-z0-9-]/gi, "")}">
+      <button style="height:34px;padding:0 16px;border-radius:999px;border:0;background:#fff;color:#111;font-weight:600;cursor:pointer">Choisir ce thème</button>
+    </form>
+    <a href="/dashboard/studio/themes" style="color:#fff;text-decoration:underline">Retour aux thèmes</a>
+  </div>`
+  html = html.replace("</head>", `<style>.cookies,.wa-float,.lang-pill{display:none!important}body{padding-bottom:80px}</style></head>`)
+  html = html.replace("</body>", bar + "</body>")
+  res.send(html)
 })
 
 app.get("/dashboard/design/themes", requireAuth, requireStore, (req, res) =>
@@ -2066,6 +2122,8 @@ app.get("/dashboard/studio", requireAuth, requireStore, (req, res) => {
   res.set("Cache-Control", "no-store")
   res.send(atelierPage({
     tour: (() => { try { return PARCOURS.bloc(req.store, "/dashboard/studio").html } catch (_) { return "" } })(),
+    themes: STUDIO_THEMES.list(),
+    themeDefaut: STUDIO_THEMES.DEFAULT_ID,
     mode: "edit", slug: req.store.slug, name: req.store.name, shop: atelierShop(req.store),
     savedAt: d.saved_at, publishedAt: d.published_at, state: d.draft, live: d.live,
     /* premiere ouverture : rien n'a jamais été enregistré. Le Studio construit
@@ -2159,6 +2217,15 @@ app.post("/dashboard/studio/design/publish", requireAuth, requireStore, (req, re
   const out = DESIGN.publish(req.store.id, state, "Publication")
   if (out.ok) {
     try { applyAtelierLogo(req.store, state) } catch (_) {}
+    /* Le thème choisi dans le Studio est un vrai thème de la plateforme :
+       on l'écrit dans la boutique pour que les autres pages (produit, pages
+       supplémentaires, partage) soient exactement de la même ambiance. */
+    try {
+      const th = state && state.design && state.design.theme
+      if (th && STUDIO_THEMES.ids().includes(th)) {
+        db.prepare("UPDATE stores SET theme = ? WHERE id = ?").run(th, req.store.id)
+      }
+    } catch (_) {}
     logRow("info", `atelier : publié (${req.store.slug})`)
   }
   res.status(out.ok ? 200 : 400).json(out)
@@ -2227,7 +2294,7 @@ app.post("/:slug/s-form", (req, res) => {
 })
 
 /* Template « site complet » : on le charge dans le brouillon, la mise en ligne reste explicite. */
-app.post("/dashboard/design/site-template", requireAuth, requireStore, (req, res) => {
+app.post(["/dashboard/design/site-template", "/dashboard/studio/site-template"], requireAuth, requireStore, (req, res) => {
   const id = String((req.body && req.body.id) || "")
   if (id && !SITES.isSiteForStore(id, req.store)) return res.redirect("/dashboard/design/themes")
   const draft = readOwnDraft(req.store)
@@ -2236,7 +2303,7 @@ app.post("/dashboard/design/site-template", requireAuth, requireStore, (req, res
   res.redirect(id ? "/dashboard/studio" : "/dashboard/design/themes")
 })
 
-app.post("/dashboard/design/template/:id/apply", requireAuth, requireStore, (req, res) => {
+app.post(["/dashboard/design/template/:id/apply", "/dashboard/studio/template/:id/apply"], requireAuth, requireStore, (req, res) => {
   const row = TEMPLATES.get(req.params.id, req.store.id)
   if (!row) return res.redirect("/dashboard/design/themes")
   let payload = {}
@@ -2252,7 +2319,7 @@ app.post("/dashboard/design/template/:id/apply", requireAuth, requireStore, (req
   res.redirect("/dashboard/design?template=1")
 })
 
-app.post("/dashboard/design/template/:id/delete", requireAuth, requireStore, (req, res) => {
+app.post(["/dashboard/design/template/:id/delete", "/dashboard/studio/template/:id/delete"], requireAuth, requireStore, (req, res) => {
   TEMPLATES.remove(req.params.id, req.store.id)
   res.redirect("/dashboard/design/themes")
 })
@@ -2262,7 +2329,7 @@ app.post("/dashboard/design/template/:id/delete", requireAuth, requireStore, (re
  * « thème d'essai » dans le brouillon. Le marchand voit le résultat dans
  * l'éditeur, ajuste ce qu'il veut, puis publie (ou annule).
  */
-app.post("/dashboard/design/theme", requireAuth, requireStore, (req, res) => {
+app.post(["/dashboard/design/theme", "/dashboard/studio/theme"], requireAuth, requireStore, (req, res) => {
   const theme = isTheme(req.body.theme) ? req.body.theme : DEFAULT_THEME
   const draft = readOwnDraft(req.store)
   draft.theme = theme
@@ -2286,7 +2353,7 @@ app.post("/dashboard/design/theme", requireAuth, requireStore, (req, res) => {
 })
 
 /** Annuler l'essai : la boutique en ligne redevient exactement ce qu'elle était. */
-app.post("/dashboard/design/theme/public", requireAuth, requireStore, (req, res) => {
+app.post(["/dashboard/design/theme/public", "/dashboard/studio/theme/public"], requireAuth, requireStore, (req, res) => {
   const row = PT.get(req.body.id)
   if (!row || row.status !== "public" || !isTheme(row.base)) {
     return res.redirect("/dashboard/design/themes")
@@ -2310,7 +2377,7 @@ app.post("/dashboard/design/theme/public", requireAuth, requireStore, (req, res)
   res.redirect("/dashboard/design?trial=1")
 })
 
-app.post("/dashboard/design/theme/cancel", requireAuth, requireStore, (req, res) => {
+app.post(["/dashboard/design/theme/cancel", "/dashboard/studio/theme/cancel"], requireAuth, requireStore, (req, res) => {
   db.prepare("UPDATE stores SET draft = NULL WHERE id = ?").run(req.store.id)
   logRow("info", `essai de thème annulé (${req.store.slug})`)
   res.redirect("/dashboard/design")

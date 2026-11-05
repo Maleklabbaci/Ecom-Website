@@ -72,10 +72,13 @@ test("choisir un thème retire le modèle de site du brouillon", async () => {
   assert.deepEqual(after.live, before.live, "la boutique en ligne ne bouge pas avant publication")
 })
 
-test("l'aperçu montre le thème choisi, plus le modèle", async () => {
-  const r = await req("/dashboard/design?trial=1")
-  assert.equal(r.status, 200)
-  assert.doesNotMatch(r.text, /Essentia|Add to Bag/, "le modèle ne doit plus apparaître dans l'aperçu")
+test("l'aperçu de l'ancien éditeur n'est plus servi, le Studio prend tout", async () => {
+  /* L'ancien éditeur « Design » n'existe plus : il y a un seul endroit pour
+     modifier le site, le Studio. L'adresse reste vivante pour les favoris et
+     les liens déjà envoyés, mais elle ne montre plus un deuxième éditeur. */
+  const page = await req("/dashboard/design")
+  assert.equal(page.status, 302, "l'ancien éditeur renvoie au Studio")
+  assert.match(page.location, /\/dashboard\/studio$/, "et seulement au Studio")
 })
 
 test("le Studio bascule sur le thème, pas sur le modèle", async () => {

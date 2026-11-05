@@ -68,10 +68,14 @@ test("connexion marchand", async () => {
 
 test("tableau de bord et pages marchand", async () => {
   for (const p of ["/dashboard", "/dashboard/products", "/dashboard/orders", "/dashboard/categories",
-    "/dashboard/shipping", "/dashboard/reviews", "/dashboard/customers", "/dashboard/design", "/dashboard/settings"]) {
+    "/dashboard/shipping", "/dashboard/reviews", "/dashboard/customers", "/dashboard/settings"]) {
     const r = await req(p)
     assert.equal(r.status, 200, `GET ${p}`)
   }
+  /* l'ancienne page « Design » n'existe plus : elle envoie au Studio */
+  const design = await req("/dashboard/design")
+  assert.equal(design.status, 302)
+  assert.match(design.location, /\/dashboard\/studio$/)
 })
 
 test("vitrine : recherche, filtres, SEO", async () => {

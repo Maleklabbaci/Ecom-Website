@@ -25,7 +25,7 @@ const PAGES = [
   "/", "/themes", "/login",
   "/amina-mode", "/amina-mode/p/1", "/amina-mode/cart",
   "/tech-dz", "/atelier-lina",
-  "/dashboard", "/dashboard/studio", "/dashboard/design/themes", "/dashboard/products",
+  "/dashboard", "/dashboard/studio", "/dashboard/studio/themes", "/dashboard/products",
 ]
 
 before(async () => {

@@ -1528,6 +1528,12 @@ input[type=range]{width:100%;accent-color:#111}
 .paper .zone:hover{outline:2px solid rgba(15,15,18,.45);outline-offset:-2px}
 .paper .zone.on{outline:2px solid #111;outline-offset:3px;border-radius:2px}
 /* ambiances */
+.site.electro{--s-bg:#ffffff;--s-ink:#0f1115;--s-mut:#8a9099;--s-acc:#0f1115;--s-ph:#f2f4f6;--s-rad:0px;--s-pad:24px}
+.site.atelier{--s-bg:#fbfaf8;--s-ink:#1a1a1a;--s-mut:#8b877f;--s-acc:#3a3a3a;--s-ph:#efede8;--s-rad:6px;--s-pad:28px}
+.site.bureau{--s-bg:#f6f5f2;--s-ink:#22201c;--s-mut:#8b857a;--s-acc:#7a6a52;--s-ph:#e8e6e0;--s-rad:10px;--s-pad:26px;font-family:"Bodoni Moda",Georgia,serif}
+.site.audio{--s-bg:#0e0e10;--s-ink:#fff;--s-mut:#9b9ba5;--s-acc:#e8ff5a;--s-ph:#1c1c20;--s-rad:4px;--s-pad:24px}
+.site.soin{--s-bg:#ffffff;--s-ink:#17211c;--s-mut:#7d8b83;--s-acc:#2f6b4f;--s-ph:#f0f4f2;--s-rad:8px;--s-pad:26px}
+.site.mode{--s-bg:#ffffff;--s-ink:#14100e;--s-mut:#8d8177;--s-acc:#14100e;--s-ph:#f4f1ee;--s-rad:0px;--s-pad:30px;font-family:"Bodoni Moda",Georgia,serif}
 .site.p1{--s-bg:#fff;--s-ink:#111;--s-mut:#8a8a92;--s-acc:#111;--s-ph:#f4f4f5;--s-rad:0;--s-pad:24px}
 .site.p2{--s-bg:#f7f1e8;--s-ink:#2e2620;--s-mut:#8a7a68;--s-acc:#b4643c;--s-ph:#e8ddcc;--s-rad:12px;--s-pad:28px;font-family:"Bodoni Moda",Georgia,serif}
 .site.p2 .hd{justify-content:center;gap:10px}
@@ -2060,7 +2066,7 @@ body.advmode .advmark{display:inline-flex}
     <button class="thmini" id="themeBtn" data-tour="styles">
       <span class="dot" id="thDot">◐</span>
       <span class="tx">Changer de thème</span>
-      <span class="nm" id="thName">Épuré</span>
+      <span class="nm" id="thName">Claire</span>
     </button>
   </div>
 
@@ -2160,7 +2166,7 @@ const SEED = {
   return_days: 7,
   /* Réglages > Design */
   logo: '',
-  theme: 'p1',
+  theme: 'electro',
   nav: [
     { t: 'Accueil', to: 'home' },
     { t: 'Boutique', to: 'prod' },
@@ -2267,14 +2273,26 @@ const WORDS = {
 }
 const L = () => (STORE.lang_mode === 'ar' ? 'ar' : 'fr')
 const W = (k) => (WORDS[L()] || WORDS.fr)[k] || WORDS.fr[k]
-const THEMES = [
-  { id: 'p1', n: 'Épuré', bg: '#fff', ph: '#f1f1f4', ink: '#111', mut: '#8a8a92', acc: '#111', rad: 0, font: 'Jost' },
-  { id: 'p2', n: 'Chaleureux', bg: '#f7f1e8', ph: '#e8ddcc', ink: '#2e2620', mut: '#8a7a68', acc: '#b4643c', rad: 8, font: 'serif' },
-  { id: 'p3', n: 'Nuit', bg: '#111', ph: '#262626', ink: '#fff', mut: '#9a9aa2', acc: '#d6ff45', rad: 0, font: 'Jost' },
-  { id: 'p4', n: 'Doux', bg: '#fbf3f5', ph: '#f0dde3', ink: '#4a2a33', mut: '#a37e89', acc: '#b3577a', rad: 12, font: 'serif' },
-  { id: 'p5', n: 'Nature', bg: '#f5f7ef', ph: '#e3e9d5', ink: '#2c3a22', mut: '#7c886f', acc: '#5f7d33', rad: 6, font: 'Jost' },
-  { id: 'p6', n: 'Contrasté', bg: '#fff', ph: '#ededed', ink: '#0b0b0b', mut: '#7a7a82', acc: '#0b0b0b', rad: 0, font: 'Jost' },
+/* Les styles du Studio ne sont plus inventés ici : ce sont les THÈMES de la
+   plateforme (Calme, Claire, Centré, Affiche, Séparé, Large), envoyés par le
+   serveur. Changer un thème le change partout — dans le Studio et sur le site,
+   la même chose. La liste ci-dessous ne sert que si le serveur n'en envoie
+   aucune (maquette ouverte seule). */
+const THEMES_FALLBACK = [
+  { id: 'electro', n: 'Claire', bg: '#ffffff', ph: '#f2f4f6', ink: '#0f1115', mut: '#8a9099', acc: '#0f1115', rad: 0, font: 'Jost' },
+  { id: 'atelier', n: 'Calme', bg: '#fbfaf8', ph: '#efede8', ink: '#1a1a1a', mut: '#8b877f', acc: '#3a3a3a', rad: 6, font: 'Jost' },
+  { id: 'bureau', n: 'Centré', bg: '#f6f5f2', ph: '#e8e6e0', ink: '#22201c', mut: '#8b857a', acc: '#7a6a52', rad: 10, font: 'serif' },
+  { id: 'audio', n: 'Affiche', bg: '#0e0e10', ph: '#1c1c20', ink: '#ffffff', mut: '#9b9ba5', acc: '#e8ff5a', rad: 4, font: 'Jost' },
+  { id: 'soin', n: 'Séparé', bg: '#ffffff', ph: '#f0f4f2', ink: '#17211c', mut: '#7d8b83', acc: '#2f6b4f', rad: 8, font: 'Jost' },
+  { id: 'mode', n: 'Large', bg: '#ffffff', ph: '#f4f1ee', ink: '#14100e', mut: '#8d8177', acc: '#14100e', rad: 0, font: 'serif' },
 ]
+const THEMES = (function () {
+  try {
+    var l = window.NDZ_STUDIO && window.NDZ_STUDIO.themes
+    if (l && l.length) return l
+  } catch (_) {}
+  return THEMES_FALLBACK
+})()
 const FONTS = [
   { id: 'jost', n: 'Jost', css: "'Jost','Tajawal',sans-serif" },
   { id: 'archivo', n: 'Archivo', css: "'Archivo','Almarai',sans-serif" },

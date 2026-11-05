@@ -59,7 +59,7 @@ after(() => { if (server) server.kill("SIGKILL") })
 const login = () => req("/login", form({ email: "demo@novadz.dz", password: "demo1234" }))
 
 test("les six thèmes sont déclarés et visibles dans le sélecteur", async () => {
-  const page = await req("/dashboard/design/themes")
+  const page = await req("/dashboard/studio/themes")
   assert.strictEqual(page.status, 200)
   /* le thème publié est présenté à part, en haut de la page */
   const published = (page.text.match(/class="th-now"[\s\S]*?<h2>([^<]+)<\/h2>/) || [])[1]
@@ -75,7 +75,7 @@ test("les six thèmes sont déclarés et visibles dans le sélecteur", async () 
 })
 
 test("page Thèmes : capture réelle du thème publié + les autres thèmes en dessous", async () => {
-  const page = await req("/dashboard/design/themes")
+  const page = await req("/dashboard/studio/themes")
   assert.strictEqual(page.status, 200)
   assert.match(page.text, /<section class="th-now"[ >]/)
   assert.match(page.text, /Thème publié/)

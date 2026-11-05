@@ -82,10 +82,13 @@ test("boutique sans Studio : la page d'avant reste en ligne", async () => {
   assert.equal(modeDe(page.text), "", "pas encore de site Studio")
 })
 
-test("boutique sans Studio : l'ancien éditeur reste joignable (on ne casse rien)", async () => {
+test("boutique sans Studio : l'ancien éditeur n'existe plus, on va au Studio", async () => {
+  /* L'ancien éditeur « Design » n'existe plus : il y a un seul endroit pour
+     modifier le site, le Studio. L'adresse reste vivante pour les favoris et
+     les liens déjà envoyés, mais elle ne montre plus un deuxième éditeur. */
   const page = await req("/dashboard/design")
-  assert.equal(page.status, 200)
-  assert.doesNotMatch(page.text, /^$/)
+  assert.equal(page.status, 302, "l'ancien éditeur renvoie au Studio")
+  assert.match(page.location, /\/dashboard\/studio$/, "et seulement au Studio")
 })
 
 /* ---------------------------------------------------------------- */

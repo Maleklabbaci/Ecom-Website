@@ -83,7 +83,7 @@ test("on écrit dans la page, on publie, la boutique suit", async () => {
 })
 
 test("la page des modèles reste accessible pour qui veut un site complet", async () => {
-  const r = await req("/dashboard/design/themes?modele=1")
+  const r = await req("/dashboard/studio/themes?modele=1")
   assert.equal(r.status, 200)
   assert.match(r.text, /Templates e-commerce complets/)
   assert.match(r.text, /data-studio-modele/)

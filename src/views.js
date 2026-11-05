@@ -482,7 +482,7 @@ const dashDesign = (user, store, themeName, products = [], pages = [], meta = {}
       <details class="ed-more">
         <summary class="ed-tool" title="Plus d'actions" aria-label="Plus d'actions">${icon("menuDots", 16)}</summary>
         <div class="ed-more-menu">
-          <a href="/dashboard/design/themes">${icon("palette", 15)} Changer de thème</a>
+          <a href="/dashboard/studio">${icon("palette", 15)} Changer de thème</a>
           <button type="button" id="edSaveTpl">${icon("copy", 15)} Enregistrer comme template</button>
           <button type="button" id="edNavToggle">${icon("nav", 15)} Modifier la navigation</button>
           <button type="button" id="edHistory">${icon("history", 15)} Historique des publications</button>
@@ -499,7 +499,7 @@ const dashDesign = (user, store, themeName, products = [], pages = [], meta = {}
     <span>Thème d'essai : <b>${esc(trialName)}</b> — visible seulement dans l'aperçu.</span>
     <span class="sp"></span>
     <button type="button" class="primary" onclick="document.getElementById('edPublish').click()">Publier ce thème</button>
-    <form method="post" action="/dashboard/design/theme/cancel" class="inline"><button type="submit">Annuler</button></form>
+    <form method="post" action="/dashboard/studio/theme/cancel" class="inline"><button type="submit">Annuler</button></form>
   </div>` : ""}
 
   <div class="ed-main">
@@ -614,7 +614,7 @@ const dashDesign = (user, store, themeName, products = [], pages = [], meta = {}
         go.disabled = false
         if (!d || !d.ok) { out.textContent = (d && d.error) || "Impossible."; return }
         out.textContent = d.summary || "Brouillon posé."
-        setTimeout(function () { location.href = "/dashboard/design?ia=1" }, 700)
+        setTimeout(function () { location.href = "/dashboard/studio" }, 700)
       }).catch(function () { go.disabled = false; out.textContent = "Impossible pour le moment." })
     })
   })()
@@ -1976,7 +1976,7 @@ const aiBall = (mode) => {
       if (design) {
         if (!d || !d.ok) { bub((d && d.error) || "Impossible.", false); return }
         bub((d.summary || "Brouillon posé.") + " Rien n'est publié.", false)
-        setTimeout(function () { location.href = "/dashboard/design?ia=1" }, 700)
+        setTimeout(function () { location.href = "/dashboard/studio" }, 700)
         return
       }
       bub((d && d.answer) || "Pas de réponse.", false)
@@ -2055,7 +2055,7 @@ const dashLayout = (user, store, content, active) => {
   const PAGE = {
     home: "Accueil", orders: "Commandes", products: "Produits", stock: "Stock",
     paniers: "Paniers", relances: "Relances", stats: "Statistiques",
-    categories: "Catégories", promos: "Codes promo", design: "Design",
+    categories: "Catégories", promos: "Codes promo",
     form: "Formulaire", transporteur: "Transporteur", shipping: "Livraison",
     paiement: "Paiement", social: "Réseaux", settings: "Réglages",
     landings: "Pages de vente", pages: "Pages", livraison: "Livraison",
@@ -2379,7 +2379,7 @@ const dashLayout = (user, store, content, active) => {
 const startGuide = (store, stats) => {
   if (store.site_kind === "vitrine") {
     const steps = [
-      { done: Boolean(store.theme), href: "/dashboard/design/themes", title: "Choisir le design",
+      { done: Boolean(store.theme), href: "/dashboard/studio", title: "Choisir le design",
         sub: "Couleurs, logo, mise en page. C'est le visage du site." },
       { done: stats.pageCount > 0, href: "/dashboard/pages", title: "Écrire une page",
         sub: "À propos, services, portfolio. Ce que les gens lisent." },
@@ -3670,7 +3670,7 @@ ${error ? `<div class="alert">${esc(error)}</div>` : ""}
       <span>Le thème, les couleurs, les textes et les blocs se règlent dans l'éditeur de design. Ici on ne touche plus au look : rien ne peut casser la vitrine.</span>
     </div>
     <div class="theme-now-actions">
-      <a class="btn btn-ghost btn-sm" href="/dashboard/design/themes">Voir les thèmes</a>
+      <a class="btn btn-ghost btn-sm" href="/dashboard/studio/themes">Voir les thèmes</a>
       <a class="btn btn-primary btn-sm" href="/dashboard/studio">Modifier le site</a>
     </div>
   </div>
@@ -4929,7 +4929,7 @@ const dashThemes = (user, store, templates = [], opts = {}) => {
   const card = (t) => `
   <article class="th-card${t.id === store.theme ? " is-now" : ""}${t.id === trial ? " is-trial" : ""}" data-theme="${esc(t.id)}" data-cat="${esc(t.cat)}" data-pret="${PRETS.includes(t.id) ? "1" : "0"}">
     ${shot(t)}
-    <a class="th-zoom" href="/dashboard/design/themes/apercu/${esc(t.id)}" target="_blank" rel="noopener" title="Voir ce thème en grand">${icon("eye", 14)} Voir en grand</a>
+    <a class="th-zoom" href="/dashboard/studio/themes/apercu/${esc(t.id)}" target="_blank" rel="noopener" title="Voir ce thème en grand">${icon("eye", 14)} Voir en grand</a>
     <div class="th-body">
       <div class="th-name"><b>${esc(t.name)}</b>
         ${t.id === store.theme ? `<span class="pill livree">publié</span>` : ""}
@@ -4940,8 +4940,8 @@ const dashThemes = (user, store, templates = [], opts = {}) => {
       ${dots(t)}
       <div class="th-actions">
         ${t.id === store.theme
-          ? `<a class="btn btn-primary btn-sm" href="/dashboard/design?reglages=1">Modifier ce thème</a>`
-          : `<form method="post" action="/dashboard/design/theme" class="inline">
+          ? `<a class="btn btn-primary btn-sm" href="/dashboard/studio">Modifier ce thème</a>`
+          : `<form method="post" action="/dashboard/studio/theme" class="inline">
                <input type="hidden" name="theme" value="${esc(t.id)}">
                <button class="btn ${t.id === trial ? "btn-primary" : "btn-ghost"} btn-sm">${t.id === trial ? "Continuer l'essai" : "Choisir ce thème"}</button>
              </form>`}
@@ -5022,14 +5022,14 @@ const dashThemes = (user, store, templates = [], opts = {}) => {
           <p class="th-desc">${esc(t.line)}</p>
           <div class="th-actions">
             <a class="btn btn-ghost btn-sm" href="/templates/${esc(t.id)}.html" target="_blank" rel="noopener">Aperçu</a>
-            <form method="post" action="/dashboard/design/site-template" class="inline">
+            <form method="post" action="/dashboard/studio" class="inline">
               <input type="hidden" name="id" value="${esc(t.id)}">
               <button class="btn ${t.id === trialSite ? "btn-primary" : "btn-ghost"} btn-sm">${t.id === live ? "Déjà publié" : t.id === trialSite ? "Continuer l'essai" : "Choisir"}</button>
             </form>
           </div>
         </div>
       </article>`).join("")}</div>
-      ${live || trialSite ? `<form method="post" action="/dashboard/design/site-template" class="inline" style="margin-top:14px">
+      ${live || trialSite ? `<form method="post" action="/dashboard/studio" class="inline" style="margin-top:14px">
         <input type="hidden" name="id" value="">
         <button class="btn btn-ghost btn-sm">Revenir à un thème classique</button>
       </form>` : ""}
@@ -5051,8 +5051,8 @@ ${trialTh ? `<section class="th-trial">
     <span>Il n'est pas encore visible par tes clients. Ta boutique en ligne est toujours sur <b>${esc(nowTh.name)}</b>.</span>
   </div>
   <div class="th-trial-actions">
-    <a class="btn btn-primary btn-sm" href="/dashboard/design?trial=1">Le voir et publier</a>
-    <form method="post" action="/dashboard/design/theme/cancel" class="inline">
+    <a class="btn btn-primary btn-sm" href="/dashboard/studio/themes">Le voir et publier</a>
+    <form method="post" action="/dashboard/studio/theme/cancel" class="inline">
       <button class="btn btn-ghost btn-sm">Annuler l'essai</button>
     </form>
   </div>
@@ -5067,7 +5067,7 @@ ${trialTh ? `<section class="th-trial">
     <p class="th-desc">${esc(nowTh.desc)}</p>
     ${dots(nowTh)}
     <div class="th-now-actions">
-      <a class="btn btn-primary" href="/dashboard/design?reglages=1">Modifier ce thème</a>
+      <a class="btn btn-primary" href="/dashboard/studio">Modifier ce thème</a>
       <a class="btn btn-ghost" href="/${esc(store.slug)}" target="_blank" rel="noopener">Voir la boutique</a>
     </div>
   </div>
@@ -5081,8 +5081,8 @@ ${trialTh ? `<section class="th-trial">
   ${templates.length ? `<div class="tpl-list">${templates.map((t) => `<div class="tpl-row">
       <b>${esc(t.name)}</b>
       <span>${esc(String(t.created_at || "").slice(0, 16))}</span>
-      <form method="post" action="/dashboard/design/template/${t.id}/apply" class="inline"><button class="btn btn-primary btn-sm">Ouvrir</button></form>
-      <form method="post" action="/dashboard/design/template/${t.id}/delete" class="inline" onsubmit="return confirm('Retirer ce template ? La boutique en ligne ne change pas.')"><button class="link-danger">Retirer</button></form>
+      <form method="post" action="/dashboard/studio/template/${t.id}/apply" class="inline"><button class="btn btn-primary btn-sm">Ouvrir</button></form>
+      <form method="post" action="/dashboard/studio/template/${t.id}/delete" class="inline" onsubmit="return confirm('Retirer ce template ? La boutique en ligne ne change pas.')"><button class="link-danger">Retirer</button></form>
     </div>`).join("")}</div>` : ""}
 </section>
 
@@ -5112,7 +5112,7 @@ ${(() => {
             ${row.blurb ? `<p class="th-desc">${esc(row.blurb)}</p>` : ""}
             <div class="theme-dots"><i style="background:${esc(row.bg)}"></i><i style="background:${esc(row.accent)}"></i><i style="background:${esc(row.ink)}"></i></div>
             <div class="th-actions">
-              <form method="post" action="/dashboard/design/theme/public" class="inline">
+              <form method="post" action="/dashboard/studio/theme/public" class="inline">
                 <input type="hidden" name="id" value="${row.id}">
                 <button class="btn btn-ghost btn-sm">Choisir ce thème</button>
               </form>
@@ -5386,7 +5386,7 @@ const publicThemesPage = (rows, user) => {
       <b>${esc(row.name)}</b>
       ${row.blurb ? `<p>${esc(row.blurb)}</p>` : `<p>Thème partagé par NovaDZ.</p>`}
       ${user && user.role !== "admin"
-        ? `<form method="post" action="/dashboard/design/theme/public"><input type="hidden" name="id" value="${row.id}"><button class="btn btn-primary" type="submit">L'ouvrir dans ma boutique</button></form>`
+        ? `<form method="post" action="/dashboard/studio/theme/public"><input type="hidden" name="id" value="${row.id}"><button class="btn btn-primary" type="submit">L'ouvrir dans ma boutique</button></form>`
         : user
           ? `<a class="btn btn-ghost" href="/admin/themes/${row.id}">Voir dans l'admin</a>`
           : `<a class="btn btn-primary" href="/login">Se connecter pour l'utiliser</a>`}

@@ -55,7 +55,7 @@ after(() => {
 const THEMES = () => require("../src/themes").THEMES
 
 test("une seule planche, avec les 19 thèmes dedans", async () => {
-  const page = await req("/dashboard/design/themes")
+  const page = await req("/dashboard/studio/themes")
   assert.equal(page.status, 200)
   assert.match(page.text, /class="th-group th-board-sec"/)
   assert.match(page.text, /Vue d'ensemble — 19 thèmes/)
@@ -65,7 +65,7 @@ test("une seule planche, avec les 19 thèmes dedans", async () => {
 })
 
 test("les thèmes prêts à l'emploi passent devant, le publié en tête", async () => {
-  const page = await req("/dashboard/design/themes")
+  const page = await req("/dashboard/studio/themes")
   const ordre = [...page.text.matchAll(/data-theme="([a-z-]+)"/g)].map((m) => m[1])
   const publie = ordre[0]
   /* le premier bloc « publié » est bien celui de la boutique */
@@ -76,9 +76,9 @@ test("les thèmes prêts à l'emploi passent devant, le publié en tête", async
 })
 
 test("le même cadre pour chaque carte : image, usage, deux boutons", async () => {
-  const page = await req("/dashboard/design/themes")
+  const page = await req("/dashboard/studio/themes")
   /* chaque carte a un lien « Voir en grand » */
-  const zooms = page.text.match(/href="\/dashboard\/design\/themes\/apercu\/[a-z-]+"/g) || []
+  const zooms = page.text.match(/href="\/dashboard\/studio\/themes\/apercu\/[a-z-]+"/g) || []
   assert.ok(zooms.length >= THEMES().length, `un lien par thème, trouvé ${zooms.length}`)
   assert.match(page.text, /Voir en grand/)
   assert.match(page.text, /data-cat="[a-z]+"/)
@@ -86,7 +86,7 @@ test("le même cadre pour chaque carte : image, usage, deux boutons", async () =
 })
 
 test("les filtres sont là, avec le compte de chaque famille", async () => {
-  const page = await req("/dashboard/design/themes")
+  const page = await req("/dashboard/studio/themes")
   assert.match(page.text, /data-th-chips/)
   assert.match(page.text, /data-f="all">Tous <i>19<\/i>/)
   assert.match(page.text, /data-f="pret">Prêts à l'emploi <i>6<\/i>/)
@@ -96,7 +96,7 @@ test("les filtres sont là, avec le compte de chaque famille", async () => {
 })
 
 test("« Voir en grand » ouvre la vraie boutique avec ce thème", async () => {
-  const page = await req("/dashboard/design/themes/apercu/minimal")
+  const page = await req("/dashboard/studio/themes/apercu/minimal")
   assert.equal(page.status, 200)
   assert.match(page.text, /id="ndz-apercu-theme"/)
   assert.match(page.text, /Aperçu — rien n'est publié/)
@@ -107,21 +107,21 @@ test("« Voir en grand » ouvre la vraie boutique avec ce thème", async () => {
 })
 
 test("voir en grand ne publie rien", async () => {
-  const avant = await req("/dashboard/design/themes")
+  const avant = await req("/dashboard/studio/themes")
   const publie = (avant.text.match(/class="th-now" data-theme="([a-z-]+)"/) || [])[1]
-  await req("/dashboard/design/themes/apercu/contrast")
-  const apres = await req("/dashboard/design/themes")
+  await req("/dashboard/studio/themes/apercu/contrast")
+  const apres = await req("/dashboard/studio/themes")
   const encore = (apres.text.match(/class="th-now" data-theme="([a-z-]+)"/) || [])[1]
   assert.equal(encore, publie, "le thème publié n'a pas bougé")
 })
 
 test("un thème inventé ne s'ouvre pas", async () => {
-  const page = await req("/dashboard/design/themes/apercu/pas-un-theme")
+  const page = await req("/dashboard/studio/themes/apercu/pas-un-theme")
   assert.equal(page.status, 404)
 })
 
 test("sans connexion, pas d'aperçu", async () => {
-  const res = await fetch(BASE + "/dashboard/design/themes/apercu/minimal", { redirect: "manual" })
+  const res = await fetch(BASE + "/dashboard/studio/themes/apercu/minimal", { redirect: "manual" })
   assert.ok([301, 302, 303].includes(res.status), `redirigé vers la connexion (${res.status})`)
 })
 

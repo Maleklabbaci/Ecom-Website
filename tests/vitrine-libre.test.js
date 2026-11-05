@@ -67,7 +67,7 @@ test("thèmes : les dix-neuf modèles existent et sont proposés", async () => {
   }
   assert.equal(ids.length, 19)
   await login()
-  const page = await req("/dashboard/design/themes")
+  const page = await req("/dashboard/studio/themes")
   for (const id of ids) assert.match(page.text, new RegExp('data-theme="' + id + '"'), id)
 })
 
@@ -243,14 +243,13 @@ test("paiement : ?pay= présélectionne le moyen choisi", async () => {
 })
 
 /* ------------------------------- ÉDITEUR ------------------------------- */
-test("éditeur : l'interface charge les nouveaux réglages", async () => {
-  await login()
-  const r = await req("/dashboard/design")
-  assert.equal(r.status, 200)
-  assert.match(r.text, /window\.ED_DATA/)
-  assert.match(r.text, /"cartMode"/)
-  assert.match(r.text, /"pageCss"/)
-  assert.match(r.text, /"headStyle"/)
+test("éditeur : plus d'ancienne page Design, le Studio prend tout", async () => {
+  /* L'ancien éditeur « Design » n'existe plus : il y a un seul endroit pour
+     modifier le site, le Studio. L'adresse reste vivante pour les favoris et
+     les liens déjà envoyés, mais elle ne montre plus un deuxième éditeur. */
+  const page = await req("/dashboard/design")
+  assert.equal(page.status, 302, "l'ancien éditeur renvoie au Studio")
+  assert.match(page.location, /\/dashboard\/studio$/, "et seulement au Studio")
 })
 
 test("éditeur : le JS contient les cinq onglets et les vignettes", () => {
@@ -589,22 +588,13 @@ test("en-tête : le lien « Panier » peut être masqué côté vitrine (pas seu
   assert.match(on.text, /data-cartlink="on"/)
 })
 
-test("éditeur : la liste de pages couvre toutes les pages et chacune s'ouvre en aperçu", async () => {
-  await login()
-  const dash = await req("/dashboard/design")
-  assert.match(dash.text, /class="ed-pagepick"/)
-  assert.match(dash.text, /id="edPageSelect"/)
-  const m = dash.text.match(/window\.ED_DATA = (\{[\s\S]*?\});<\/script>/)
-  assert.ok(m, "ED_DATA attendu dans la page Design")
-  const data = JSON.parse(m[1])
-  const keys = data.previewPages.map((p) => p.key)
-  for (const k of ["home", "product", "cart", "checkout", "legal", "account"]) {
-    assert.ok(keys.includes(k), "page absente de la liste : " + k)
-  }
-  for (const p of data.previewPages) {
-    const r = await req(p.url)
-    assert.equal(r.status, 200, "aperçu cassé : " + p.url)
-  }
+test("éditeur : la liste de pages de l'ancien éditeur n'est plus servie", async () => {
+  /* L'ancien éditeur « Design » n'existe plus : il y a un seul endroit pour
+     modifier le site, le Studio. L'adresse reste vivante pour les favoris et
+     les liens déjà envoyés, mais elle ne montre plus un deuxième éditeur. */
+  const page = await req("/dashboard/design")
+  assert.equal(page.status, 302, "l'ancien éditeur renvoie au Studio")
+  assert.match(page.location, /\/dashboard\/studio$/, "et seulement au Studio")
 })
 
 test("éditeur : les onglets En-tête / Pages / Code existent et l'aperçu est cliquable", async () => {
@@ -1000,40 +990,13 @@ test("stats : la page affiche les chiffres clés après une commande", async () 
 })
 
 /* ------------------- RÉGRESSIONS TROUVÉES EN DIRECT ------------------- */
-test("éditeur : le rail s'ouvre (plus d'écran vide) et garde les réglages de section", async () => {
-  await login()
-  const fs2 = require("node:fs")
-  const html = (await req("/dashboard/design")).text
-  /* le serveur doit envoyer des sections par page utilisables (aucune valeur non-tableau) */
-  const m = html.match(/window\.ED_DATA = (\{[\s\S]*?\});<\/script>/)
-  assert.ok(m, "ED_DATA présent")
-  const data = JSON.parse(m[1])
-  for (const k of Object.keys(data.sectionsByPage)) {
-    assert.ok(Array.isArray(data.sectionsByPage[k]), "sections de page non tableau : " + k)
-  }
-  /* et l'éditeur réel ne doit pas planter au chargement (jsdom optionnel) */
-  let JSDOM, VirtualConsole
-  try { ({ JSDOM, VirtualConsole } = require("jsdom")) } catch (_) { return }
-  const errs = []
-  const vc = new VirtualConsole()
-  vc.on("jsdomError", (e) => errs.push(String(e.message)))
-  const dom = new JSDOM(html, {
-    runScripts: "dangerously",
-    url: BASE + "/dashboard/design",
-    virtualConsole: vc,
-    beforeParse(window) {
-      window.matchMedia = () => ({ matches: false, media: "", addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} })
-    },
-  })
-  const w = dom.window
-  w.addEventListener("error", (e) => errs.push(String(e.message)))
-  const s = w.document.createElement("script")
-  s.textContent = fs2.readFileSync(require("node:path").join(__dirname, "..", "public", "editor.js"), "utf8")
-  w.document.body.appendChild(s)
-  await new Promise((r) => setTimeout(r, 400))
-  assert.deepEqual(errs, [], "l'éditeur plante : " + errs.join(" | "))
-  const rail = w.document.getElementById("edRail")
-  assert.ok(rail && rail.innerHTML.length > 500, "rail vide = rien de modifiable")
+test("éditeur : le rail de l'ancien éditeur n'est plus servi", async () => {
+  /* L'ancien éditeur « Design » n'existe plus : il y a un seul endroit pour
+     modifier le site, le Studio. L'adresse reste vivante pour les favoris et
+     les liens déjà envoyés, mais elle ne montre plus un deuxième éditeur. */
+  const page = await req("/dashboard/design")
+  assert.equal(page.status, 302, "l'ancien éditeur renvoie au Studio")
+  assert.match(page.location, /\/dashboard\/studio$/, "et seulement au Studio")
 })
 
 test("recherche : jamais deux barres (Catalogue et Tech ont déjà la leur)", async () => {
@@ -1262,7 +1225,7 @@ test("thèmes : chaque modèle dit à qui il sert, et les groupes sont lisibles"
     assert.ok(CATEGORIES.some(([id]) => id === t.cat), "catégorie inconnue pour " + t.id)
   }
   await login()
-  const r = await req("/dashboard/design/themes")
+  const r = await req("/dashboard/studio/themes")
   assert.equal(r.status, 200)
   assert.match(r.text, /Choisir ce thème/)
   assert.match(r.text, /Thème publié/)
