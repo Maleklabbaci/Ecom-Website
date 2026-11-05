@@ -79,7 +79,7 @@ test("page Thèmes : capture réelle du thème publié + les autres thèmes en d
   assert.strictEqual(page.status, 200)
   assert.match(page.text, /<section class="th-now"[ >]/)
   assert.match(page.text, /Thème publié/)
-  assert.match(page.text, /Choisir un autre thème/)
+  assert.match(page.text, /Vue d'ensemble/)
   /* les six thèmes prêts ont une vraie capture, pas la maquette dessinée */
   for (const id of NEW) {
     const fs = require("fs"), path = require("path")

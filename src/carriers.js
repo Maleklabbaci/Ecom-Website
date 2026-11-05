@@ -385,8 +385,10 @@ const buildVars = (carrier, store, order, items, opts) => {
     phone: FIELDS.cleanPhone(order.phone),
     address: addressLine,
     addressLine,
-    wilaya: order.wilaya || "",
-    wilayaCode: WILAYAS.codeOf(order.wilaya) || "",
+    /* wilaya nouvelle (59 à 69) : le transporteur reçoit le nom et le code de
+       la wilaya mère. Le vrai nom reste sur la commande et l'adresse. */
+    wilaya: WILAYAS.parentName(WILAYAS.codeOf(order.wilaya)) || order.wilaya || "",
+    wilayaCode: WILAYAS.shipCode(WILAYAS.codeOf(order.wilaya)) || "",
     /* pour un colis au bureau, la commune envoyée est celle du bureau :
        c'est la règle Yalidine et EcoTrack (le bureau et la commune doivent coller). */
     commune: (stopDesk && desk && desk.commune ? desk.commune : (opts.communeName || "").trim()) || order.wilaya || "",
@@ -524,6 +526,9 @@ const labelFile = (file) => {
 }
 
 /* ------------------------------ synchronisation ------------------------------ */
+/** 4500 → « 4 500 » : un montant se lit, même dans une notification. */
+const mille = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, " ")
+
 /** Interroge le transporteur pour un colis et applique le statut à la commande. */
 const syncOne = async (shipment) => {
   const carrier = db.prepare("SELECT * FROM carriers WHERE id = ?").get(shipment.carrier_id)
@@ -542,16 +547,37 @@ const syncOne = async (shipment) => {
   const order = db.prepare("SELECT * FROM orders WHERE id = ?").get(shipment.order_id)
   if (!order || !r.mapped) return { ok: true, raw: r.raw, mapped: "" }
 
+  /* Chaque changement de statut chez le transporteur pose une ligne dans la
+     cloche, avec kind « suivi » : elle sonne autrement qu'une commande. */
+  const dit = (titre, texte) => {
+    try {
+      require("./notices").add(order.store_id, {
+        kind: "suivi",
+        title: titre,
+        body: texte,
+        href: `/dashboard/orders/${order.id}`,
+        orderId: order.id,
+      })
+    } catch (_) { /* la cloche ne doit jamais casser une synchro */ }
+  }
+  const qui = String(carrier.label || carrier.preset || "Transporteur").slice(0, 40)
+  const ou = order.wilaya ? ` · ${order.wilaya}` : ""
+
   if (r.mapped === "livree" && order.status !== "livree") {
     db.prepare("UPDATE orders SET status = 'livree' WHERE id = ?").run(order.id)
+    const encaisse = Math.round(Number(order.total_cents || 0) / 100)
+    dit(`Colis livré — ${order.ref}`,
+      `${qui}${ou}${encaisse ? ` · ${mille(encaisse)} DZD encaissés` : ""}`)
   }
   if (r.mapped === "expediee" && ["nouvelle", "a_verifier", "confirmee"].includes(order.status)) {
     db.prepare("UPDATE orders SET status = 'expediee' WHERE id = ?").run(order.id)
+    dit(`Colis expédié — ${order.ref}`, `${qui}${ou}${shipment.tracking ? ` · suivi ${shipment.tracking}` : ""}`)
   }
   if (r.mapped === "annulee" && order.status !== "annulee") {
     db.prepare("UPDATE orders SET status = 'annulee' WHERE id = ?").run(order.id)
     /* retour au vendeur : le stock revient, une seule fois (inventory.js le garantit) */
     require("./inventory").releaseOrder(order, "retour")
+    dit(`Colis revenu — ${order.ref}`, `${qui}${ou} · retour au vendeur, stock remis en vente`)
   }
   return { ok: true, raw: r.raw, mapped: r.mapped }
 }

@@ -1573,7 +1573,7 @@
       { name: "Sara", city: "Alger", rating: 4, text: "Je recommande, le tissu est doux.", image: "/demo/demo-foulard.jpg" },
     ].map(function (s) { return { id: uid("b"), settings: s } })
     if (type === "benefits") return [
-      { icon: "camion", title: "Livraison 58 wilayas", text: "Chez vous ou au bureau" },
+      { icon: "camion", title: "Livraison 69 wilayas", text: "Chez vous ou au bureau" },
       { icon: "paiement", title: "Paiement à la livraison", text: "Vous payez en recevant" },
       { icon: "retour", title: "Échange 7 jours", text: "Si la pièce ne convient pas" },
     ].map(function (s) { return { id: uid("b"), settings: s } })

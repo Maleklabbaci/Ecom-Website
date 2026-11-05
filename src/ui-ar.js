@@ -555,7 +555,7 @@ const WORDS = [
   ["En-tête 3 — nom (facultatif)", "ترويسة 3 — الاسم (اختياري)"],
   ["En-tête 3 — valeur", "ترويسة 3 — القيمة"],
 
-  /* ---- les 58 wilayas (mêmes noms, en arabe) ---- */
+  /* ---- les 69 wilayas (mêmes noms, en arabe) ---- */
   ["Adrar", "أدرار"], ["Chlef", "الشلف"], ["Laghouat", "الأغواط"],
   ["Oum El Bouaghi", "أم البواقي"], ["Batna", "باتنة"], ["Béjaïa", "بجاية"],
   ["Biskra", "بسكرة"], ["Béchar", "بشار"], ["Blida", "البليدة"], ["Bouira", "البويرة"],
@@ -575,6 +575,11 @@ const WORDS = [
   ["Ouled Djellal", "أولاد جلال"], ["Béni Abbès", "بني عباس"],
   ["In Salah", "عين صالح"], ["In Guezzam", "عين قزام"], ["Touggourt", "تقرت"],
   ["Djanet", "جانت"], ["El M'Ghair", "المغير"], ["El Meniaa", "المنيعة"],
+  /* ---- les 11 wilayas de 2026 ---- */
+  ["Aflou", "أفلو"], ["Barika", "بريكة"], ["El Kantara", "القنطرة"],
+  ["Bir El Ater", "بئر العاتر"], ["El Aricha", "العريشة"], ["Ksar Chellala", "قصر الشلالة"],
+  ["Aïn Ouessara", "عين وسارة"], ["Messaad", "مسعد"], ["Ksar El Boukhari", "قصر البخاري"],
+  ["Bou Saâda", "بوسعادة"], ["El Abiodh Sidi Cheikh", "الأبيض سيدي الشيخ"],
   /* ---- livraison (tarifs) ---- */
   ["Deux façons de livrer : à domicile, ou au bureau. Un tarif pour tout le pays suffit dans la plupart des cas.",
     "طريقتان للتوصيل: إلى المنزل أو إلى المكتب. سعر واحد لكل البلاد يكفي في معظم الحالات."],
@@ -591,7 +596,7 @@ const WORDS = [
   ["Délai annoncé (jours)", "المدة المعلنة (أيام)"],
   ["Appliquer partout", "تطبيق في كل مكان"],
   ["Tarif wilaya par wilaya", "سعر لكل ولاية"],
-  ["— 58 wilayas, seulement si tu veux des prix différents", "— 58 ولاية، فقط إن أردت أسعارًا مختلفة"],
+  ["— 69 wilayas, seulement si tu veux des prix différents", "— 69 ولاية، فقط إن أردت أسعارًا مختلفة"],
   ["Domicile", "المنزل"], ["Bureau", "المكتب"], ["Délai (j)", "المدة (أيام)"],
   ["Délai minimum", "أدنى مدة"], ["Délai maximum", "أقصى مدة"],
 

@@ -290,7 +290,7 @@ const authPage = (mode, error, kind = "", site = "") => {
       <h1>${signup ? "Crée ton site." : "Bon retour."}</h1>
       <p>${signup
         ? "Une vitrine, ou même une boutique. 0 DA pour ouvrir."
-        : "Connecte-toi. Ta vitrine, tes commandes, les 48 wilayas."}</p>
+        : "Connecte-toi. Ta vitrine, tes commandes, les 69 wilayas."}</p>
       <div class="auth-kinds">
         <div>
           <b><i>${authBolt}</i>Vitrine</b>
@@ -1327,6 +1327,18 @@ const dashCategories = (user, store, cats) => dashLayout(user, store, `
 const dashShipping = (user, store, rates, saved, err = "") => dashLayout(user, store, `
 <header class="dash-head"><div><h1>Livraison</h1><p class="muted">Deux façons de livrer : à domicile, ou au bureau. Un tarif pour tout le pays suffit dans la plupart des cas.</p></div></header>
 ${saved ? `<div class="alert ok">Livraison enregistrée.</div>` : ""}
+${err ? `<div class="alert">${esc(err)}</div>` : ""}
+
+<section class="panel api-rates" data-api-rates>
+  <div class="panel-head"><h2>Tarifs du transporteur</h2><span class="muted">lus directement dans son API</span></div>
+  <p class="muted small">Le transporteur connaît ses vrais prix : demande-les au lieu de les deviner.
+    Vous voyez d'abord la liste, puis vous décidez de les garder.</p>
+  <div class="api-rates-bar">
+    <button type="button" class="btn btn-primary" data-api-fetch>Récupérer les tarifs</button>
+    <span class="muted small" data-api-msg role="status"></span>
+  </div>
+  <div data-api-out hidden></div>
+</section>
 
 <form method="post" action="/dashboard/shipping">
   <section class="panel">
@@ -1362,7 +1374,7 @@ ${saved ? `<div class="alert ok">Livraison enregistrée.</div>` : ""}
     </div>
 
     <details class="adv">
-      <summary><b>Tarif wilaya par wilaya</b> <span class="muted">— 58 wilayas, seulement si tu veux des prix différents</span></summary>
+      <summary><b>Tarif wilaya par wilaya</b> <span class="muted">— 69 wilayas, seulement si tu veux des prix différents</span></summary>
       <div class="ship-grid">
         ${rates.map((r) => `<div class="ship-cell">
           <b>${esc(r.wilaya)}</b>
@@ -1381,7 +1393,90 @@ ${saved ? `<div class="alert ok">Livraison enregistrée.</div>` : ""}
 
     <div class="form-actions"><button class="btn btn-primary">Enregistrer</button></div>
   </section>
-</form>`, "shipping")
+</form>
+<script>
+(function () {
+  var box = document.querySelector("[data-api-rates]")
+  if (!box || box.getAttribute("data-on")) return
+  box.setAttribute("data-on", "1")
+  var out = box.querySelector("[data-api-out]")
+  var msg = box.querySelector("[data-api-msg]")
+  var btn = box.querySelector("[data-api-fetch]")
+  var dz = function (cents) { return cents == null ? "—" : Math.round(cents / 100).toLocaleString("fr-FR") + " DZD" }
+  var seul = function (html) { out.innerHTML = html; out.hidden = false }
+
+  function peindre(data) {
+    if (!data || !data.ok) {
+      seul("<p class=\"api-warn\">" + (data && data.error ? data.error : "Récupération impossible pour l'instant.") + "</p>")
+      msg.textContent = ""
+      btn.disabled = false
+      btn.textContent = "Réessayer"
+      return
+    }
+    var lignes = data.rows.filter(function (r) { return r.api }).map(function (r) {
+      /* une wilaya de 2026 n'a pas de tarif à elle : on montre d'où il vient */
+      var mere = r.mere ? " <i class=\"api-mere\">· tarif de " + r.mere + "</i>" : ""
+      return "<tr><td><b>" + r.wilaya + "</b>" + mere + "</td><td>" + dz(r.home) + "</td><td>" + dz(r.desk) +
+        "</td><td class=\"muted\">" + dz(r.actuel.home) + " / " + dz(r.actuel.desk) + "</td></tr>"
+    }).join("")
+    var sans = data.rows.filter(function (r) { return !r.api }).length
+    seul((data.found ? "<div class=\"api-tablewrap\"><table class=\"table api-table\"><thead><tr>" +
+          "<th>Wilaya</th><th>Domicile (API)</th><th>Bureau (API)</th><th>Vos tarifs</th></tr></thead><tbody>" +
+          lignes + "</tbody></table></div>" : "") +
+      (data.error ? "<p class=\"api-warn\">" + data.error + "</p>" : "") +
+      (sans && data.found ? "<p class=\"muted small\">" + sans + " wilaya(s) sans réponse : vos tarifs y restent inchangés.</p>" : "") +
+      (data.found ? "<p class=\"muted small\">Les wilayas de 2026 (Bou Saâda, Barika, Aflou…) prennent le tarif de leur wilaya mère : les transporteurs ne les connaissent pas encore.</p>" : "") +
+      (data.found ? "<div class=\"api-apply\">" +
+        "<label class=\"check\"><input type=\"checkbox\" data-api-replace> Remplacer aussi les tarifs que j'ai déjà saisis</label>" +
+        "<button type=\"button\" class=\"btn btn-primary\" data-api-save>Appliquer ces tarifs</button>" +
+        "</div>" : ""))
+    msg.textContent = data.found ? data.carrier + " · " + data.found + " wilaya(s) avec un tarif" : ""
+    btn.disabled = false
+    btn.textContent = "Actualiser"
+  }
+
+  function charger(force) {
+    btn.disabled = true
+    btn.textContent = "Interrogation du transporteur…"
+    msg.textContent = "Cela peut prendre quelques secondes (69 wilayas)."
+    fetch("/dashboard/shipping/tarifs-api" + (force ? "?force=1" : ""), { headers: { Accept: "application/json" } })
+      .then(function (r) { return r.json() })
+      .then(peindre)
+      .catch(function () { peindre({ ok: false, error: "Le serveur n'a pas répondu." }) })
+  }
+
+  btn.addEventListener("click", function () { charger(true) })
+
+  out.addEventListener("click", function (e) {
+    var save = e.target.closest("[data-api-save]")
+    if (!save) return
+    var remplacer = box.querySelector("[data-api-replace]")
+    save.disabled = true
+    save.textContent = "Application…"
+    fetch("/dashboard/shipping/tarifs-api", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ mode: remplacer && remplacer.checked ? "remplacer" : "completer" })
+    })
+      .then(function (r) { return r.json() })
+      .then(function (res) {
+        if (res && res.ok) {
+          msg.textContent = res.updated + " wilaya(s) mise(s) à jour. La page se recharge…"
+          setTimeout(function () { window.location.href = "/dashboard/shipping?ok=1" }, 700)
+        } else {
+          msg.textContent = (res && res.error) || "Rien n'a été appliqué."
+          save.disabled = false
+          save.textContent = "Appliquer ces tarifs"
+        }
+      })
+      .catch(function () {
+        msg.textContent = "Le serveur n'a pas répondu."
+        save.disabled = false
+        save.textContent = "Appliquer ces tarifs"
+      })
+  })
+})()
+</script>`, "shipping")
 
 /* ============================== DASHBOARD : AVIS ============================== */
 const dashReviews = (user, store, rows) => dashLayout(user, store, `
@@ -1498,7 +1593,10 @@ const bellHtml = (desktop) => `<div class="ndz-bell${desktop ? " ndz-bell-desk" 
     ${icon("bell", 18)}<i data-bell-n hidden>0</i>
   </button>
   <div class="ndz-bell-panel" hidden>
-    <div class="ndz-bell-head"><b>Notifications</b><button type="button" data-bell-read>Tout lu</button></div>
+    <div class="ndz-bell-head"><b>Notifications</b><span class="ndz-bell-tools">
+      <button type="button" data-bell-ding title="Entendre le son d'une nouvelle commande" aria-label="Tester le son de commande">♪ Commande</button>
+      <button type="button" data-bell-ding-suivi title="Entendre le son du suivi de colis" aria-label="Tester le son de suivi">♪ Suivi</button>
+      <button type="button" data-bell-read>Tout lu</button></span></div>
     <div data-bell-list><p class="muted">Rien pour le moment.</p></div>
   </div>
 </div>${desktop ? bellScript() : ""}`
@@ -1509,28 +1607,95 @@ const bellScript = () => `<script>
   if (!root || root.getAttribute("data-on")) return
   document.querySelectorAll("[data-bell]").forEach(function (el) { el.setAttribute("data-on", "1") })
   var seen = null
-  /* Petit carillon de notification, fabriqué par le navigateur : aucun
-     fichier à télécharger, donc aucune requête qui échoue. */
+  /* Le carillon de commande, fabriqué par le navigateur : aucun fichier à
+     télécharger, donc aucune requête qui échoue.
+     Pourquoi il était muet sur ordinateur : un navigateur refuse de jouer un
+     son tant que vous n'avez pas touché LA page. Sur téléphone on touche tout
+     le temps, sur un PC on regarde sans cliquer. On prépare donc le son dès le
+     premier geste, et on garde la page prête pour la suite. */
   var audioCtx = null
-  function ding() {
+  var unlocked = false
+  function ctxOnce() {
+    if (audioCtx) return audioCtx
     try {
       var AC = window.AudioContext || window.webkitAudioContext
-      if (!AC) return null
-      audioCtx = audioCtx || new AC()
-      if (audioCtx.state === "suspended" && audioCtx.resume) audioCtx.resume()
-      var t0 = audioCtx.currentTime
-      ;[[880, 0], [1174, 0.11]].forEach(function (n) {
-        var osc = audioCtx.createOscillator(), gain = audioCtx.createGain()
-        osc.type = "sine"
-        osc.frequency.value = n[0]
+      if (AC) audioCtx = new AC()
+    } catch (e) { audioCtx = null }
+    return audioCtx
+  }
+  function unlock() {
+    var c = ctxOnce()
+    if (!c) return null
+    if (c.state === "running") { unlocked = true; return c }
+    if (c.resume) {
+      /* un petit son muet : c'est ce qui débloque vraiment le son dans Chrome */
+      try {
+        var g = c.createGain()
+        g.gain.value = 0.0001
+        var o = c.createOscillator()
+        o.frequency.value = 440
+        o.connect(g); g.connect(c.destination)
+        o.start(); o.stop(c.currentTime + 0.02)
+      } catch (e) {}
+      var p = c.resume()
+      if (p && p.then) p.then(function () { unlocked = c.state === "running" }).catch(function () {})
+    }
+    return c
+  }
+  ["pointerdown", "keydown", "touchstart", "mousedown"].forEach(function (ev) {
+    window.addEventListener(ev, unlock, { capture: true, passive: true })
+  })
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) unlock() })
+  function ding() {
+    try {
+      var c = unlock()
+      if (!c) return null
+      var t0 = c.currentTime + 0.02
+      /* « ding-dong » : la note du haut puis celle du bas — une caisse qui encaisse */
+      ;[[1046.5, 0], [784, 0.15]].forEach(function (n) {
+        var osc = c.createOscillator(), gain = c.createGain()
+        osc.type = "triangle"
+        osc.frequency.setValueAtTime(n[0], t0 + n[1])
         gain.gain.setValueAtTime(0.0001, t0 + n[1])
-        gain.gain.exponentialRampToValueAtTime(0.13, t0 + n[1] + 0.02)
-        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + n[1] + 0.42)
-        osc.connect(gain); gain.connect(audioCtx.destination)
-        osc.start(t0 + n[1]); osc.stop(t0 + n[1] + 0.45)
+        gain.gain.exponentialRampToValueAtTime(0.22, t0 + n[1] + 0.015)
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + n[1] + 0.6)
+        osc.connect(gain); gain.connect(c.destination)
+        osc.start(t0 + n[1]); osc.stop(t0 + n[1] + 0.65)
       })
     } catch (e) {}
     return null
+  }
+  /* Le son du SUIVI : deux notes qui descendent, douces et courtes.
+     Il ne ressemble pas au carillon de caisse : une nouvelle de transporteur
+     (colis livré, colis revenu) n'est pas une vente. */
+  function suivi() {
+    try {
+      var c = unlock()
+      if (!c) return null
+      var t0 = c.currentTime + 0.02
+      ;[[880, 0], [659.25, 0.13]].forEach(function (n) {
+        var osc = c.createOscillator(), gain = c.createGain()
+        osc.type = "sine"
+        osc.frequency.setValueAtTime(n[0], t0 + n[1])
+        gain.gain.setValueAtTime(0.0001, t0 + n[1])
+        gain.gain.exponentialRampToValueAtTime(0.16, t0 + n[1] + 0.02)
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + n[1] + 0.45)
+        osc.connect(gain); gain.connect(c.destination)
+        osc.start(t0 + n[1]); osc.stop(t0 + n[1] + 0.5)
+      })
+    } catch (e) {}
+    return null
+  }
+  function joue(kind) {
+    if (kind === "suivi") return suivi()
+    return ding()
+  }
+  /* une commande arrive alors que le son est encore bloqué : on le dit une fois */
+  var ditSon = false
+  function sonBloque() {
+    if (ditSon || unlocked) return
+    ditSon = true
+    toast({ title: "Son bloqué par le navigateur", body: "Touchez la page une fois : le carillon sonnera aux prochaines commandes.", href: "#" })
   }
   function nodes() { return Array.prototype.slice.call(document.querySelectorAll("[data-bell]")) }
   function placeDesk() {
@@ -1550,7 +1715,7 @@ const bellScript = () => `<script>
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", placeDesk)
   else placeDesk()
-  function ring() {
+  function ring(kind) {
     nodes().forEach(function (box) {
       var btn = box.querySelector(".ndz-bell-btn")
       if (!btn) return
@@ -1558,18 +1723,23 @@ const bellScript = () => `<script>
       void btn.offsetWidth
       btn.classList.add("ring")
     })
-    ding()
+    joue(kind)
   }
   var heard = {}
   var ticket = 0
   function arrive(it) {
     if (!it || !it.id || heard[it.id]) return
     heard[it.id] = 1
-    toast(it)
-    ring()
+    var kind = it.kind === "suivi" ? "suivi" : "commande"
+    toast(it, kind)
+    ring(kind)
     if (document.hidden && window.Notification && Notification.permission === "granted") {
       try {
-        var note = new Notification(it.title, { body: it.body || "Nouvelle commande", silent: true })
+        var note = new Notification(it.title, {
+          body: it.body || (kind === "suivi" ? "Suivi du transporteur" : "Nouvelle commande"),
+          silent: false,
+          tag: "novadz-" + kind
+        })
         note.onclick = function () {
           window.focus()
           if (it.href) window.location.href = it.href
@@ -1589,7 +1759,7 @@ const bellScript = () => `<script>
       var list = box.querySelector("[data-bell-list]")
       if (!list) return
       list.innerHTML = items.length ? items.map(function (it) {
-        return '<a class="ndz-bell-item' + (it.read_at ? "" : " new") + '" href="' + (it.href || "#") + '" data-id="' + it.id + '"><b>' + it.title + '</b><span>' + (it.body || "") + '</span></a>'
+        return '<a class="ndz-bell-item' + (it.read_at ? "" : " new") + (it.kind === "suivi" ? " k-suivi" : "") + '" href="' + (it.href || "#") + '" data-id="' + it.id + '"><b>' + it.title + '</b><span>' + (it.body || "") + '</span></a>'
       }).join("") : '<p class="muted">Rien pour le moment.</p>'
     })
     if (seen == null) items.forEach(function (it) { if (it.id) heard[it.id] = 1 })
@@ -1597,13 +1767,13 @@ const bellScript = () => `<script>
     if (seen != null && n > seen && first) arrive(first)
     seen = n
   }
-  function toast(it) {
+  function toast(it, kind) {
     var old = document.querySelector(".ndz-toast")
     if (old) old.remove()
     var el = document.createElement("a")
-    el.className = "ndz-toast"
+    el.className = "ndz-toast" + (kind === "suivi" ? " suivi" : "")
     el.href = it.href || "/dashboard/orders"
-    el.innerHTML = "<b>" + it.title + "</b><span>" + (it.body || "Nouvelle commande") + "</span>"
+    el.innerHTML = "<b>" + it.title + "</b><span>" + (it.body || (kind === "suivi" ? "Suivi du transporteur" : "Nouvelle commande")) + "</span>"
     document.body.appendChild(el)
     setTimeout(function () { el.classList.add("on") }, 20)
     setTimeout(function () { el.classList.remove("on"); setTimeout(function () { el.remove() }, 300) }, 5000)
@@ -1641,6 +1811,30 @@ const bellScript = () => `<script>
       })
       panel.hidden = !open
       btn.setAttribute("aria-expanded", open ? "true" : "false")
+      return
+    }
+    var bellSuivi = e.target.closest("[data-bell-ding-suivi]")
+    if (bellSuivi) {
+      e.preventDefault()
+      suivi()
+      var cs = ctxOnce()
+      if (cs && cs.state === "running") {
+        toast({ title: "Son de suivi", body: "Voilà ce que vous entendrez quand un colis est livré ou revient.", href: "#" }, "suivi")
+      } else {
+        toast({ title: "Son bloqué par le navigateur", body: "Touchez la page, puis appuyez de nouveau sur « ♪ Suivi ».", href: "#" }, "suivi")
+      }
+      return
+    }
+    var bellDing = e.target.closest("[data-bell-ding]")
+    if (bellDing) {
+      e.preventDefault()
+      ding()
+      var c = ctxOnce()
+      if (c && c.state === "running") {
+        toast({ title: "Son de commande", body: "Voilà ce que vous entendrez à chaque commande.", href: "#" })
+      } else {
+        toast({ title: "Son bloqué par le navigateur", body: "Touchez la page, puis appuyez de nouveau sur « ♪ Commande ».", href: "#" })
+      }
       return
     }
     if (e.target.closest("[data-bell-read]")) {
@@ -1702,8 +1896,9 @@ const aiBall = (mode) => {
 <style>
 .ndz-ai,.ndz-ai-panel{position:fixed !important;z-index:2147483000 !important}
 .ndz-ai-ball{position:fixed;z-index:2147483000}
-.ndz-ai-ball{right:18px;bottom:18px;width:68px;height:68px;border:3px solid #fff;border-radius:50%;background:#111;color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 0 0 4px #111, 0 16px 36px rgba(0,0,0,.35)}
-.ndz-ai-ball svg{display:block;width:32px;height:32px}
+/* 44 px : la taille d'un pouce, plus discret que les 68 px d'avant. */
+.ndz-ai-ball{right:16px;bottom:16px;width:44px;height:44px;border:0;border-radius:50%;background:#111;color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.22)}
+.ndz-ai-ball svg{display:block;width:22px;height:22px}
 .ndz-ai-panel{right:18px;bottom:100px;width:min(380px,calc(100vw - 28px));height:min(520px,calc(100vh - 130px));background:#fff;color:#111;border-radius:28px;box-shadow:0 22px 60px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden}
 .ndz-ai-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px}
 .ndz-ai-head b{font-size:15px}
@@ -1719,8 +1914,8 @@ const aiBall = (mode) => {
 .ndz-ai-form button{width:40px;height:40px;border:0;border-radius:50%;background:#111;color:#fff;font:inherit;cursor:pointer}
 @media (max-width:760px){
   .ndz-ai{position:static !important}
-  .ndz-ai-ball{right:14px;bottom:96px;width:56px;height:56px;border-width:2px}
-  .ndz-ai-ball svg{width:26px;height:26px}
+  .ndz-ai-ball{right:14px;bottom:92px;width:46px;height:46px}
+  .ndz-ai-ball svg{width:22px;height:22px}
   .ndz-ai-panel{right:12px !important;left:12px !important;bottom:168px !important;width:auto !important;height:min(68vh,520px) !important}
   /* l'assistant prend sa place dans la barre du haut : plus rien ne flotte sur les cartes */
   .dash-mobile .ndz-ai-ball,
@@ -1795,7 +1990,65 @@ const aiBall = (mode) => {
 </script>`
 }
 
+/* ------------------------------ le parcours guidé ------------------------------
+   Une seule étape à la fois, sur l'écran où elle se fait. Le module décide de
+   l'étape (à partir des vraies données), la page ne fait que l'afficher. */
+const PARCOURS = require("./parcours")
+const TOUR_PAGE = {
+  settings: "/dashboard/settings",
+  categories: "/dashboard/categories",
+  form: "/dashboard/formulaire",
+  stats: "/dashboard/stats",
+  studio: "/dashboard/studio",
+  products: "/dashboard/products/new",
+}
+const tourBlock = (store, active) => {
+  try {
+    const e = PARCOURS.etat(store)
+    if (e.off) {
+      return `<div class="tour-offre"><form method="post" action="/dashboard/parcours/relancer">
+        <span>Le guide est masqué.</span><button type="submit" class="link-danger">Reprendre le guide</button></form></div>`
+    }
+    if (e.fini) {
+      return `<style>
+.tour-fini{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 16px;
+  padding:12px 16px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:13px}
+.tour-fini b{font-weight:600}
+.tour-fini a{color:var(--ink);text-decoration:underline;font-size:12.5px}
+.tour-offre{margin:0 0 16px;font-size:12.5px;color:var(--muted)}
+.tour-offre form{display:flex;align-items:center;gap:10px}
+.tour-offre button{background:none;border:0;font:inherit;cursor:pointer;text-decoration:underline}
+</style>
+<div class="tour-fini"><b>Ton site est en ligne.</b>
+        <a href="/dashboard/orders">Voir les commandes</a><a href="${store.slug ? "/" + store.slug : "/dashboard"}">Voir mon site</a></div>`
+    }
+    return PARCOURS.bloc(store, TOUR_PAGE[active] || "").html
+  } catch (_) { return "" }
+}
+
 const dashLayout = (user, store, content, active) => {
+  /* Plusieurs pages ne disaient pas au menu dans quelle rubrique elles sont :
+     aucun onglet n'était surligné. On le déduit du titre de la page. */
+  const rubrique = (html) => {
+    const m = /<h1[^>]*>([\s\S]*?)<\/h1>/.exec(String(html || ""))
+    if (!m) return ""
+    const txt = m[1].replace(/<[^>]*>/g, " ").replace(/&[a-z]+;/g, " ").replace(/\s+/g, " ").trim()
+    if (/^Commande\b/.test(txt)) return "orders"
+    const T = {
+      "Vue d'ensemble": "home", Statistiques: "stats", Commandes: "orders",
+      "Paniers abandonnés": "paniers", Relances: "relances", Reversements: "payouts",
+      Produits: "products", Stock: "stock", "Catégories": "categories",
+      "Codes promo": "promos", Pages: "pages", Studio: "studio",
+      "Formulaires": "form", Formulaire: "form", Transporteur: "transporteur",
+      Livraison: "shipping", "Frais de livraison": "shipping", Paiement: "paiement",
+      "Réseaux sociaux": "social", Réglages: "settings", Équipe: "equipe",
+      Visites: "visits", "Reçus": "leads", Clients: "customers", Avis: "reviews",
+      "Statistiques livraison": "livraison", "E-mails": "mails",
+      "Mes boutiques": "stores", Marketing: "marketing",
+    }
+    return T[txt] || ""
+  }
+  active = active || rubrique(content)
   /* les chiffres de la barre latérale : commandes, paniers, stock, avis… */
   const B = BADGES.counts(store)
   const vitrine = store.site_kind === "vitrine"
@@ -1856,6 +2109,7 @@ const dashLayout = (user, store, content, active) => {
       <div class="dash-tile">${esc((store.name || "?")[0].toUpperCase())}</div>
       <div><b>${esc(store.name)}</b><span>${vitrine ? `<i class="dash-kind">Vitrine</i>` : ""}${user.support ? "vue admin" : esc(showAddress(store))}</span></div>
     </div>
+    ${require("./pwa").installButton()}
     ${(user.stores || []).length > 1 ? `<form class="store-switch" method="post" action="/dashboard/utiliser-boutique">
       <label>Espace<select name="store_id" onchange="this.form.submit()">${user.stores.map((s) => `<option value="${s.id}"${s.id === store.id ? " selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>
     </form>` : ""}
@@ -1921,7 +2175,6 @@ const dashLayout = (user, store, content, active) => {
     </div>
   </aside>
   ${bellHtml(true)}
-  ${require("./pwa").installButton()}
   <main class="dash-main">${user.support ? `<div class="support-bar"><span class="support-ico">${icon("shield", 15)}</span><p>Tu regardes <b>${esc(user.support.name)}</b>. Ce n'est pas ta boutique.</p><form method="post" action="/admin/quitter"><button class="btn btn-ghost btn-sm" type="submit">Quitter</button></form></div>` : ""}${user.flash ? `<div class="alert">${esc(user.flash)}</div>` : ""}${content}</main>
   <nav class="app-tab" aria-label="Navigation">
     ${tab("home", "/dashboard", "grid", "Accueil")}
@@ -1933,6 +2186,7 @@ const dashLayout = (user, store, content, active) => {
     <button type="button" id="appMore" class="${(vitrine ? ["home", "pages", "design"] : ["home", "orders", "products", "stock", "relances"]).includes(active) ? "" : "on"}">${icon("menu", 20)}<span>Plus</span></button>
   </nav>
   ${aiBall(vitrine ? "vitrine" : "")}
+  ${tourBlock(store, active)}
 </div>
 <script data-dash-nav>
 (function () {
@@ -2306,6 +2560,51 @@ ${ok ? `<div class="alert ok">Formulaire enregistré. Il est déjà sur la bouti
 /* côté vendeur aussi : le prix s'affiche dans le format qu'il a choisi */
 const cashOf = (store, cents) => SECTIONS.moneyOf(store, cents)
 
+/* Un montant court pour un axe : 2 500 · 120 k · 1,2 M */
+const shortMoney = (cents) => {
+  const v = Math.round((Number(cents) || 0) / 100)
+  if (v >= 1000000) return String(Math.round(v / 100000) / 10).replace(".", ",") + " M"
+  if (v >= 100000) return Math.round(v / 1000) + " k"
+  return v.toLocaleString("fr-FR")
+}
+
+/* Un pas rond pour l'axe (en centimes, comme les montants qu'on lui donne). */
+const moneyStep = (maxCents) => {
+  const dzd = Math.round((Number(maxCents) || 0) / 100)
+  for (const st of [100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000]) {
+    if (dzd <= st * 4) return st * 100
+  }
+  return 1000000 * 100
+}
+
+/* Graphique des 14 derniers jours. L'info-bulle est du TEXTE simple : mettre
+   le prix en HTML dans un attribut title coupait la page au premier guillemet. */
+const stGraph = ({ rows, valueOf, textOf, fmtValue, step = 4 }) => {
+  const max = Math.max(0, ...rows.map(valueOf))
+  const vide = max === 0
+  const top = vide ? 1 : Math.max(1, Math.ceil(max / step) * step)
+  const parts = [1, 2 / 3, 1 / 3, 0]
+  const day = (iso) => `${String(iso).slice(8, 10)}/${String(iso).slice(5, 7)}`
+  return `
+  <div class="st-chart st-graph">
+    <div class="st-yaxis" aria-hidden="true">${vide ? "" : parts.map((k) => `<span>${esc(fmtValue(Math.round(top * k), true))}</span>`).join("")}</div>
+    <div class="st-plot">
+      <div class="st-grid" aria-hidden="true">${parts.map(() => "<i></i>").join("")}</div>
+      <div class="st-bars">
+        ${rows.map((r) => {
+          const v = valueOf(r)
+          const h = v ? Math.max(3, Math.round((v / top) * 84)) : 2
+          return `<div class="st-day" title="${esc(day(r.day) + " · " + textOf(r))}">
+          <span class="st-val">${v ? esc(fmtValue(v)) : ""}</span>
+          <span class="st-bar${v ? "" : " off"}" style="height:${h}%"></span>
+        </div>`
+        }).join("")}
+      </div>
+    </div>
+  </div>
+  <div class="st-days" aria-hidden="true">${rows.map((r) => `<span>${day(r.day)}</span>`).join("")}</div>`
+}
+
 const dashStats = (user, store, d) => {
   const max = Math.max(1, ...d.daily.map((x) => x.cents))
   const confRate = d.counts.total ? Math.round((d.counts.confirmed / d.counts.total) * 100) : 0
@@ -2359,13 +2658,17 @@ const dashStats = (user, store, d) => {
 </div>
 
 <section class="panel">
-  <div class="panel-head"><h2>14 derniers jours</h2><span class="muted">chiffre d'affaires par jour</span></div>
-  <div class="st-chart">
-    ${d.daily.map((x) => `<div class="st-col" title="${fmtDay(x.day)} — ${cashOf(store, x.cents, store.currency)} · ${x.n} commande(s)">
-      <span class="st-bar${x.cents ? "" : " off"}" style="height:${x.cents ? Math.max(4, Math.round((x.cents / max) * 100)) : 2}%"></span>
-      <em>${fmtDay(x.day)}</em>
-    </div>`).join("")}
-  </div>
+  <div class="panel-head"><h2>14 derniers jours</h2><span class="muted">chiffre d'affaires par jour · ${esc(store.currency)}</span></div>
+  ${d.daily.every((x) => !Number(x.cents))
+    ? `<p class="st-note">Aucune vente sur ces 14 jours. Le graphique se remplit tout seul à la première commande.</p>`
+    : ""}
+  ${stGraph({
+    rows: d.daily,
+    valueOf: (x) => Number(x.cents) || 0,
+    textOf: (x) => `${money(x.cents, store.currency)} · ${x.n} commande(s)`,
+    fmtValue: (cents) => shortMoney(cents),
+    step: moneyStep(max),
+  })}
 </section>
 
 <div class="st-cols">
@@ -2411,12 +2714,13 @@ const dashVisits = (user, store, d) => {
 </div>
 <section class="panel">
   <div class="panel-head"><h2>14 derniers jours</h2><span class="muted">visites par jour</span></div>
-  <div class="st-chart">
-    ${d.daily.map((x) => `<div class="st-col" title="${fmtDay(x.day)} — ${x.n} visite(s)">
-      <span class="st-bar${x.n ? "" : " off"}" style="height:${x.n ? Math.max(4, Math.round((x.n / max) * 100)) : 2}%"></span>
-      <em>${fmtDay(x.day)}</em>
-    </div>`).join("")}
-  </div>
+  ${stGraph({
+    rows: d.daily,
+    valueOf: (x) => Number(x.n) || 0,
+    textOf: (x) => `${x.n} visite(s)`,
+    fmtValue: (v) => String(v),
+    step: 2,
+  })}
 </section>`, "visits")
 }
 
@@ -2452,7 +2756,7 @@ const sitePreview = (store) => `
         <button type="button" class="prev-dev on" data-prev="desk">${icon("monitor", 14)} Ordinateur</button>
         <button type="button" class="prev-dev" data-prev="tel">${icon("smartphone", 14)} Téléphone</button>
       </span>
-      <a href="/dashboard/design">Modifier le design</a>
+      <a href="/dashboard/studio">Modifier le site</a>
       <a href="/${esc(store.slug)}" target="_blank" rel="noopener">Ouvrir le site ${icon("external", 13)}</a>
     </div>
   </div>
@@ -3017,10 +3321,10 @@ const orderActions = (store, o, big = false) => {
   const stopped = n >= max
   const phone = String(o.phone || "").replace(/[^0-9+]/g, "")
   const label = (text) => (big ? `<span>${text}</span>` : "")
-  const post = (action, title, body, cls = "", ico = "check", show = false) =>
+  const post = (action, title, body, cls = "", ico = "check", show = false, court = "") =>
     `<form method="post" action="/dashboard/orders/${o.id}/${action}" class="ord-form">${body}${
       big ? '<input type="hidden" name="back" value="detail">' : ""}
-       <button class="ord-act ${cls}" type="submit" title="${esc(title)}" aria-label="${esc(title)}">${icon(ico, 17)}${show || big ? `<span>${esc(title.split(" (")[0])}</span>` : ""}</button></form>`
+       <button class="ord-act ${cls}" type="submit" title="${esc(title)}" aria-label="${esc(title)}">${icon(ico, 17)}${show || big ? `<span>${esc(court || title.split(" (")[0])}</span>` : ""}</button></form>`
 
   const wa = `<a class="ord-act wa" href="/dashboard/orders/${o.id}/whatsapp" target="_blank" rel="noopener"
       title="Écrire sur WhatsApp (${esc(phone)})" aria-label="Écrire sur WhatsApp">${icon("whatsapp", 17)}${label("WhatsApp")}</a>`
@@ -3032,25 +3336,36 @@ const orderActions = (store, o, big = false) => {
   const waitBtn = post("status", "En attente", `<input type="hidden" name="status" value="nouvelle">`,
     o.status === "nouvelle" ? "on wait" : "wait", "hourglass")
   const cancelBtn = post("status", "Annuler la commande (le stock revient)",
-    `<input type="hidden" name="status" value="annulee">`, o.status === "annulee" ? "on danger" : "danger", "x")
+    `<input type="hidden" name="status" value="annulee">`, o.status === "annulee" ? "on danger" : "danger", "x", false, "Annuler")
 
   const callBtn = stopped
     ? `<button class="ord-act danger on" disabled title="3 appels sans réponse : commande injoignable"
-         aria-label="Injoignable, 3 appels sans réponse">${icon("phoneOff", 17)}<i class="ord-count">${n}/${max}</i></button>`
+         aria-label="Injoignable, 3 appels sans réponse">${icon("phoneOff", 17)}${big ? "<span>Injoignable</span>" : ""}<i class="ord-count">${n}/${max}</i></button>`
     : `<form method="post" action="/dashboard/orders/${o.id}/attempt" class="ord-form">
         <button class="ord-act warn" type="submit" title="Injoignable — appel sans réponse (${n + 1}/${max})"
-          aria-label="Injoignable, appel ${n + 1} sur ${max}">${icon("phoneOff", 17)}<i class="ord-count">${n}/${max}</i></button></form>`
+          aria-label="Injoignable, appel ${n + 1} sur ${max}">${icon("phoneOff", 17)}${big ? "<span>Injoignable</span>" : ""}<i class="ord-count">${n}/${max}</i></button></form>`
 
   const fakeBtn = post("fake", o.fake ? "N'est plus une commande de test" : "Marquer comme commande de test",
-    "", o.fake ? "on test" : "test", "flask")
+    "", o.fake ? "on test" : "test", "flask", false, o.fake ? "Plus un test" : "Commande de test")
 
   const depositBtn = Number(o.deposit_cents || 0) > 0
     ? post("acompte", o.deposit_paid ? "Acompte reçu — cliquer pour annuler" : "Marquer l'acompte reçu",
         "", o.deposit_paid ? "on ok" : "ok", "cash")
     : ""
 
-  return `<div class="ord-acts${big ? " big" : ""}">
-    ${wa}${confirmBtn}${waitBtn}${lateBtn}${callBtn}${depositBtn}${cancelBtn}${fakeBtn}
+  /* En détail, deux étages : ce qu'on fait à chaque appel, puis les cas
+     particuliers. Avant, les sept boutons se battaient sur une ligne. */
+  if (!big) {
+    return `<div class="ord-acts">
+      ${wa}${confirmBtn}${waitBtn}${lateBtn}${callBtn}${depositBtn}${cancelBtn}${fakeBtn}
+    </div>`
+  }
+  return `<div class="ord-acts big">
+    <div class="ord-acts-row main">${wa}${confirmBtn}${waitBtn}</div>
+    <div class="ord-acts-row more">
+      <span class="ord-acts-note">Cas particuliers</span>
+      ${lateBtn}${callBtn}${depositBtn}${cancelBtn}${fakeBtn}
+    </div>
   </div>`
 }
 
@@ -3356,7 +3671,7 @@ ${error ? `<div class="alert">${esc(error)}</div>` : ""}
     </div>
     <div class="theme-now-actions">
       <a class="btn btn-ghost btn-sm" href="/dashboard/design/themes">Voir les thèmes</a>
-      <a class="btn btn-primary btn-sm" href="/dashboard/design">Modifier le design</a>
+      <a class="btn btn-primary btn-sm" href="/dashboard/studio">Modifier le site</a>
     </div>
   </div>
 
@@ -4463,7 +4778,7 @@ const dashSocial = (user, store, saved, error) => {
   const active = links.length
   return dashLayout(user, store, `
 <header class="dash-head">
-  <div><h1>Réseaux sociaux</h1><p class="muted">Collez vos adresses une fois. Ensuite, choisissez où elles s'affichent dans <a href="/dashboard/design">Design → Réseaux sociaux</a>.</p></div>
+  <div><h1>Réseaux sociaux</h1><p class="muted">Collez vos adresses une fois. Ensuite, choisissez où elles s'affichent dans le <a href="/dashboard/studio">Studio</a>.</p></div>
   <span class="pill ${active ? "ok" : "off"}">${active ? active + " lien(s)" : "aucun lien"}</span>
 </header>
 ${saved ? `<div class="alert ok">Réseaux sociaux enregistrés${saved !== "1" ? " — " + esc(saved) : ""}.</div>` : ""}
@@ -4490,7 +4805,7 @@ ${saved ? `<div class="alert ok">Réseaux sociaux enregistrés${saved !== "1" ? 
     <p class="muted small">Une adresse sans « https:// » est complétée automatiquement. Seuls les liens http(s) sont acceptés.</p>
   </section>
   <div class="form-actions"><button class="btn btn-primary">Enregistrer</button>
-    <a class="btn btn-ghost" href="/dashboard/design">Choisir l'emplacement dans le Design</a></div>
+    <a class="btn btn-ghost" href="/dashboard/studio">Choisir l'emplacement dans le Studio</a></div>
 </form>`)
 }
 
@@ -4607,11 +4922,14 @@ const dashThemes = (user, store, templates = [], opts = {}) => {
     </div>`
   }
 
+  const PRETS = ["atelier", "electro", "bureau", "audio", "soin", "mode"]
+
   const dots = (t) => `<div class="theme-dots">${t.dots.map((d) => `<i style="background:${esc(d)}"></i>`).join("")}</div>`
 
   const card = (t) => `
-  <article class="th-card${t.id === store.theme ? " is-now" : ""}${t.id === trial ? " is-trial" : ""}" data-theme="${esc(t.id)}">
+  <article class="th-card${t.id === store.theme ? " is-now" : ""}${t.id === trial ? " is-trial" : ""}" data-theme="${esc(t.id)}" data-cat="${esc(t.cat)}" data-pret="${PRETS.includes(t.id) ? "1" : "0"}">
     ${shot(t)}
+    <a class="th-zoom" href="/dashboard/design/themes/apercu/${esc(t.id)}" target="_blank" rel="noopener" title="Voir ce thème en grand">${icon("eye", 14)} Voir en grand</a>
     <div class="th-body">
       <div class="th-name"><b>${esc(t.name)}</b>
         ${t.id === store.theme ? `<span class="pill livree">publié</span>` : ""}
@@ -4631,20 +4949,46 @@ const dashThemes = (user, store, templates = [], opts = {}) => {
     </div>
   </article>`
 
-  const PRETS = ["atelier", "electro", "bureau", "audio", "soin", "mode"]
-  const prets = THEMES.filter((t) => PRETS.includes(t.id) && t.id !== store.theme)
-  const groups = (prets.length ? `<section class="th-group">
-      <div class="th-group-head"><h2>Les six thèmes prêts à l'emploi</h2><p>Chacun a sa structure, sa police et sa photo d'accueil — et une recette de blocs déjà remplie.</p></div>
-      <div class="th-grid">${prets.map(card).join("")}</div>
-    </section>` : "") +
-    require("./themes").CATEGORIES.map(([id, title, desc]) => {
-      const list = THEMES.filter((t) => t.cat === id && t.id !== store.theme && !PRETS.includes(t.id))
-      if (!list.length) return ""
-      return `<section class="th-group">
-        <div class="th-group-head"><h2>${esc(title)}</h2><p>${esc(desc)}</p></div>
-        <div class="th-grid">${list.map(card).join("")}</div>
-      </section>`
-    }).join("")
+  /* Une seule planche, dans un ordre qui se lit d'un coup d'œil :
+     le thème publié d'abord, puis les six thèmes prêts, puis les autres. */
+  const CATS = require("./themes").CATEGORIES
+  const rang = (t) => (t.id === store.theme ? -2 : PRETS.includes(t.id) ? PRETS.indexOf(t.id) : 100 + Math.max(0, CATS.findIndex(([id]) => id === t.cat)))
+  const planche = THEMES.slice().sort((a, b) => rang(a) - rang(b))
+  const compte = (f) => planche.filter((t) => (f === "all" ? true : f === "pret" ? PRETS.includes(t.id) : t.cat === f)).length
+  const chips = `<div class="th-chips" data-th-chips>
+    <button type="button" class="th-chip on" data-f="all">Tous <i>${compte("all")}</i></button>
+    <button type="button" class="th-chip" data-f="pret">Prêts à l'emploi <i>${compte("pret")}</i></button>
+    ${CATS.filter(([id]) => compte(id)).map(([id, title]) => `<button type="button" class="th-chip" data-f="${esc(id)}">${esc(title)} <i>${compte(id)}</i></button>`).join("")}
+  </div>`
+  const board = `<section class="th-group th-board-sec">
+      <div class="th-group-head">
+        <h2>Vue d'ensemble — ${planche.length} thèmes</h2>
+        <p>Le même cadre pour tous : une grande image, ce à quoi il sert, puis « Voir en grand » pour l'ouvrir
+           avec vos produits avant de le choisir. Rien ne change pour vos clients avant <b>Publier</b>.</p>
+      </div>
+      ${chips}
+      <div class="th-board">${planche.map(card).join("")}</div>
+    </section>
+    <script>
+(function () {
+  var box = document.querySelector("[data-th-chips]")
+  if (!box) return
+  var cards = Array.prototype.slice.call(document.querySelectorAll(".th-board .th-card"))
+  box.addEventListener("click", function (e) {
+    var b = e.target.closest(".th-chip")
+    if (!b) return
+    Array.prototype.slice.call(box.querySelectorAll(".th-chip")).forEach(function (x) {
+      x.classList.toggle("on", x === b)
+    })
+    var f = b.getAttribute("data-f")
+    cards.forEach(function (c) {
+      var ok = f === "all" || (f === "pret" ? c.getAttribute("data-pret") === "1" : c.getAttribute("data-cat") === f)
+      if (ok) c.removeAttribute("hidden")
+      else c.setAttribute("hidden", "hidden")
+    })
+  })
+})()
+    </script>`
 
   const sitesBlock = (() => {
     const SITES = require("./site-templates")
@@ -4696,7 +5040,7 @@ const dashThemes = (user, store, templates = [], opts = {}) => {
 ${opts.modele ? `<div class="alert" data-studio-modele><b>Ton Studio t'attend.</b> Choisis un modèle de site ci-dessous : il s'ouvre juste après, avec l'écriture, les photos et les pages. Rien n'est visible par tes clients avant <b>Publier</b>.</div>` : ""}
 <header class="dash-head">
   <div><h1>Thèmes</h1><p class="muted">Les modèles du haut s'ouvrent dans le <b>Studio</b> : c'est le seul endroit où l'on écrit, change les photos et les pages. Les thèmes classiques, plus bas, se règlent dans <b>Design</b>. Dans les deux cas, rien n'est visible par tes clients avant <b>Publier</b>.</p></div>
-  <div class="head-actions"><a class="btn btn-ghost" href="/dashboard/design">${icon("palette", 15)} Modifier le design</a></div>
+  <div class="head-actions"><a class="btn btn-ghost" href="/dashboard/studio">${icon("palette", 15)} Modifier le site</a></div>
 </header>
 
 ${sitesBlock}
@@ -4779,13 +5123,7 @@ ${(() => {
     </section>`
   })()}
 
-<div class="th-sec-head">
-  <h2>Choisir un autre thème</h2>
-  <p>Un clic sur « Choisir ce thème » l'ouvre dans l'éditeur, avec ton catalogue, ta bannière et tes textes.
-     Rien ne change pour tes clients avant « Publier ».</p>
-</div>
-
-${groups}
+${board}
 
 <section class="th-help">
   <b>Tu ne sais pas lequel choisir ?</b>

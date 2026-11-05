@@ -326,7 +326,7 @@ const compose = (store, text) => {
   }
 
   if (want(q, ["annonce", "promo", "bandeau"])) {
-    push("banner", { text: "Livraison dans les 58 wilayas — paiement à la livraison." })
+    push("banner", { text: "Livraison dans les 69 wilayas — paiement à la livraison." })
   }
   if (!want(q, ["sans banniere", "sans hero"]) && (want(q, ["banniere", "hero", "accueil", "titre"]) || !append)) {
     const quoted = raw.match(/[«"]([^»"]{3,80})[»"]/)
@@ -343,7 +343,7 @@ const compose = (store, text) => {
       heading: "Pourquoi commander ici",
       look: lookOf(q, ["point fort", "avantage"], [["carte", "cartes"], ["numero", "numeros"], ["sombre", "bandeau"], ["pastille", "pastilles"], ["colonne", "colonnes"]], "cartes"),
     }, [
-      block({ icon: "camion", title: "Livraison 58 wilayas", text: "Chez vous ou au bureau" }),
+      block({ icon: "camion", title: "Livraison 69 wilayas", text: "Chez vous ou au bureau" }),
       block({ icon: "paiement", title: "Paiement à la livraison", text: "Vous payez en recevant" }),
       block({ icon: "retour", title: "Échange 7 jours", text: "Si la pièce ne convient pas" }),
     ])

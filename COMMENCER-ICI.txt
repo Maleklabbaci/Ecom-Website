@@ -1,0 +1,33 @@
+NovaDZ — tout le code source (version du 5 novembre 2026, soirée)
+=================================================================
+Cette version contient tout :
+
+  AFFICHAGE (envoi précédent)
+   - graphique des 14 derniers jours réparé, en vrai graphique
+   - le menu montre la page où l'on est
+   - assistant (robot) plus petit : 44 px
+   - « Installer sur le téléphone » rangé dans la barre latérale
+   - page commande : actions en deux étages, plus rien de collé
+
+  NOUVEAU (cet envoi)
+   - son de commande réparé sur ordinateur (débloqué au premier clic)
+     + bouton « ♪ Son » dans la cloche + notification non silencieuse
+   - frais de livraison lus dans l'API du transporteur (58 wilayas,
+     domicile et bureau), avec aperçu avant d'appliquer
+
+DÉMARRER
+  npm install
+  npm start      ->  http://localhost:3000
+
+Comptes de démonstration :
+  Marchand : demo@novadz.dz   / demo1234
+  Vitrine  : vitrine@novadz.dz / demo1234
+  Admin    : admin@novadz.dz  / admin1234
+
+VÉRIFIER
+  npm test   ->  384 tests, 382 réussis, 0 échec (2 ignorés)
+
+NON INCLUS : node_modules/, data/ (votre base et vos clés),
+public/uploads/ (images marchands), .git/, captures/
+
+Après une mise à jour : Ctrl+Shift+R dans le navigateur.

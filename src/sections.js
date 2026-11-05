@@ -110,7 +110,7 @@ const TYPES = {
       { key: "ctaLabel", label: "Lien (texte)", type: "text", placeholder: "En profiter" },
       { key: "ctaUrl", label: "Adresse du lien", type: "text", placeholder: "#catalogue" },
     ],
-    defaults: { text: "Livraison 48 wilayas — paiement à la livraison.", ctaLabel: "", ctaUrl: "#catalogue" },
+    defaults: { text: "Livraison 69 wilayas — paiement à la livraison.", ctaLabel: "", ctaUrl: "#catalogue" },
   },
   benefits: {
     name: "Points forts",
@@ -132,10 +132,10 @@ const TYPES = {
       max: 6,
       fields: [
         { key: "icon", label: "Icône", type: "select", options: ["camion", "paiement", "retour", "colis", "bouclier", "caddie"] },
-        { key: "title", label: "Titre", type: "text", placeholder: "Livraison 48 wilayas" },
+        { key: "title", label: "Titre", type: "text", placeholder: "Livraison 69 wilayas" },
         { key: "text", label: "Détail (facultatif)", type: "text" },
       ],
-      defaults: { icon: "camion", title: "Livraison 48 wilayas", text: "" },
+      defaults: { icon: "camion", title: "Livraison 69 wilayas", text: "" },
     },
     defaults: { heading: "", look: "ligne" },
   },
@@ -245,7 +245,7 @@ const TYPES = {
       { key: "prefix", label: "Texte", type: "text", placeholder: "Paiement à la livraison" },
       { key: "showEta", label: "Afficher le délai réel", type: "checkbox" },
       { key: "showPay", label: "Afficher les moyens de paiement", type: "checkbox" },
-      { key: "showWilayas", label: "Afficher « 58 wilayas »", type: "checkbox" },
+      { key: "showWilayas", label: "Afficher « 69 wilayas »", type: "checkbox" },
     ],
     defaults: { prefix: "Paiement à la livraison", showEta: true, showPay: true, showWilayas: true },
   },
@@ -390,7 +390,7 @@ const PRO_RECIPES = {
      Aucune robe, aucun sac, aucun avis inventé. La photo d'accueil est une
      photo réelle de villa, en plein jour — pas le premier article. */
   atelier: [
-    { type: "banner", settings: { text: "58 wilayas, chez vous.", ctaLabel: "Voir" } },
+    { type: "banner", settings: { text: "69 wilayas, chez vous.", ctaLabel: "Voir" } },
     { type: "hero", settings: { image: "auto", kicker: "", heading: "", sub: "Des pièces choisies une par une.", ctaLabel: "Voir la collection", align: "gauche", height: "grande" } },
     { type: "carousel", settings: { heading: "Nos produits", count: 8, showPrice: true, showAdd: false } },
     { type: "benefits", settings: { heading: "" }, blocks: [
@@ -421,7 +421,7 @@ const PRO_RECIPES = {
     ] },
   ],
   audio: [
-    { type: "banner", settings: { text: "Livraison dans les 58 wilayas.", ctaLabel: "Voir" } },
+    { type: "banner", settings: { text: "Livraison dans les 69 wilayas.", ctaLabel: "Voir" } },
     { type: "hero", settings: { image: "auto", kicker: "", heading: "", sub: "", ctaLabel: "Voir les articles", align: "gauche", height: "pleine" } },
     { type: "grid", settings: { heading: "Les articles", columns: 3, count: 6, showPrice: true, showAdd: true } },
     { type: "benefits", settings: { heading: "" }, blocks: [
@@ -431,7 +431,7 @@ const PRO_RECIPES = {
     ] },
   ],
   soin: [
-    { type: "banner", settings: { text: "Livraison dans les 58 wilayas.", ctaLabel: "Voir" } },
+    { type: "banner", settings: { text: "Livraison dans les 69 wilayas.", ctaLabel: "Voir" } },
     { type: "hero", settings: { image: "auto", kicker: "", heading: "", sub: "", ctaLabel: "Voir les articles", align: "gauche", height: "grande" } },
     { type: "grid", settings: { heading: "Les articles", columns: 3, count: 6, showPrice: true, showAdd: true } },
     { type: "benefits", settings: { heading: "" }, blocks: [
@@ -441,7 +441,7 @@ const PRO_RECIPES = {
     ] },
   ],
   mode: [
-    { type: "banner", settings: { text: "Livraison 58 wilayas · paiement à la livraison.", ctaLabel: "Voir" } },
+    { type: "banner", settings: { text: "Livraison 69 wilayas · paiement à la livraison.", ctaLabel: "Voir" } },
     { type: "hero", settings: { image: "auto", kicker: "", heading: "", sub: "", ctaLabel: "Voir les articles", align: "gauche", height: "pleine" } },
     { type: "grid", settings: { heading: "Les articles", columns: 3, count: 6, showPrice: true, showAdd: true } },
     { type: "benefits", settings: { heading: "" }, blocks: [
@@ -473,7 +473,7 @@ const DEFAULTS_BY_THEME = {
     { type: "benefits", settings: {} },
   ],
   catalogue: [
-    { type: "banner", settings: { text: "Livraison 48 wilayas — paiement à la livraison." } },
+    { type: "banner", settings: { text: "Livraison 69 wilayas — paiement à la livraison." } },
     { type: "grid", settings: { heading: "Tous les produits", columns: 5, count: 20 } },
   ],
   cod: [
@@ -1863,7 +1863,7 @@ const RENDER = {
   <div class="wrap sec-ship-in">
     ${st.prefix ? `<b>${icon("truck", 16)} ${esc(st.prefix)}</b>` : ""}
     ${st.showEta !== false ? `<span>Livraison ${emin} à ${emax} jours</span>` : ""}
-    ${st.showWilayas !== false ? `<span>${esc(store.wilaya ? store.wilaya + " et" : "")} 58 wilayas</span>` : ""}
+    ${st.showWilayas !== false ? `<span>${esc(store.wilaya ? store.wilaya + " et" : "")} 69 wilayas</span>` : ""}
     ${st.showPay !== false && pays.length ? `<span>${pays.map((p) => esc(p)).join(" · ")}</span>` : ""}
   </div>
 </section>`

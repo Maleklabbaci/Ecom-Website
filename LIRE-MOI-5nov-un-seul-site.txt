@@ -1,0 +1,113 @@
+NovaDZ — un seul site (5 novembre 2026, correctif du soir)
+=====================================================================
+
+CE QUI SE PASSAIT
+
+Quatre choses prétendaient être « votre site », et aucune ne regardait les
+autres :
+
+  1. Tableau de bord → « Modifier le design » ouvrait l'ANCIEN éditeur
+     (celui du thème « adeline », avec ses sections d'avant) ;
+  2. Tableau de bord → « Aperçu du site » montrait l'ancien brouillon de
+     l'ancien éditeur, donc PAS ce que vous régliez dans le Studio ;
+  3. Le Studio (/dashboard/studio) enregistrait bien quelque part, mais
+     publier ne changeait pas la page publique : il fallait encore cocher
+     une case « faire de cette page ma page d'accueil » ;
+  4. L'adresse de la boutique (malek-labbaci-2) montrait la toute ancienne
+     page, celle d'avant le Studio.
+
+Résultat : vous régliez dans le Studio, et le client voyait autre chose.
+Vous aviez raison, c'était cassé.
+
+CE QUI EST CORRIGÉ — UNE SEULE RÈGLE, PARTOUT
+
+  - LE STUDIO EST LE SITE. Dès qu'une version est publiée dans le Studio,
+    c'est elle que voient vos clients sur votre adresse. La case « faire de
+    cette page ma page d'accueil » a disparu : publier = mettre en ligne,
+    un point c'est tout. L'ancienne version reste dans l'historique.
+  - L'APERÇU DU TABLEAU DE BORD montre le BROUILLON, c'est-à-dire exactement
+    ce que vous êtes en train de régler dans le Studio. Avant, il montrait
+    l'ancien brouillon d'un autre éditeur.
+  - UN SEUL ENDROIT POUR MODIFIER. « Modifier le site » (partout dans le
+    tableau de bord) ouvre le Studio. /dashboard/design, dès qu'un site
+    Studio existe, renvoie au Studio : l'ancien éditeur ne revient plus
+    devant vous.
+  - LES BOUTIQUES QUI N'ONT JAMAIS OUVERT LE STUDIO gardent leur page
+    d'avant : aucune autre boutique n'est cassée, et si un jour un site
+    Studio est supprimé, l'ancienne page revient.
+
+LE STUDIO LUI-MÊME
+
+  - « Templifica v25 » n'existe plus : c'est « NovaDZ Studio », sans numéro
+    de version qui ne veut rien dire pour un marchand.
+  - La pastille « v25 Nouveau : le logo garde son PNG… » est retirée.
+  - Le bouton « Modèles » renvoyait vers les thèmes de l'ANCIEN éditeur
+    (des thèmes que le Studio ne sait pas afficher). Il est retiré : les
+    modèles sont les six thèmes du Studio, à droite de l'écran.
+  - PREMIÈRE OUVERTURE : le Studio ne montre plus la maquette de
+    démonstration (avec ses faux avis, ses faux produits à 4 500 DZD et un
+    « @amina.mode » inventé). Il construit un site simple avec VOS affaires :
+    votre nom, votre produit principal en photo d'accueil, vos produits,
+    votre téléphone. Vous complétez ensuite, section par section.
+  - NOUVEAU BOUTON « Nouveau site » (en haut, à côté de Simple / Avancé) :
+    si un ancien site de démonstration est resté enregistré, un clic le
+    remplace par un site simple fait avec vos produits. Il demande
+    confirmation, et ne change RIEN pour vos clients avant que vous ne
+    cliquiez sur Publier.
+
+ATTENTION, UNE CHOSE À SAVOIR
+
+Votre boutique avait 0 produit (visible dans « Produits 0 »). Le Studio
+montre alors des produits d'exemple, avec des prix d'exemple : ce n'est pas
+votre catalogue, c'est du remplissage pour que la page ne soit pas vide.
+Dès que vous ajoutez vos produits (Catalogue → Produits), ce sont eux qui
+s'affichent, et il faut cliquer « Nouveau site » une fois pour repartir
+proprement s'il reste des anciens exemples.
+
+FICHIERS (4)
+
+  server.js                    la règle « un seul site » + redirection
+  src/views.js                 « Modifier le site » → Studio (4 endroits)
+  public/_proto/index2.html    nom du Studio, site neuf, bouton « Nouveau
+                               site », publication sans case piège
+  tests/site-unique.test.js    NOUVEAU — 14 tests
+
+correctif.patch contient exactement ces 4 changements.
+
+INSTALLATION
+
+  1. copier ces 4 fichiers dans le projet (mêmes chemins)
+  2. arrêter le serveur, puis : npm start
+  3. dans le navigateur : Ctrl + Shift + R (une ancienne page reste sinon
+     en mémoire)
+
+APRÈS L'INSTALLATION : QUOI FAIRE, DANS L'ORDRE
+
+  1. Catalogue → Produits : ajoutez au moins un vrai produit.
+  2. Tableau de bord → Studio → bouton « Nouveau site » → Publier.
+  3. Ouvrez votre adresse : vous voyez le même site que dans le Studio.
+     C'est fini, il n'y a plus quatre versions.
+
+VÉRIFIÉ
+
+  - suite complète : 431 tests, 429 réussis, 0 échec (2 ignorés comme avant) ;
+  - dont 14 nouveaux qui prouvent, page en main :
+      · boutique sans Studio : la page d'avant reste en ligne (rien cassé) ;
+      · publier met le site en ligne, même sans cocher de case ;
+      · l'aperçu du tableau de bord suit le brouillon ;
+      · un visiteur sans compte ne voit JAMAIS le brouillon ;
+      · republier met la nouvelle version en ligne ;
+      · l'ancien éditeur renvoie au Studio dès qu'un site Studio existe ;
+      · le site publié a un titre et une description (Google, WhatsApp) ;
+      · l'aperçu, lui, n'est pas indexé ;
+      · plus de « Templifica », plus de « v25 », plus de lien vers l'ancien
+        éditeur dans le Studio ;
+      · le bouton « Nouveau site » est là et prévient avant d'effacer.
+  - le correctif s'applique sur la version livrée ce soir et le résultat est
+    identique, fichier par fichier, à la version testée.
+
+CE QUI RESTE
+
+  - supprimer les 16 modèles importés (687 fichiers, 41 Mo) et ne garder que
+    les six thèmes du Studio ;
+  - l'inscription « site simple mais déjà prêt ».

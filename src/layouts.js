@@ -1284,7 +1284,7 @@ const footerExtras = (store, opt = {}) => {
 
 /* chaque avantage est un vrai <li> : sans lui, l'icône passait à la ligne au-dessus du texte */
 const TRUST = [
-  ["truck", "Livraison 48 wilayas"],
+  ["truck", "Livraison 69 wilayas"],
   ["cash", "Paiement à la livraison"],
   ["refresh", "Échange sous 7 jours"],
 ]
@@ -1441,7 +1441,7 @@ ${storeStyle(D, store.theme)}${announceHtml(store)}
   <div class="ed-topbar">
     <div class="wrap ed-topline">
       <span>${esc(store.wilaya || "Algérie")}</span>
-      <span>Livraison dans les 48 wilayas · Paiement à la livraison</span>
+      <span>Livraison dans les 69 wilayas · Paiement à la livraison</span>
       <a href="${slug(store)}/cart">Panier${cartCount ? ` (${cartCount})` : ""}</a>
     </div>
   </div>
@@ -1461,7 +1461,7 @@ ${storeStyle(D, store.theme)}${announceHtml(store)}
       <div class="ed-footmark">${esc(store.name)}</div>
       <div class="ed-footcols">
         <div><b>Boutique</b><a href="${slug(store)}">Toute la collection</a><a href="${slug(store)}/cart">Panier</a></div>
-        <div><b>Livraison</b><span>48 wilayas</span><span>2 à 3 jours ouvrés</span></div>
+        <div><b>Livraison</b><span>69 wilayas</span><span>2 à 3 jours ouvrés</span></div>
         <div><b>Contact</b><span>${esc(store.phone || "—")}</span><span>${esc(store.wilaya || "Algérie")}</span></div>
       </div>
       <div class="ed-legal">${D.footerNote ? esc(D.footerNote) + " — " : ""}${D.showNovadz ? 'Propulsé par <a href="/">NovaDZ</a> — ' : ""}${new Date().getFullYear()}</div>
@@ -1492,7 +1492,7 @@ ${storeStyle(D, store.theme)}${announceHtml(store)}
     <dl class="ed-specs">
       <div><dt>Référence</dt><dd>NDZ-${String(p.id).padStart(4, "0")}</dd></div>
       <div><dt>Disponibilité</dt><dd>${p.stock > 0 ? `${p.stock} en stock` : "Rupture"}</dd></div>
-      <div><dt>Livraison</dt><dd>2 à 3 jours · 48 wilayas</dd></div>
+      <div><dt>Livraison</dt><dd>2 à 3 jours · 69 wilayas</dd></div>
       <div><dt>Paiement</dt><dd>Espèces à la livraison</dd></div>
     </dl>
     ${addFormV(store, p, "btn btn-primary btn-lg btn-block", "Ajouter à la sélection", extra.variants)}
@@ -2245,7 +2245,7 @@ ${storeStyle(D, store.theme)}${announceHtml(store)}
       </div>
       <div class="bt-fcard">
         <b>Livraison</b>
-        <p>58 wilayas · domicile et bureau<br>Paiement à la livraison</p>
+        <p>69 wilayas · domicile et bureau<br>Paiement à la livraison</p>
       </div>
       <div class="bt-fcard bt-fnote">
         ${D.footerNote ? `<p>${esc(D.footerNote)}</p>` : ""}
@@ -2277,7 +2277,7 @@ ${storeStyle(D, store.theme)}${announceHtml(store)}
   </a>
   <div class="bt-tile bt-info">
     <b>Livraison 48 h</b>
-    <p>Domicile ou bureau, dans les 58 wilayas.</p>
+    <p>Domicile ou bureau, dans les 69 wilayas.</p>
   </div>
   ${tiles}
   <a class="bt-tile bt-cta" href="${slug(store)}/search">
@@ -2585,7 +2585,7 @@ ${storeStyle(D, store.theme)}${announceHtml(store)}
     <p class="p-desc">${esc(p.description || "")}</p>
     <ul class="cd-args">
       <li>${icon("cash", 14)} Vous payez le livreur, en espèces</li>
-      <li>${icon("truck", 14)} Domicile ou bureau, 58 wilayas</li>
+      <li>${icon("truck", 14)} Domicile ou bureau, 69 wilayas</li>
       <li>${icon("shield", 14)} Produit vérifié avant expédition</li>
     </ul>
     ${addFormV(store, p, "btn btn-primary btn-block btn-lg cd-buy", "Commander maintenant", extra.variants)}
@@ -2715,7 +2715,7 @@ ${storeStyle(D, store.theme)}${announceHtml(store)}
       ["Référence", p.sku || "REF-" + String(p.id).padStart(4, "0")],
       ["Disponibilité", p.stock > 0 ? "En stock (" + p.stock + ")" : "Sur commande"],
       ["Garantie", "12 mois"],
-      ["Livraison", "48 h à 72 h · 58 wilayas"],
+      ["Livraison", "48 h à 72 h · 69 wilayas"],
       ["Retour", "Sous 7 jours"],
     ]
     return `
@@ -2818,7 +2818,7 @@ const marche = {
     return page(title ? `${title} — ${store.name}` : `${store.name} — ${store.tagline || "Boutique en ligne"}`, `
 <div class="theme theme-marche ${designClass(D)}">
 ${storeStyle(D, store.theme)}${announceHtml(store)}
-  <div class="mr-marquee"><span>Prix cassés toute la semaine · Paiement à la livraison · Livraison 58 wilayas · Échange sous 7 jours · Prix cassés toute la semaine · Paiement à la livraison · Livraison 58 wilayas · Échange sous 7 jours ·</span></div>
+  <div class="mr-marquee"><span>Prix cassés toute la semaine · Paiement à la livraison · Livraison 69 wilayas · Échange sous 7 jours · Prix cassés toute la semaine · Paiement à la livraison · Livraison 69 wilayas · Échange sous 7 jours ·</span></div>
   <header class="mr-head">
     <div class="wrap mr-bar">
       <a class="mr-brand" href="${slug(store)}">
@@ -2835,7 +2835,7 @@ ${storeStyle(D, store.theme)}${announceHtml(store)}
   <footer class="mr-foot">
     <div class="wrap mr-fgrid">
       <div><b>${esc(store.name)}</b><p>${esc(store.tagline || "")}</p></div>
-      <div><b>Infos</b><p>Livraison 58 wilayas<br>Paiement à la livraison</p></div>
+      <div><b>Infos</b><p>Livraison 69 wilayas<br>Paiement à la livraison</p></div>
       <div><b>Contact</b><p>${esc(store.phone || "")}</p></div>
     </div>
     ${D.showNovadz ? '<p class="mr-powered">Propulsé par <a href="/">NovaDZ</a></p>' : ""}
@@ -3005,7 +3005,7 @@ ${storeStyle(D, store.theme)}${announceHtml(store)}
     </a>`).join("")}
     <div class="mq-tile mq-tile-star">
       <span class="mq-stars">★★★★★</span>
-      <b>Livraison 58 wilayas</b>
+      <b>Livraison 69 wilayas</b>
       <span>Paiement à la livraison.</span>
     </div>
   </div>

@@ -119,7 +119,7 @@ const DICT = [
   ["Aucun résultat pour cette recherche.", "لا توجد نتيجة لهذا البحث."],
   ["La maison", "الدار"],
   ["Notre histoire", "قصتنا"],
-  ["Livraison 48 wilayas", "التوصيل إلى 58 ولاية"],
+  ["Livraison 69 wilayas", "التوصيل إلى 69 ولاية"],
   ["Paiement à la livraison", "الدفع عند الاستلام"],
   ["Paiement à la livraison partout en Algérie.", "الدفع عند الاستلام في كل الجزائر."],
   ["Échange sous 7 jours", "الاستبدال خلال 7 أيام"],

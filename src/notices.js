@@ -28,7 +28,7 @@ const seenMax = new Map()
 let watch = null
 
 const rowOf = (id) => db.prepare(
-  "SELECT id, title, body, href, read_at FROM notices WHERE id = ?"
+  "SELECT id, kind, title, body, href, read_at FROM notices WHERE id = ?"
 ).get(id)
 
 const push = (storeId, row) => {
@@ -36,7 +36,10 @@ const push = (storeId, row) => {
   const set = waiters.get(String(storeId))
   if (!set || !set.size) return
   const line = "event: notice\ndata: " + JSON.stringify({
-    id: row.id, title: row.title, body: row.body || "", href: row.href || "", read_at: row.read_at || null,
+    /* kind : « order » = une commande (carillon de caisse),
+       « suivi » = une nouvelle du transporteur (autre son) */
+    id: row.id, kind: row.kind || "order", title: row.title, body: row.body || "",
+    href: row.href || "", read_at: row.read_at || null,
   }) + "\n\n"
   for (const res of Array.from(set)) {
     try { res.write(line) } catch (e) { set.delete(res) }
@@ -57,7 +60,7 @@ const arm = (storeId) => {
       let fresh = []
       try {
         fresh = db.prepare(
-          "SELECT id, title, body, href, read_at FROM notices WHERE store_id = ? AND id > ? ORDER BY id"
+          "SELECT id, kind, title, body, href, read_at FROM notices WHERE store_id = ? AND id > ? ORDER BY id"
         ).all(Number(key), last)
       } catch (e) { continue }
       fresh.forEach((row) => {

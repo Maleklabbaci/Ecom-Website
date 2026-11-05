@@ -6,6 +6,7 @@
 const fs = require("fs")
 const path = require("path")
 const db = require("./db")
+const WIL = require("./wilayas")
 
 const WILAYAS = [
   "Adrar", "Chlef", "Laghouat", "Oum El Bouaghi", "Batna", "Béjaïa", "Biskra", "Béchar", "Blida", "Bouira",
@@ -14,8 +15,11 @@ const WILAYAS = [
   "Oran", "El Bayadh", "Illizi", "Bordj Bou Arreridj", "Boumerdès", "El Tarf", "Tindouf", "Tissemsilt", "El Oued", "Khenchela",
   "Souk Ahras", "Tipaza", "Mila", "Aïn Defla", "Naâma", "Aïn Témouchent", "Ghardaïa", "Relizane", "Timimoun",
   "Bordj Badji Mokhtar", "Ouled Djellal", "Béni Abbès", "In Salah", "In Guezzam", "Touggourt", "Djanet", "El M'Ghair", "El Meniaa",
+  /* les 11 wilayas de 2026 (loi 26-06) — le client les voit, le transporteur
+     reçoit le code de la wilaya mère (voir src/wilayas.js) */
+  "Aflou", "Barika", "El Kantara", "Bir El Ater", "El Aricha", "Ksar Chellala",
+  "Aïn Ouessara", "Messaad", "Ksar El Boukhari", "Bou Saâda", "El Abiodh Sidi Cheikh",
 ]
-
 const slugify = (t) =>
   String(t || "")
     .toLowerCase()
@@ -98,9 +102,28 @@ const shippingTable = (storeId) => {
   return map
 }
 
+/** Clé de comparaison : « Bordj Bou Arréridj » et « Bordj Bou Arreridj » sont la même wilaya. */
+const foldName = (s) => String(s || "")
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .toLowerCase().replace(/[^a-z0-9]+/g, "")
+
+/**
+ * La ligne de tarif d'une wilaya. On cherche d'abord le nom exact, puis sans
+ * les accents : une commande ancienne écrite « Béjaïa » retrouve son tarif
+ * même si la table dit « Bejaia ».
+ */
+const rateRow = (storeId, wilaya) => {
+  const exact = db.prepare("SELECT * FROM shipping_rates WHERE store_id = ? AND wilaya = ?").get(storeId, wilaya)
+  if (exact) return exact
+  const f = foldName(wilaya)
+  if (!f) return null
+  const all = db.prepare("SELECT * FROM shipping_rates WHERE store_id = ?").all(storeId)
+  return all.find((r) => foldName(r.wilaya) === f) || null
+}
+
 /** Tarif pour une wilaya et un type de livraison. */
 const shippingFor = (storeId, wilaya, type = "home", fallback = 50000) => {
-  const row = db.prepare("SELECT cents, desk_cents FROM shipping_rates WHERE store_id = ? AND wilaya = ?").get(storeId, wilaya)
+  const row = rateRow(storeId, wilaya)
   if (!row) return type === "desk" ? Math.max(0, fallback - DESK_DISCOUNT) : fallback
   if (type === "desk") return row.desk_cents > 0 ? row.desk_cents : row.cents
   return row.cents
@@ -108,7 +131,7 @@ const shippingFor = (storeId, wilaya, type = "home", fallback = 50000) => {
 
 /** Délai annoncé au client : {min, max} en jours pour cette wilaya. */
 const etaFor = (storeId, wilaya, store) => {
-  const row = db.prepare("SELECT eta_min, eta_max FROM shipping_rates WHERE store_id = ? AND wilaya = ?").get(storeId, wilaya)
+  const row = rateRow(storeId, wilaya)
   const min = row && row.eta_min != null ? row.eta_min : (store && store.eta_min) || 2
   const max = row && row.eta_max != null ? row.eta_max : (store && store.eta_max) || 4
   return { min, max }
@@ -129,6 +152,19 @@ const ensureShipping = (storeId, fallback = 50000) => {
     WILAYAS.forEach((w) => ins.run(storeId, w, fallback, Math.max(0, fallback - DESK_DISCOUNT)))
     return
   }
+  /* Une wilaya créée après la boutique (les 11 de 2026) prend le tarif de sa
+     wilaya mère : un colis pour Bou Saâda coûte ce que coûte un colis pour
+     M'Sila. Le marchand peut ensuite changer ce prix lui-même. */
+  const have = new Set(db.prepare("SELECT wilaya FROM shipping_rates WHERE store_id = ?").all(storeId).map((r) => r.wilaya))
+  const addOne = db.prepare("INSERT OR IGNORE INTO shipping_rates (store_id, wilaya, cents, desk_cents) VALUES (?, ?, ?, ?)")
+  WILAYAS.forEach((w) => {
+    if (have.has(w)) return
+    const mere = WIL.parentName(WIL.codeOf(w))
+    const mereRow = mere ? db.prepare("SELECT cents, desk_cents FROM shipping_rates WHERE store_id = ? AND wilaya = ?").get(storeId, mere) : null
+    addOne.run(storeId, w,
+      mereRow ? mereRow.cents : fallback,
+      mereRow ? mereRow.desk_cents : Math.max(0, fallback - DESK_DISCOUNT))
+  })
   /* boutiques créées avant cette évolution : le tarif bureau n'existe pas encore */
   const missing = db.prepare("SELECT wilaya, cents FROM shipping_rates WHERE store_id = ? AND desk_cents = 0").all(storeId)
   const upd = db.prepare("UPDATE shipping_rates SET desk_cents = ? WHERE store_id = ? AND wilaya = ?")

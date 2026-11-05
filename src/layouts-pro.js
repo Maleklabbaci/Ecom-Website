@@ -439,7 +439,7 @@ ${related && related.length ? `
     overlay: true,
     top: (store) => topLine(
       `<a href="/${esc(store.slug)}/legal#retours">Retours sous 7 jours</a>`,
-      `<a href="/${esc(store.slug)}/legal#livraison">Livraison 58 wilayas</a>`,
+      `<a href="/${esc(store.slug)}/legal#livraison">Livraison 69 wilayas</a>`,
       `<a href="/${esc(store.slug)}/account">Mon compte</a>`
     ),
     head: headOverlay,

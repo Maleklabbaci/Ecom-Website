@@ -23,7 +23,8 @@ const SECTIONS = require("./src/sections")
 const TEMPLATES = require("./src/templates")
 const SITES = require("./src/site-templates")
 const STUDIO = require("./src/studio")
-const DESIGN = require("./src/studio-design") /* l'atelier : l'état de la page, brouillon et version en ligne */
+const DESIGN = require("./src/studio-design")
+const PARCOURS = require("./src/parcours") /* le parcours guidé : une étape à la fois */ /* l'atelier : l'état de la page, brouillon et version en ligne */
 const UPLOADS = require("./src/uploads")
 const ASSIGN = require("./src/assign")
 const SHOP = require("./src/shop")
@@ -53,6 +54,7 @@ const TEAM = require("./src/team")
 const MAIL = require("./src/mail")
 const JOURNAL = require("./src/journal")
 const LIV = require("./src/livraison")
+const TARIFS = require("./src/tarifs-api")
 const HIST = require("./src/historique")
 const NOTICES = require("./src/notices")
 const AI = require("./src/ai")
@@ -1389,6 +1391,12 @@ app.get("/dashboard/orders/:id/whatsapp", requireAuth, requireStore, (req, res) 
 
 /* ---------------------------- ÉDITEUR DE BOUTIQUE ---------------------------- */
 app.get("/dashboard/design", requireAuth, requireStore, (req, res) => {
+  /* Un seul endroit pour modifier le site. Si cette boutique a un site Studio
+     (brouillon ou publié), on l'envoie là — l'ancien éditeur ne doit plus
+     apparaître devant elle. Il ne reste que pour les boutiques qui n'ont
+     jamais ouvert le Studio, pour ne pas leur casser leur site. */
+  const site = studioOf(req.store)
+  if (site.draft || site.live) return res.redirect("/dashboard/studio")
   const draftNow = SECTIONS.readDraft(req.store)
   const shownId = draftNow && isTheme(draftNow.theme) ? draftNow.theme : (req.store.theme || DEFAULT_THEME)
   const theme = PT.present(THEMES).find((t) => t.id === shownId)
@@ -1514,6 +1522,38 @@ app.post("/dashboard/design/publish", requireAuth, requireStore, (req, res) => {
 
 app.get("/dashboard/design/themes", requireAuth, requireStore, (req, res) =>
   res.send(V.dashThemes(req.user, req.store, TEMPLATES.list(req.store.id), { modele: String(req.query.modele || "") === "1" })))
+
+/* « Voir en grand » : la vraie boutique du marchand, avec ce thème, dans un
+   onglet. Rien n'est enregistré — on regarde, puis on choisit (ou on ferme). */
+app.get("/dashboard/design/themes/apercu/:id", requireAuth, requireStore, (req, res) => {
+  const id = String(req.params.id || "")
+  const THEME = require("./src/themes")
+  if (!THEME.isTheme(id)) return res.status(404).type("text").send("Ce thème n'existe pas.")
+  const nom = (THEME.THEMES.find((t) => t.id === id) || {}).name || id
+  const base = req.store
+  let store = base
+  try {
+    store = require("./src/public-themes").dressStore({ ...base, theme: id, theme_src: null, _originTheme: id })
+  } catch (_) { store = { ...base, theme: id } }
+  let products = []
+  try { products = SHOP.searchProducts(base.id, {}) } catch (_) { products = [] }
+  let html = V.storefront(store, products, 0, true, {
+    count: products.length,
+    categories: SHOP.categories(base.id).filter((c) => c.n > 0),
+  })
+  const bar = `<div id="ndz-apercu-theme" style="position:fixed;left:0;right:0;bottom:0;z-index:2147483000;display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;padding:12px 16px;background:#111;color:#fff;font:500 13px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+    <span style="opacity:.7">Aperçu — rien n'est publié</span>
+    <b style="font-weight:600">${String(nom).replace(/[<>&"]/g, " ")}</b>
+    <form method="post" action="/dashboard/design/theme" style="margin:0">
+      <input type="hidden" name="theme" value="${String(id).replace(/[^a-z0-9-]/gi, "")}">
+      <button style="height:34px;padding:0 16px;border-radius:999px;border:0;background:#fff;color:#111;font-weight:600;cursor:pointer">Choisir ce thème</button>
+    </form>
+    <a href="/dashboard/design/themes" style="color:#fff;text-decoration:underline">Retour aux thèmes</a>
+  </div>`
+  html = html.replace("</head>", `<style>.cookies,.wa-float,.lang-pill{display:none!important}body{padding-bottom:80px}</style></head>`)
+  html = html.replace("</body>", bar + "</body>")
+  res.send(html)
+})
 
 /** HTML réel de la page en cours, pour l'éditeur de code. Pas le document entier. */
 app.get("/dashboard/design/source", requireAuth, requireStore, (req, res) => {
@@ -1968,6 +2008,9 @@ const applyAtelierLogo = (store, state) => {
 }
 const atelierPage = (cfg) => {
   let html = fs.readFileSync(ATELIER_FILE, "utf8")
+  /* le parcours guidé, dans le Studio aussi : l'étape 5, 6 ou 7 s'affiche ici
+     même, avec la même règle (une seule chose allumée, on peut toujours sortir) */
+  if (cfg.mode === "edit" && cfg.tour) html = html.replace("</body>", cfg.tour + "</body>")
   const boot = (cfg.head || '<meta name="robots" content="noindex">') +
     `<script>window.NDZ_STUDIO = ${JSON.stringify(cfg).replace(/</g, "\\u003c")}</script>`
   html = html.replace(/<title>[\s\S]*?<\/title>/i, "")
@@ -2022,30 +2065,82 @@ app.get("/dashboard/studio", requireAuth, requireStore, (req, res) => {
   const d = DESIGN.read(req.store.id)
   res.set("Cache-Control", "no-store")
   res.send(atelierPage({
+    tour: (() => { try { return PARCOURS.bloc(req.store, "/dashboard/studio").html } catch (_) { return "" } })(),
     mode: "edit", slug: req.store.slug, name: req.store.name, shop: atelierShop(req.store),
     savedAt: d.saved_at, publishedAt: d.published_at, state: d.draft, live: d.live,
-    home: !!(d.live && d.live.home === true),
+    /* premiere ouverture : rien n'a jamais été enregistré. Le Studio construit
+       alors un site neuf avec LES affaires du marchand, pas la maquette de démo. */
+    fresh: !d.draft && !d.live,
+    home: true,
     versions: DESIGN.versions(req.store.id),
   }))
 })
+/* ------------------------- LE PARCOURS GUIDÉ -------------------------
+   Le marchand coche (ou passe) une étape. Le reste est calculé à partir de
+   ses vraies données : rien à maintenir à la main. */
+app.post("/dashboard/parcours/relancer", requireAuth, requireStore, (req, res) => {
+  PARCOURS.relancer(req.store)
+  res.redirect("/dashboard")
+})
+/* « relancer » doit être déclaré AVANT /:id, sinon Express le prend pour une
+   étape qui s'appelle « relancer » (400). */
+app.post("/dashboard/parcours/:id", requireAuth, requireStore, (req, res) => {
+  const id = String(req.params.id || "")
+  const action = String((req.body && req.body.action) || "fait")
+  let out
+  if (action === "arreter") out = PARCOURS.arreter(req.store)
+  else if (action === "passer") out = PARCOURS.marquer(req.store, id, "passer")
+  else out = PARCOURS.marquer(req.store, id, "fait")
+  if (req.accepts(["json", "html"]) === "json") return res.status(out.ok ? 200 : 400).json(out)
+  res.redirect(req.get("referer") || "/dashboard")
+})
+/* Le guide, vu de l'extérieur : pratique pour vérifier et pour les tests. */
+app.get("/dashboard/parcours", requireAuth, requireStore, (req, res) => {
+  const e = PARCOURS.etat(req.store)
+  res.json({
+    off: e.off, fini: e.fini, faites: e.faites, total: e.total,
+    courant: e.courant ? { id: e.courant.id, n: e.courant.n, titre: e.courant.titre, page: e.courant.page } : null,
+    steps: e.steps.map((s) => ({ id: s.id, n: s.n, fait: s.fait, passe: s.passe, optionnel: Boolean(s.optionnel) })),
+  })
+})
+
 /* Un seul Studio, une seule adresse. L'ancienne adresse /atelier reste un
    raccourci (favoris, liens déjà envoyés) mais ne montre pas un autre écran. */
 app.get("/dashboard/studio/atelier", requireAuth, requireStore, (req, res) =>
   res.redirect("/dashboard/studio"))
-/* La page d'accueil publique, quand le marchand a coché « faire de cette page ma
-   page d'accueil » et publié. Sans ce choix, la boutique garde exactement la page
-   qu'elle avait : on ne remplace jamais le travail de quelqu'un sans son accord. */
+/* --------------------------- UN SEUL SITE ---------------------------
+   Le Studio est le site. Une seule règle, partout :
+
+     - dès qu'une version a été PUBLIÉE dans le Studio, c'est elle que voient
+       les visiteurs (plus de case à cocher qui laissait l'ancienne page) ;
+     - dans le tableau de bord, l'aperçu montre le BROUILLON en cours, donc
+       exactement ce que le marchand est en train de régler ;
+     - une boutique qui n'a jamais ouvert le Studio garde sa page d'avant :
+       on ne casse rien et on ne remplace pas le travail de personne.
+   -------------------------------------------------------------------- */
+const studioOf = (store) => {
+  try { return DESIGN.read(store.id) } catch (_) { return { draft: null, live: null } }
+}
+
 app.get("/:slug", (req, res, next) => {
   if (RESERVED.has(String(req.params.slug || ""))) return next()
   const store = getStore(req.params.slug)
   if (!store) return next()
-  let live = null
-  try { live = DESIGN.read(store.id).live } catch (_) { live = null }
-  if (!live || live.home !== true) return next()
+  const st = studioOf(store)
+  /* l'aperçu du tableau de bord : le brouillon, à condition d'être le patron */
+  const essai = previewMode(req) && ownsStore(req, store)
+  if (essai && (st.draft || st.live)) {
+    res.set({ "Cache-Control": "no-store", "X-Robots-Tag": "noindex" })
+    return res.type("html").send(atelierPage({
+      mode: "preview", slug: store.slug, name: store.name, shop: atelierShop(store),
+      state: st.draft || st.live,
+    }))
+  }
+  if (!st.live) return next()
   res.set({ "Cache-Control": "no-store" })
   res.type("html").send(atelierPage({
-    mode: "public", slug: store.slug, name: store.name, shop: atelierShop(store), state: live,
-    head: atelierHead(store, live),
+    mode: "public", slug: store.slug, name: store.name, shop: atelierShop(store), state: st.live,
+    head: atelierHead(store, st.live),
   }))
 })
 
@@ -2868,6 +2963,22 @@ app.post("/dashboard/shipping", requireAuth, requireStore, (req, res) => {
     up.run(req.store.id, w, h, d, mn, mx)
   }
   res.redirect("/dashboard/shipping?ok=1")
+})
+
+/* ------------------- FRAIS DE LIVRAISON PRIS CHEZ LE TRANSPORTEUR ------------------- */
+/* On lit les tarifs réels (domicile + bureau) des 69 wilayas chez le
+   transporteur branché. Rien n'est écrit ici : le marchand voit les prix,
+   puis décide de les appliquer. */
+app.get("/dashboard/shipping/tarifs-api", requireAuth, requireStore, async (req, res, next) => {
+  try {
+    const out = await TARIFS.preview(req.store, { force: req.query.force === "1" })
+    res.json(out)
+  } catch (e) { next(e) }
+})
+
+app.post("/dashboard/shipping/tarifs-api", requireAuth, requireStore, (req, res) => {
+  const mode = (req.body || {}).mode === "remplacer" ? "remplacer" : "completer"
+  res.json(TARIFS.apply(req.store, mode))
 })
 
 /* ---------------------------- STOCK / INVENTAIRE ---------------------------- */

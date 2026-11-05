@@ -430,7 +430,7 @@ test("bandeau livraison : délai réel + moyens de paiement activés", async () 
   assert.match(home.text, /sec-shipbar/)
   assert.match(home.text, /Livraison \d+ à \d+ jours/)
   assert.match(home.text, /Paiement à la livraison/)
-  assert.match(home.text, /58 wilayas/)
+  assert.match(home.text, /69 wilayas/)
 })
 
 test("offre du jour : compte à rebours rendu", async () => {

@@ -26,7 +26,7 @@ const LIST = [
     id: "beaute", kinds: ["commerce", "vitrine"], label: "Beauté et cosmétiques", icon: "palette",
     theme: "soin", vitrineTheme: "galerie",
     tagline: "Des produits testés, livrés partout en Algérie.",
-    about: "Soins, maquillage et produits de beauté choisis un par un. Livraison dans les 58 wilayas, paiement à la réception.",
+    about: "Soins, maquillage et produits de beauté choisis un par un. Livraison dans les 69 wilayas, paiement à la réception.",
     site: "site13", vitrineSite: "site3"
   },
   {

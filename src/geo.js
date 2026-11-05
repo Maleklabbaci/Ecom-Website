@@ -1,6 +1,6 @@
 "use strict"
 /**
- * Communes d'Algérie (58 wilayas, 1 530 communes) — noms FR + AR.
+ * Communes d'Algérie (69 wilayas, 1 530 communes) — noms FR + AR.
  * Source : jeu de données public des wilayas/communes, embarqué dans le dépôt
  * (src/communes.json) pour fonctionner hors ligne, sans API.
  */

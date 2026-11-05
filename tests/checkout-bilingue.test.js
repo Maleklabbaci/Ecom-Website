@@ -73,9 +73,9 @@ test("communes : wilaya inconnue → réponse par défaut, pas d'erreur", async 
   assert.ok(JSON.parse(r.text).communes.length > 0)
 })
 
-test("communes : 58 wilayas couvertes", async () => {
+test("communes : 69 wilayas couvertes", async () => {
   const { WILAYAS } = require("../src/geo")
-  assert.equal(WILAYAS.length, 58)
+  assert.equal(WILAYAS.length, 69, "69 wilayas depuis la loi 26-06 (avril 2026)")
   const total = WILAYAS.reduce((n, w) => n + require("../src/geo").communesOf(w).length, 0)
   assert.ok(total > 1500, "au moins 1 500 communes, trouvé " + total)
 })

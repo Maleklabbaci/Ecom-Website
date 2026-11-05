@@ -240,7 +240,7 @@ ${t3d()}
     <article class="bcard">
       <span class="num">03</span>
       <h3>Tout est déjà branché.</h3>
-      <p>Catalogue, panier, livraison dans les 58 wilayas et paiement à la livraison. Zéro outil à ajouter, zéro code à écrire.</p>
+      <p>Catalogue, panier, livraison dans les 69 wilayas et paiement à la livraison. Zéro outil à ajouter, zéro code à écrire.</p>
     </article>
   </div>
   <div class="brow reveal">
@@ -369,7 +369,7 @@ ${t3d()}
   </div>
   <div class="foot-bar">
     <span>© 2026 NovaDZ — Vitrines et boutiques, faites en Algérie.</span>
-    <span class="foot-tags">Dinars · 58 wilayas · Paiement à la livraison</span>
+    <span class="foot-tags">Dinars · 69 wilayas · Paiement à la livraison</span>
   </div>
 </footer>
 

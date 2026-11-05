@@ -468,6 +468,8 @@ const importDesks = async (carrier) => {
   if (!info.capabilities || !info.capabilities.listStopDesks) return []
   const client = clientFor(carrier)
   const rows = []
+  /* 58 bureaux demandés : les transporteurs n'ont pas encore d'agence dans
+     les wilayas 59 à 69, leurs bureaux restent rattachés à la wilaya mère. */
   for (let code = 1; code <= 58; code++) {
     let desks = []
     try {
@@ -523,9 +525,12 @@ const feeCents = (fee) => {
 const quote = async (carrier, wilaya, timeoutMs = 2500) => {
   const info = courierOf(carrier)
   const client = info ? clientFor(carrier) : null
-  const code = WILAYAS.codeOf(wilaya)
+  const vrai = WILAYAS.codeOf(wilaya)
+  /* les sociétés de livraison ne connaissent pas encore les codes 59 à 69 :
+     on demande le tarif de la wilaya mère (Bou Saâda → M'Sila). */
+  const code = WILAYAS.shipCode(vrai) || vrai
   if (!client || !code) return null
-  const from = WILAYAS.codeOf(carrier.origin_wilaya) || code
+  const from = WILAYAS.shipCode(WILAYAS.codeOf(carrier.origin_wilaya)) || code
   const race = (job) => Promise.race([
     job,
     new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), timeoutMs)),
