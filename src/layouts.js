@@ -721,6 +721,9 @@ const optionPicker = (store, p, data) => {
     k: VARIANTES.cle(c.picks), s: c.stock, p: c.price,
     u: !!(c.unlimited || data.unlimited), on: c.on !== false,
   }))
+  /* Grille jamais remplie (anciens produits) : on n'éteint rien, le stock du
+     produit continue de décider. Aucune boutique en ligne ne se bloque. */
+  const plein = VARIANTES.servie(data)
   return `
 <div class="opt-pick vp-${esc(style)}" data-pick="${p.id}">
   ${corps}
@@ -732,6 +735,7 @@ const optionPicker = (store, p, data) => {
   if (!box) return;
   var wrap = box.parentNode;
   var CASES = ${JSON.stringify(cases)};
+  var PLEIN = ${plein ? "true" : "false"};
   var form = document.querySelector('form.varform[data-p="${p.id}"]');
   function cle(picks){
     return Object.keys(picks).sort().map(function(k){ return k + ":" + picks[k]; }).join("|");
@@ -752,9 +756,9 @@ const optionPicker = (store, p, data) => {
   function maj(){
     var c = trouver();
     var texte = "";
-    if (c && !c.on) texte = "Cette variante n'est plus proposée.";
+    if (c && !c.on && PLEIN) texte = "Cette variante n'est plus proposée.";
     else if (c && (c.u || c.s > 0)) texte = c.s > 0 ? (c.s <= 3 ? "Plus que " + c.s + " pièce" + (c.s > 1 ? "s" : "") : c.s + " pièces en stock") : "Disponible sur commande";
-    else if (c) texte = "Épuisé";
+    else if (c && PLEIN) texte = "Épuisé";
     box.textContent = texte;
     if (form) {
       var o = form.querySelector('input[name="opts"]');
@@ -771,7 +775,7 @@ const optionPicker = (store, p, data) => {
         });
         o.value = parts.join(" · ");
       }
-      var bloque = !c || !c.on || (!c.u && c.s < 1);
+      var bloque = PLEIN && (!c || !c.on || (!c.u && c.s < 1));
       Array.prototype.forEach.call(form.querySelectorAll("button"), function(b){ b.disabled = bloque; });
     }
   }

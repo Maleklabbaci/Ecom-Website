@@ -227,3 +227,56 @@ test("une combinaison épuisée est refusée à la commande, une bonne passe", a
   assert.equal(V.combinaison(relu, { g1: "o1", g2: "o3" }).stock, 1, "11/noir est passé de 2 à 1 pièce")
   assert.equal(V.combinaison(relu, { g1: "o2", g2: "o4" }).stock, 1, "12/rose n'a pas bougé")
 })
+
+/* ---------------------------------------------------------------------------
+   LA SOUPAPE : une boutique déjà en ligne ne doit jamais se bloquer.
+   Un produit qui avait de simples listes d'options (Taille : S/M/L) et son
+   stock produit garde son ancien fonctionnement tant que la grille est vide.
+   --------------------------------------------------------------------------- */
+
+test("une grille jamais remplie ne rend pas le produit invendable", async () => {
+  const lireBase = () => new (require("node:sqlite").DatabaseSync)(DB, { readOnly: true })
+  const stockProduit = 5
+  const r = await req("/dashboard/products", form({
+    title: "Ancien produit", price: "1200", stock: String(stockProduit), active: "1",
+  }))
+  assert.equal(r.status, 302)
+  const d = lireBase()
+  const st = d.prepare("SELECT id FROM stores WHERE slug = ?").get(SLUG)
+  const p = d.prepare("SELECT id FROM products WHERE title = 'Ancien produit' AND store_id = ?").get(st.id)
+  d.close()
+  /* l'ancienne écriture, exactement comme elle est en base aujourd'hui */
+  await req(`/dashboard/products/${p.id}`, form({
+    title: "Ancien produit", price: "1200", stock: String(stockProduit), active: "1",
+    option_groups: JSON.stringify([{ name: "Taille", options: ["S", "M", "L"] }]),
+    gallery: "[]", variants: "[]",
+  }))
+
+  const d2 = lireBase()
+  const brut = d2.prepare("SELECT option_groups FROM products WHERE id = ?").get(p.id).option_groups
+  d2.close()
+  const grille = V.lire(brut)
+  assert.equal(grille.groups.length, 1, "le titre est toujours là")
+  assert.equal(V.servie(grille), false, "la grille est vide : le stock du produit fait foi")
+
+  /* la fiche produit ne grise rien */
+  const page = await req(`/${SLUG}/p/${p.id}`)
+  assert.equal(page.status, 200)
+  assert.match(page.text, /Taille/, "les options sont proposées")
+  assert.match(page.text, /var PLEIN = false/, "et aucune n'est éteinte")
+
+  /* et surtout : la commande passe, comme avant */
+  const ok = await req(`/${SLUG}/checkout`, form({
+    buy_id: String(p.id), buy_qty: "1", opts: "Taille : M", combo: "",
+    customer_name: "Amine B", phone: "0555123456", wilaya: "Alger",
+    commune: "Bab Ezzouar", address: "Rue 12", note: "",
+  }))
+  assert.ok([200, 302].includes(ok.status), `la commande passe (et non ${ok.status})`)
+  assert.match(ok.text, /Commande confirmée|confirmée/, "le client voit la confirmation")
+  const d3 = lireBase()
+  const apres = d3.prepare("SELECT stock FROM products WHERE id = ?").get(p.id).stock
+  const nb = d3.prepare("SELECT COUNT(*) n FROM orders WHERE store_id = ?").get(st.id).n
+  d3.close()
+  assert.ok(nb >= 1, "la commande est enregistrée")
+  assert.equal(apres, stockProduit - 1, "le stock du produit est décompté, comme avant")
+})

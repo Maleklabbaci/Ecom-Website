@@ -118,6 +118,21 @@ function lire(raw) {
 
 const ecrire = (data) => (data && data.groups && data.groups.length ? JSON.stringify(normalise(data)) : "")
 
+/**
+ * Vrai si le marchand a vraiment REMPLI la grille : au moins une case servie,
+ * ou la case « recevoir les commandes même en rupture » cochée.
+ *
+ * C'est la soupape de sécurité des boutiques déjà en ligne : un produit qui
+ * avait de simples listes d'options (Taille : S/M/L) et son stock produit
+ * garde son ancien fonctionnement tant que la grille est vide. Sinon elle
+ * se retrouverait invendable du jour au lendemain.
+ */
+function servie(data) {
+  if (!data) return false
+  if (data.unlimited) return true
+  return (data.combos || []).some((c) => (Number(c.stock) || 0) > 0 || c.unlimited)
+}
+
 /** Retrouve une case à partir de sa clé toute faite (« g1:o1|g2:o3 ») —
     c'est cette clé qui voyage dans le panier et dans l'inventaire. */
 function parCle(data, k) {
@@ -199,4 +214,4 @@ function prixDe(data, picks, prixProduitCents) {
   return prixProduitCents
 }
 
-module.exports = { lire, ecrire, normalise, matrice, cle, combinaison, parEtiquette, parCle, etiquette, choix, disponible, retirer, prixDe, STYLES, MAX_GROUPES, MAX_OPTIONS, MAX_CASES }
+module.exports = { lire, ecrire, normalise, matrice, cle, combinaison, parEtiquette, parCle, servie, etiquette, choix, disponible, retirer, prixDe, STYLES, MAX_GROUPES, MAX_OPTIONS, MAX_CASES }

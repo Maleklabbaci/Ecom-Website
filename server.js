@@ -3901,6 +3901,8 @@ function variantesDisponibles(items) {
     if (!data.groups.length) continue
     const c = VARIANTES.parEtiquette(data, it.options || "")
     if (!c) continue
+    /* grille jamais remplie : le stock du produit continue de faire foi */
+    if (!VARIANTES.servie(data)) continue
     const dispo = VARIANTES.disponible(data, c.picks, it.qty, it.stock)
     if (!dispo.ok) return { ok: false, nom: VARIANTES.etiquette(data, c.picks), reste: dispo.stock }
   }
@@ -3914,6 +3916,8 @@ function variantesDecompter(items) {
     if (!data.groups.length) continue
     const c = VARIANTES.parEtiquette(data, it.options || "")
     if (!c) continue
+    /* grille jamais remplie : c'est le stock du produit qui est décompté */
+    if (!VARIANTES.servie(data)) continue
     if (data.unlimited || c.unlimited) continue
     c.stock = Math.max(0, c.stock - Math.max(1, Number(it.qty) || 1))
     try {
@@ -3940,6 +3944,7 @@ app.post("/:slug/checkout", rateLimit("checkout", 30, 10 * 60e3), async (req, re
        c'est la vérification de la combinaison qui tranche, plus bas. */
     const aVariantes = bp ? VARIANTES.lire(bp.option_groups).groups.length > 0 : false
     if (bp && (bp.stock > 0 || aVariantes)) {
+      /* grille remplie seulement : sinon le stock du produit décide */
       const qty = bp.stock > 0
         ? Math.max(1, Math.min(parseInt(req.body.buy_qty, 10) || 1, bp.stock))
         : Math.max(1, Math.min(parseInt(req.body.buy_qty, 10) || 1, 99))
@@ -4055,9 +4060,14 @@ app.post("/:slug/checkout", rateLimit("checkout", 30, 10 * 60e3), async (req, re
 
   const ref = REFS.uniqueRef(db, store.id)
   const stockRows = items
-    /* Un produit à variantes liées compte son stock dans la grille, case par
-       case : le stock global du produit ne doit pas être décompté en plus. */
-    .filter((it) => VARIANTES.lire(it.option_groups).groups.length === 0)
+    /* Un produit dont la grille est REMPLIE compte son stock case par case :
+       le stock global du produit ne doit pas être décompté en plus. Une grille
+       laissée vide (anciens produits) laisse le stock du produit faire foi. */
+    .filter((it) => {
+      let d = null
+      try { d = VARIANTES.lire(it.option_groups) } catch (_) { d = null }
+      return !d || !d.groups.length || !VARIANTES.servie(d)
+    })
     .map((it) => ({ productId: it.id, variantId: it.variant ? it.variant.id : null, qty: it.qty }))
   /* d'où vient le client : conservé sur la commande pour les stats de campagne */
   const attr = ORD.attribution(req)
