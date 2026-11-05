@@ -2508,7 +2508,7 @@ function vignette(src, titre) {
   return `<span class="nop">${esc(l || '·')}</span>`
 }
 function cards(list, cls, editable) {
-  const pz = editable ? `class="zone pz" data-z="price"` : ''
+  const pz = `class="zone pz" data-z="price"`
   return `<div class="grid${cls ? ' ' + cls : ''}">${list.map((p) => `<div class="card"><div class="im">${vignette(p.i, p.t)}</div><b>${esc(p.t)}</b><span ${pz}>${p.p} ${cur()}</span></div>`).join('')}</div>`
 }
 function secHTML(sec, editable) {
@@ -2516,9 +2516,7 @@ function secHTML(sec, editable) {
   const v = sec.v || 0
   const c = sec.crop
   const cst = c ? ` style="--s-px:${c.x}%;--s-py:${c.y}%;--s-pz:${c.z}"` : ''
-  const z = (cls) => editable
-    ? `class="zone ${cls}${c ? ' cropz' : ''}${D.sel === sec.id ? ' on' : ''}" data-z="${sec.id}"${cst}`
-    : `class="${cls}${c ? ' cropz' : ''}"${cst}`
+  const z = (cls) => `class="zone ${cls}${c ? ' cropz' : ''}${editable && D.sel === sec.id ? ' on' : ''}" data-z="${sec.id}"${cst}`
   const im = (src) => src ? `<img src="${src}" alt="">` : ''
   switch (sec.k) {
     case 'head': {
@@ -2527,7 +2525,7 @@ function secHTML(sec, editable) {
       const nm = D.set.name || S.name
       const hasLg = !!D.set.logo
       const showNm = !hasLg || D.set.logoName !== 'logo'
-      const zb = (cls, id) => editable ? `class="zone ${cls}${D.sel === id ? ' on' : ''}" data-z="${id}"` : `class="${cls}"`
+      const zb = (cls, id) => `class="zone ${cls}${editable && D.sel === id ? ' on' : ''}" data-z="${id}"`
       const cta = D.cta.on ? `<span class="mcta">${esc(D.cta.txt)}</span>` : ''
       const stk = D.set.sticky === 'oui' ? ' stick' : ''
       const navWord = (m) => {
@@ -2560,7 +2558,7 @@ function secHTML(sec, editable) {
         <p>Vos produits arrivent ici tout seuls, dès que vous en ajoutez un dans le catalogue.</p>
         ${editable ? '<a class="videbtn" href="/dashboard/products/new" target="_blank" rel="noopener">Ajouter mon premier produit</a>' : ''}</div></div>`
       if (v === 1) return `<div ${z('wrap')}><div class="intro">${esc(sec.intro)}</div>${cards(prods().slice(0, 2), 'two', editable)}</div>`
-      if (v === 2) return `<div ${z('wrap plist')}>${prods().map((p) => `<div class="ln"><div class="im">${im(p.i)}</div><div class="nm">${esc(p.t)}<span>${esc(((STORE.products.find((x) => x.id === p.id) || {}).description || '').split('.')[0])}</span></div><div class="pv${editable ? ' zone pz' : ''}"${editable ? ' data-z="price"' : ''}>${p.p} ${cur()}</div></div>`).join('')}</div>`
+      if (v === 2) return `<div ${z('wrap plist')}>${prods().map((p) => `<div class="ln"><div class="im">${im(p.i)}</div><div class="nm">${esc(p.t)}<span>${esc(((STORE.products.find((x) => x.id === p.id) || {}).description || '').split('.')[0])}</span></div><div class="pv zone pz" data-z="price">${p.p} ${cur()}</div></div>`).join('')}</div>`
       return `<div ${z('wrap')}><div class="intro">${esc(sec.intro)}</div>${cards(prods(), '', editable)}</div>`
     case 'about':
       return `<div ${z('about' + (v === 1 ? ' rev' : v === 2 ? ' top' : ''))}><div class="im">${im(sec.img)}</div><p>${esc(S.about)}</p></div>`
@@ -2593,7 +2591,7 @@ function secHTML(sec, editable) {
       return `<div ${z('ft')}><div class="ftl"><b>${esc(nm)}</b><span>${esc(S.phone)}</span></div>${soc ? `<div class="soc">${soc}</div>` : ''}<div class="ftc">${esc(copy)}</div></div>`
     }
     case 'pinfo': {
-      const ob = editable ? `class="zone obz${D.sel === 'order' ? ' on' : ''}" data-z="order"` : 'class="obz"'
+      const ob = `class="zone obz${editable && D.sel === 'order' ? ' on' : ''}" data-z="order"`
       return `<div ${z('pinfo')}><div class="im">${im(D.prod.img)}</div>
         <div><h2>${esc(D.prod.name)}</h2><div class="pr">${esc(D.prod.price)} ${cur()}</div><p>${esc(D.prod.desc)}</p>
         <div ${ob}>${orderHTML()}</div></div></div>`
@@ -2603,7 +2601,7 @@ function secHTML(sec, editable) {
     case 'cartlines':
       return `<div ${z('wrap lines')}><div class="t">${W('cart')}</div>${cartItems().map((c) => `<div class="ln"><div class="im">${im(c.i)}</div><div class="nm">${esc(c.t)}<span>${esc(c.q)}</span></div><div class="pv">${c.p} ${cur()}</div></div>`).join('')}</div>`
     case 'carttotal': {
-      const ob = editable ? `class="zone obz${D.sel === 'order' ? ' on' : ''}" data-z="order"` : 'class="obz"'
+      const ob = `class="zone obz${editable && D.sel === 'order' ? ' on' : ''}" data-z="order"`
       const tot = `<div class="tot"><div><div class="k">${W('total')}</div><small>${W('inclu')}</small></div><div class="v">${cartTotal()} ${cur()}</div></div>`
       if (STORE.order_mode === 'form') return `<div ${z('wrap')}>${tot}<div ${ob}>${orderHTML()}</div></div>`
       return `<div ${z('wrap')}>${tot}<div style="text-align:right" ${ob}><a class="buy" href="#">${W('buy')}</a></div></div>`
@@ -2814,7 +2812,7 @@ function siteHTML(editable) {
 function cropPos(c) { return c === 'haut' ? '50% 0%' : c === 'bas' ? '50% 100%' : '50% 50%' }
 function bannerHTML(editable) {
   const B = D.banner
-  const zz = editable ? `class="zone topban${D.sel === 'banner' ? ' on' : ''}" data-z="banner"` : 'class="topban"'
+  const zz = `class="zone topban${editable && D.sel === 'banner' ? ' on' : ''}" data-z="banner"`
   return `<div ${zz}${B.color ? ` style="background:${B.color};color:#fff"` : ''}><span>${esc(B.txt)}</span><span class="bx">×</span></div>`
 }
 function socialHTML() {
@@ -5429,6 +5427,13 @@ body.pubonly .pvbar{display:none!important}
   /* aperçu : on prend l'état envoyé par le serveur, on ne touche à rien */
   if (READONLY) {
     applyState(NDZ && NDZ.state)
+    /* Les produits viennent du catalogue, pour un visiteur comme pour le
+       marchand. Sans cette ligne, le client voyait la liste FIGÉE au jour de
+       la publication — alors que le Studio, lui, montrait le catalogue à
+       jour. Le marchand ajoutait un produit et ne le voyait nulle part :
+       « le studio et l'aperçu du vrai site, ce n'est pas le même ».
+       Un prix changé dans « Mes produits » se voit partout, tout de suite. */
+    if (NDZ && NDZ.shop) produitsDuCatalogue()
     persist = function () {}
     document.body.classList.add("pvonly")
     D.page = "home"
