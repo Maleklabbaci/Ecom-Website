@@ -78,6 +78,9 @@ async function rendre(url, attendre) {
 const montre = (h) => h
   .replace(/ style="cursor: pointer;"/g, "")
   .replace(/href="\/[^"]*"/g, 'href="#"')
+  /* sur le site public les cartes produit sont des liens, dans le Studio ce
+     sont des blocs inertes : on ramène les deux au même moule */
+  .replace(/<a class="card" href="#">([\s\S]*?)<\/a>/g, '<div class="card">$1</div>')
 
 let SLUG = ""
 
@@ -111,13 +114,14 @@ test("un produit ajouté après apparaît dans le Studio ET chez le client", asy
   const studio = await rendre("/dashboard/studio", 2200)
   const publicSite = await rendre("/" + SLUG, 1800)
   const apercu = await rendre("/" + SLUG + "?preview=1", 1800)
-  for (const [nom, r] of [["Studio", studio], ["site public", publicSite], ["aperçu", apercu]]) {
-    assert.match(r.texte, /Montre acier/, `${nom} : le premier produit`)
-    assert.match(r.texte, /Parfum rose/, `${nom} : le deuxième produit`)
-    assert.match(r.texte, /Sac cuir/, `${nom} : le produit ajouté APRÈS la publication doit apparaître`)
-    assert.match(r.texte, /6 700/, `${nom} : son prix aussi`)
-  }
-  studio.close(); publicSite.close(); apercu.close()
+  try {
+    for (const [nom, r] of [["Studio", studio], ["site public", publicSite], ["aperçu", apercu]]) {
+      assert.match(r.texte, /Montre acier/, `${nom} : le premier produit`)
+      assert.match(r.texte, /Parfum rose/, `${nom} : le deuxième produit`)
+      assert.match(r.texte, /Sac cuir/, `${nom} : le produit ajouté APRÈS la publication doit apparaître`)
+      assert.match(r.texte, /6 700/, `${nom} : son prix aussi`)
+    }
+  } finally { studio.close(); publicSite.close(); apercu.close() }
 })
 
 test("le lien d'aperçu à partager montre les mêmes produits", async () => {
@@ -136,13 +140,14 @@ test("le site public a les mêmes sections « zone » que le Studio", async () =
   const zonesStudio = (studio.site.match(/class="zone /g) || []).length
   const zonesPublic = (publicSite.site.match(/class="zone /g) || []).length
   assert.ok(zonesStudio > 0, "le Studio pose bien des sections")
-  assert.equal(zonesPublic, zonesStudio,
-    `le site public doit avoir les mêmes sections que le Studio (${zonesPublic} au lieu de ${zonesStudio}) : sans la classe « zone », la couleur des textes et le voile du héros disparaissent`)
-  /* chaque section porte son étiquette, des deux côtés */
-  const etiqS = (studio.site.match(/data-z="/g) || []).length
-  const etiqP = (publicSite.site.match(/data-z="/g) || []).length
-  assert.equal(etiqP, etiqS, "chaque section garde son étiquette data-z")
-  studio.close(); publicSite.close()
+  try {
+    assert.equal(zonesPublic, zonesStudio,
+      `le site public doit avoir les mêmes sections que le Studio (${zonesPublic} au lieu de ${zonesStudio}) : sans la classe « zone », la couleur des textes et le voile du héros disparaissent`)
+    /* chaque section porte son étiquette, des deux côtés */
+    const etiqS = (studio.site.match(/data-z="/g) || []).length
+    const etiqP = (publicSite.site.match(/data-z="/g) || []).length
+    assert.equal(etiqP, etiqS, "chaque section garde son étiquette data-z")
+  } finally { studio.close(); publicSite.close() }
 })
 
 test("le décor est identique, à part les vrais liens du site public", async () => {
@@ -150,22 +155,23 @@ test("le décor est identique, à part les vrais liens du site public", async ()
   const publicSite = await rendre("/" + SLUG, 1800)
   const a = montre(studio.site)
   const b = montre(publicSite.site)
+  studio.close(); publicSite.close()   /* on ferme avant de conclure, sinon le processus reste accroché */
   if (a !== b) {
     let i = 0
     while (i < Math.min(a.length, b.length) && a[i] === b[i]) i++
     assert.fail(
-      `le Studio et le site public neProduisent pas le même décor (1re différence au caractère ${i})\n` +
+      `le Studio et le site public ne produisent pas le même décor (1re différence au caractère ${i})\n` +
       `  studio : ${JSON.stringify(a.slice(Math.max(0, i - 70), i + 130))}\n` +
       `  public : ${JSON.stringify(b.slice(Math.max(0, i - 70), i + 130))}`
     )
   }
-  studio.close(); publicSite.close()
 })
 
 test("aucune erreur JavaScript, ni dans le Studio ni sur le site public", async () => {
   const studio = await rendre("/dashboard/studio", 2200)
   const publicSite = await rendre("/" + SLUG, 1800)
-  assert.deepEqual(studio.err, [], "pas d'erreur dans le Studio")
-  assert.deepEqual(publicSite.err, [], "pas d'erreur sur le site public")
-  studio.close(); publicSite.close()
+  try {
+    assert.deepEqual(studio.err, [], "pas d'erreur dans le Studio")
+    assert.deepEqual(publicSite.err, [], "pas d'erreur sur le site public")
+  } finally { studio.close(); publicSite.close() }
 })

@@ -3449,6 +3449,32 @@ app.get("/:slug/p/:id", (req, res) => {
   if (!store) return res.status(404).send("Boutique introuvable")
   const p = db.prepare("SELECT * FROM products WHERE id = ? AND store_id = ? AND active = 1").get(req.params.id, store.id)
   if (!p) return res.redirect(`/${store.slug}`)
+  /* La boutique a un site fait au Studio : la fiche produit doit avoir LE MÊME
+     décor que l'accueil. Avant, elle était servie par l'ancien moteur : le
+     client cliquait sur un produit et changeait de site sans comprendre. */
+  const stP = studioOf(store)
+  if (stP && stP.live) {
+    if (!req.query.preview) {
+      try {
+        db.prepare(`INSERT INTO visits (store_id, day, path, hits) VALUES (?, date('now'), ?, 1)`).run(store.id, "/p")
+        PX.trackAsync(store, "ViewContent", { content_ids: [String(p.id)], content_name: p.title, value: (p.price_cents || 0) / 100 })
+      } catch (_) {}
+    }
+    const money = (c) => new Intl.NumberFormat("fr-FR").format(Math.round((c || 0) / 100))
+    const titre = `${p.title} — ${store.name}`
+    const desc = String(p.description || `${p.title} — ${store.name}`).slice(0, 180)
+    res.set({ "Cache-Control": "no-store" })
+    return res.type("html").send(atelierPage({
+      mode: "public", slug: store.slug, name: store.name, shop: atelierShop(store),
+      state: stP.live, page: "prod", prodId: Number(p.id), titre: titre,
+      head: `<title>${hEsc(titre)}</title>`
+        + `<meta name="description" content="${hEsc(desc)}">`
+        + `<meta property="og:title" content="${hEsc(titre)}">`
+        + `<meta property="og:description" content="${hEsc(desc)}">`
+        + (p.image ? `<meta property="og:image" content="${hEsc(p.image)}">` : "")
+        + `<meta property="og:type" content="product">`,
+    }))
+  }
 
   const { session } = auth(req)
   const cart = cartFor(session, store.slug)
@@ -3662,6 +3688,23 @@ app.get("/:slug/cart", (req, res) => {
   const cart = cartFor(session, store.slug)
   const { items, totals } = cartDetails(store, cart, promoOf(session, store.slug))
   trackCart(req, store, session, items, totals, null)
+  /* Même règle que la fiche produit : si la boutique a un site du Studio, le
+     panier est servi par le même moteur, avec le vrai panier du visiteur
+     (jamais un article inventé). */
+  const stC = studioOf(store)
+  if (stC && stC.live) {
+    const lignes = items.map((it) => ({
+      product: Number(String(it.key || "").split(":")[0]) || Number(it.id) || 0,
+      qty: Math.max(1, Number(it.qty) || 1),
+      variant: it.variant || "",
+    })).filter((l) => l.product)
+    res.set({ "Cache-Control": "no-store" })
+    return res.type("html").send(atelierPage({
+      mode: "public", slug: store.slug, name: store.name, shop: atelierShop(store),
+      state: stC.live, page: "cart", cart: lignes,
+      head: `<title>Panier — ${hEsc(store.name)}</title><meta name="robots" content="noindex">`,
+    }))
+  }
   const promoMsg = req.query.promo === "err" && totals.promoError ? "err:" + totals.promoError : req.query.promo
   res.send(V.cartPage(store, items, totals, items.reduce((a, b) => a + b.qty, 0), promoMsg, !!req.query.preview))
 })
@@ -3983,6 +4026,12 @@ app.post("/:slug/checkout", rateLimit("checkout", 30, 10 * 60e3), async (req, re
     productIds: items.map((i) => i.id),
     orderId: order.id,
   }, { ip, ua, phone, url: `/${store.slug}/order/${order.ref}` })
+  /* Le formulaire posé par le Studio sur le site public envoie sa commande
+     sans quitter la page : il lui faut une réponse qu'un script peut lire.
+     Le formulaire classique, lui, continue de recevoir la page de confirmation. */
+  if (String(req.query.json || "") === "1") {
+    return res.json({ ok: true, ref: order.ref, url: `/${store.slug}/order/${order.ref}` })
+  }
   res.send(V.orderDone(store, order, {
     trackUrl: `/${store.slug}/order/${order.ref}`,
     pixel: PX.purchaseSnippet(store, order, items),

@@ -1253,6 +1253,7 @@ input[type=range]{width:100%;accent-color:#111}
 .site .t{font-size:calc(14.5px * var(--ts,1));font-weight:600;letter-spacing:-.01em;margin-bottom:12px}
 .site .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s-gap);margin-top:16px}
 .site .grid.three{grid-template-columns:repeat(3,1fr);margin-top:0}
+.site a.card{text-decoration:none;color:inherit}
 .site .card .im{height:92px;background:var(--s-ph);border-radius:var(--s-rad);overflow:hidden;display:grid;place-items:center;color:var(--s-mut);font-size:calc(10px * var(--ts,1))}
 .site .card .im img{width:100%;height:100%;object-fit:cover}
 .site .card b{display:block;margin-top:7px;font-size:calc(10.8px * var(--ts,1));font-weight:600}
@@ -2310,7 +2311,9 @@ const VIDE = { id: 0, title: '', description: '', price_cents: 0, img: '', stock
 const productOf = (id) => STORE.products.find((x) => x.id === id) || STORE.products[0] || VIDE
 const prods = () => STORE.products.map((x) => ({ id: x.id, t: x.title, p: money(x.price_cents), i: x.img }))
 const prod = () => {
-  const x = productOf(1)
+  /* sur la fiche produit publique, c'est le produit de l'adresse qu'on montre
+     (window.__prodId est posé par le serveur), pas un produit au hasard */
+  const x = productOf(window.__prodId || 1)
   return { id: x.id, name: x.title, price: money(x.price_cents), img: x.img, desc: x.description }
 }
 /* Combien de produits ? Sert à montrer le vrai message quand c'est vide. */
@@ -2509,7 +2512,15 @@ function vignette(src, titre) {
 }
 function cards(list, cls, editable) {
   const pz = `class="zone pz" data-z="price"`
-  return `<div class="grid${cls ? ' ' + cls : ''}">${list.map((p) => `<div class="card"><div class="im">${vignette(p.i, p.t)}</div><b>${esc(p.t)}</b><span ${pz}>${p.p} ${cur()}</span></div>`).join('')}</div>`
+  /* Sur le site public, une carte qui ne s'ouvre sur rien n'est qu'une
+     étiquette de prix : le client voyait le catalogue sans pouvoir commander.
+     Chaque carte mène donc à la fiche du produit. Dans l'éditeur elle reste
+     inerte, parce que le clic sert à la sélectionner. */
+  const dedans = (p) => `<div class="im">${vignette(p.i, p.t)}</div><b>${esc(p.t)}</b><span ${pz}>${p.p} ${cur()}</span>`
+  const ouvrable = (p) => !editable && p && p.id && STORE.slug
+  return `<div class="grid${cls ? ' ' + cls : ''}">${list.map((p) => ouvrable(p)
+    ? `<a class="card" href="/${STORE.slug}/p/${p.id}">${dedans(p)}</a>`
+    : `<div class="card">${dedans(p)}</div>`).join('')}</div>`
 }
 function secHTML(sec, editable) {
   const S = D.shop
@@ -2751,13 +2762,14 @@ function fieldHTML(f) {
   const ph = f.placeholder || ''
   const full = f.width === 'full' ? ' full' : ''
   const req = f.required ? ' <span class="req">*</span>' : ''
+  const nom = ` name="${esc(f.key)}"`
   const tag = f.type === 'textarea'
-    ? `<textarea placeholder="${esc(ph)}"></textarea>`
+    ? `<textarea${nom} placeholder="${esc(ph)}"></textarea>`
     : f.type === 'wilaya'
-      ? `<input placeholder="${esc(STORE.wilaya || 'Wilaya')}">`
+      ? `<input${nom} placeholder="${esc(STORE.wilaya || 'Wilaya')}">`
       : f.type === 'commune'
-        ? `<input placeholder="${esc('Commune')}">`
-        : `<input placeholder="${esc(ph)}">`
+        ? `<input${nom} placeholder="${esc('Commune')}">`
+        : `<input${nom} type="${f.type === 'email' ? 'email' : f.type === 'tel' ? 'tel' : 'text'}" placeholder="${esc(ph)}">`
   return `<div class="ck-f${full}"><label>${esc(label)}${req}</label>${tag}</div>`
 }
 function orderHTML() {
@@ -5323,7 +5335,9 @@ body.pubonly .pvbar{display:none!important}
       STORE.products = sh.products.map(function (p) {
         return { id: p.id, title: p.title, price_cents: p.price_cents, img: p.img || "", description: p.description || "" }
       })
-      if (!STORE.cart || !STORE.cart.length) STORE.cart = [{ product: STORE.products[0].id, qty: 1 }]
+      /* Jamais de faux article chez un vrai visiteur : ce panier d'exemple ne
+         sert qu'à montrer à quoi ressemble la page dans le Studio. */
+      if (!PUBLIC && !STORE.cart || (!PUBLIC && !STORE.cart.length)) STORE.cart = [{ product: STORE.products[0].id, qty: 1 }]
     }
     document.body.classList.add("connected")
   }
@@ -5434,9 +5448,15 @@ body.pubonly .pvbar{display:none!important}
        « le studio et l'aperçu du vrai site, ce n'est pas le même ».
        Un prix changé dans « Mes produits » se voit partout, tout de suite. */
     if (NDZ && NDZ.shop) produitsDuCatalogue()
+    /* le panier du visiteur : le serveur l'envoie, on ne l'invente pas. Sans
+       ça la page panier montrait un article que le client n'a jamais mis. */
+    if (NDZ && Array.isArray(NDZ.cart)) STORE.cart = NDZ.cart
+    /* quelle page montrer : l'accueil, la fiche produit ou le panier. Le site
+       public doit pouvoir servir les trois avec le même décor. */
+    if (NDZ && NDZ.prodId) window.__prodId = NDZ.prodId
     persist = function () {}
     document.body.classList.add("pvonly")
-    D.page = "home"
+    D.page = (NDZ && NDZ.page && D.pages[NDZ.page]) ? NDZ.page : "home"
     if (PUBLIC) {
       document.body.classList.add("pubonly")
     } else {
@@ -6355,7 +6375,7 @@ body.pubonly .pvbar{display:none!important}
   updateUndo()
   renderStat()
   /* on redessine une fois avec les nouveaux gestes (la liste, le site, la barre) */
-  if (PUBLIC) { D.page = "home"; D.sel = ""; draw(); document.title = STORE.name || "Boutique" }
+  if (PUBLIC) { D.page = (NDZ && NDZ.page && D.pages[NDZ.page]) ? NDZ.page : "home"; D.sel = ""; draw(); document.title = (NDZ && NDZ.titre) ? NDZ.titre : (STORE.name || "Boutique") }
   else if (PREVIEW) { D.sel = ""; draw(); document.title = (STORE.name || "Boutique") + " — aperçu" }
   else draw()
 
@@ -7494,6 +7514,88 @@ body.swap .col.left .list,body.swap .col.right .pad,body.swap .stage{animation:s
   })
   document.addEventListener("click", function (e) { if (!wrap.contains(e.target)) fermer() })
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") fermer() })
+})()
+</script>
+
+<script>
+/* ================= le formulaire de commande, sur le vrai site =================
+   Le bouton existait, le formulaire existait, mais rien ne partait : aucun
+   champ n'avait de nom et le bouton n'était branché sur rien. Le client
+   remplissait tout, cliquait, et il ne se passait rien — aucune commande
+   n'arrivait jamais au marchand. Maintenant ça part, et ça répond. */
+;(function () {
+  var NDZ = window.NDZ_STUDIO || null
+  var slug = NDZ && NDZ.slug
+  if (!slug) return
+  var OBLIGATOIRE = { customer_name: "votre nom", phone: "votre téléphone", wilaya: "votre wilaya", address: "votre adresse" }
+
+  function dire(form, texte, mauvais) {
+    var vieux = form.parentNode.querySelector(".ck-dit")
+    if (vieux) vieux.parentNode.removeChild(vieux)
+    var p = document.createElement("div")
+    p.className = "ck-dit"
+    p.style.cssText = "margin-top:10px;padding:11px 13px;border-radius:10px;font-size:13px;line-height:1.45;" +
+      (mauvais ? "background:#FDECEC;color:#8A1F1F" : "background:#EAF7EE;color:#125C2A")
+    p.textContent = texte
+    form.parentNode.insertBefore(p, form.nextSibling)
+  }
+
+  document.addEventListener("click", function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest(".ck-btn") : null
+    if (!btn) return
+    var form = btn.closest("form")
+    if (!form || form.dataset.envoi === "1") return
+
+    var corps = new URLSearchParams()
+    form.querySelectorAll("input,textarea,select").forEach(function (c) {
+      if (c.name) corps.set(c.name, String(c.value || "").trim())
+    })
+    for (var k in OBLIGATOIRE) {
+      if (!corps.get(k)) { dire(form, "Il manque " + OBLIGATOIRE[k] + ".", true); return }
+    }
+    /* le produit commandé : celui de la fiche, sinon le premier du catalogue */
+    var pid = window.__prodId
+    if (!pid && NDZ.shop && NDZ.shop.products && NDZ.shop.products[0]) pid = NDZ.shop.products[0].id
+    if (pid) { corps.set("buy_id", pid); corps.set("buy_qty", "1") }
+
+    form.dataset.envoi = "1"
+    var avant = btn.textContent
+    btn.disabled = true
+    btn.textContent = "Envoi…"
+    dire(form, "", false)
+    fetch("/" + slug + "/checkout?json=1", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: corps.toString(),
+      credentials: "same-origin",
+    })
+      .then(function (r) { return r.json().catch(function () { return { ok: false } }) })
+      .then(function (j) {
+        if (j && j.ok && j.ref) {
+          /* le message prend la place du formulaire : on note le parent AVANT
+             de retirer le formulaire, sinon la confirmation part avec lui */
+          var parent = form.parentNode
+          var d = document.createElement("div")
+          d.className = "ck-dit"
+          d.style.cssText = "margin-top:12px;padding:16px;border-radius:12px;background:#EAF7EE;color:#125C2A;font-size:14px;line-height:1.5"
+          d.innerHTML = "<b>Commande envoyée.</b><br>Le marchand vous appelle pour confirmer." +
+            "<br>Votre numéro de suivi : <b>" + j.ref + "</b>" +
+            '<div style="margin-top:10px"><a href="/' + slug + "/order/" + j.ref + '" style="color:#125C2A;font-weight:600">Suivre ma commande</a></div>'
+          parent.replaceChild(d, form)
+        } else {
+          form.dataset.envoi = ""
+          btn.disabled = false
+          btn.textContent = avant
+          dire(form, (j && j.erreur) ? j.erreur : "La commande n'est pas partie. Vérifiez les champs, puis réessayez.", true)
+        }
+      })
+      .catch(function () {
+        form.dataset.envoi = ""
+        btn.disabled = false
+        btn.textContent = avant
+        dire(form, "Pas de réseau : la commande n'est pas partie. Réessayez.", true)
+      })
+  })
 })()
 </script>
 </body>
