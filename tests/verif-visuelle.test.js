@@ -91,7 +91,7 @@ before(async () => {
   server = started.child
   BASE = started.base
   await req("/signup", form({
-    kind: "commerce", name: "Karim", store: "Chez Karim", email: "vu@test.dz",
+    kind: "commerce", name: "Karim", store: "Chez Karim", email: `{Date.now()}{Math.random().toString(36).slice(2,6)}@vu.test.dz`,
     password: "test1234", password2: "test1234",
   }))
 })
@@ -199,7 +199,7 @@ test("ouvrir le Studio crée le brouillon : l'aperçu montre ce site, pas l'anci
   /* une boutique neuve, jamais ouverte dans le Studio */
   jar.clear()
   await req("/signup", form({
-    kind: "commerce", name: "Nadia", store: "Chez Nadia", email: "apercu@test.dz",
+    kind: "commerce", name: "Nadia", store: "Chez Nadia", email: `{Date.now()}{Math.random().toString(36).slice(2,6)}@apercu.test.dz`,
     password: "test1234", password2: "test1234",
   }))
   await req("/dashboard/products", form({ title: "Parfum rose", price: "4200", stock: "4", active: "1" }))
