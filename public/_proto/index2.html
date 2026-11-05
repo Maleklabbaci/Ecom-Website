@@ -5233,7 +5233,7 @@ body.pubonly .pvbar{display:none!important}
   }
   if (CONNECTED && NDZ && NDZ.state) applyState(NDZ.state)
   STORE.live_home = !!(CONNECTED && NDZ && NDZ.home)
-  if (CONNECTED && NDZ && NDZ.home) STORE.home_atelier = true
+  if (CONNECTED && NDZ && (NDZ.home || NDZ.homeDefault)) STORE.home_atelier = true
   if (CONNECTED && NDZ.publishedAt && NDZ.live) {
     try { STORE.published = { at: NDZ.publishedAt, snap: JSON.stringify(comparable(NDZ.live)) } } catch (_) {}
   }
@@ -6084,7 +6084,7 @@ body.pubonly .pvbar{display:none!important}
     var r = document.querySelector(".foot .r")
     if (!r) return
     var old = document.getElementById("liveLink")
-    var on = CONNECTED && STORE.home_atelier
+    var on = CONNECTED && STORE.live_home
     if (old && !on) { old.remove(); return }
     if (!on || old) return
     var a = document.createElement("a")
@@ -6830,7 +6830,7 @@ body.swap .col.left .list,body.swap .col.right .pad,body.swap .stage{animation:s
     var lvl = document.querySelector("#lvl button.on")
     var cur = lvl ? lvl.dataset.l : "basic"
     var url = "/" + (typeof STORE !== "undefined" && STORE.slug ? STORE.slug : "")
-    var live = typeof CONNECTED !== "undefined" && CONNECTED && typeof STORE !== "undefined" && STORE.home_atelier
+    var live = typeof CONNECTED !== "undefined" && CONNECTED && typeof STORE !== "undefined" && STORE.live_home
     menu.innerHTML =
       '<button class="mrow" data-m="save">' + I_SAVE + '<span class="t">Enregistrer maintenant</span></button>' +
       '<div class="msep"></div>' +

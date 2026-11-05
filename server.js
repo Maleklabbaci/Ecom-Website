@@ -2024,7 +2024,14 @@ app.get("/dashboard/studio", requireAuth, requireStore, (req, res) => {
   res.send(atelierPage({
     mode: "edit", slug: req.store.slug, name: req.store.name, shop: atelierShop(req.store),
     savedAt: d.saved_at, publishedAt: d.published_at, state: d.draft, live: d.live,
+    /* Le Studio Nova est l'éditeur principal. Lorsqu'un marchand possède déjà
+       un brouillon mais n'a encore jamais publié l'atelier, la première
+       publication doit ouvrir cette page sur sa vraie boutique. Sinon le
+       bouton « Publier » enregistre correctement le Studio mais l'URL du
+       marchand continue de servir l'ancien rendu. Une publication existante
+       garde bien son choix explicite (atelier ou ancien accueil). */
     home: !!(d.live && d.live.home === true),
+    homeDefault: !d.live && !!d.draft,
     versions: DESIGN.versions(req.store.id),
   }))
 })
