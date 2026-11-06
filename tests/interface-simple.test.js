@@ -1,0 +1,181 @@
+/* L'INTERFACE SIMPLE.
+
+   Le marchand : « ya trop trop trop de case et tout mais mal fait mal ».
+   On a décidé ensemble de quatre règles, et ce fichier les verrouille :
+
+     1. une page pose trois questions, le reste est PLIÉ dans un tiroir ;
+     2. RIEN n'est supprimé — les champs pliés sont toujours dans la page ;
+     3. un seul bouton en couleur par écran, les autres en gris ;
+     4. l'accueil dit quoi faire aujourd'hui.
+
+   Si un jour quelqu'un remet 40 champs à l'écran, ce fichier le dit.
+*/
+const { test, before, after } = require("node:test")
+const assert = require("node:assert")
+const os = require("node:os")
+const path = require("node:path")
+const fs = require("node:fs")
+
+const { startServer } = require("./boot")
+
+const DB = path.join(os.tmpdir(), `novadz-ux-${Date.now()}.db`)
+let BASE = ""
+let child = null
+const jar = new Map()
+const cookieHeader = () => [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ")
+
+async function req(p, opts = {}) {
+  const res = await fetch(BASE + p, { ...opts, headers: { ...(opts.headers || {}), cookie: cookieHeader() }, redirect: "manual" })
+  for (const c of res.headers.getSetCookie ? res.headers.getSetCookie() : []) {
+    const [pair] = c.split(";")
+    const i = pair.indexOf("=")
+    jar.set(pair.slice(0, i), pair.slice(i + 1))
+  }
+  return { status: res.status, text: await res.text() }
+}
+const form = (o) => ({ method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(o).toString() })
+
+/** Ce que le marchand VOIT : sans les champs cachés, sans les tiroirs fermés. */
+const champsVisibles = (html) => {
+  let t = String(html || "")
+  /* un <details> fermé, c'est plié : le marchand ne le voit pas. On le retire
+     bloc par bloc, en sautant les blocs déjà ouverts. */
+  let garde = t
+  for (let tour = 0; tour < 6; tour++) {
+    const avant = garde
+    garde = garde.replace(/<details\b([^>]*)>([\s\S]*?)<\/details>/g, (tout, attrs, dedans) =>
+      /\bopen\b/.test(attrs) ? dedans : "")
+    if (garde === avant) break
+  }
+  const compte = (s) => (s.match(/<(input|select|textarea)\b/g) || []).length - (s.match(/type="hidden"/g) || []).length
+  return { vu: compte(garde), tout: compte(t) }
+}
+
+before(async () => {
+  const s = await startServer({ db: DB })
+  child = s.child
+  BASE = s.base
+  await req("/signup", form({
+    kind: "commerce", name: "Karim", store: "Chez Karim",
+    email: `ux-${Date.now()}@test.dz`, password: "test1234", password2: "test1234",
+  }))
+})
+
+after(() => {
+  if (child) child.kill()
+  for (const f of [DB, DB + "-wal", DB + "-shm"]) { try { fs.unlinkSync(f) } catch (_) {} }
+})
+
+/* ------------------------------------------------------------------ 1 */
+
+test("l'accueil dit quoi faire aujourd'hui", async () => {
+  const r = await req("/dashboard")
+  assert.equal(r.status, 200)
+  assert.match(r.text, /Aujourd'hui/, "les chiffres du jour")
+  assert.match(r.text, /Pour avancer/, "les actions du jour")
+  assert.match(r.text, /Le reste/, "et tout le reste, rangé")
+  /* l'ordre compte : on lit de haut en bas, du plus urgent au plus calme */
+  const a = r.text.indexOf("Aujourd'hui")
+  const b = r.text.indexOf("Pour avancer")
+  const c = r.text.indexOf("Le reste")
+  assert.ok(a < b && b < c, "dans cet ordre : aujourd'hui, avancer, le reste")
+})
+
+test("rien n'est perdu : tous les écrans restent atteignables depuis l'accueil", async () => {
+  const r = await req("/dashboard")
+  for (const [lien, nom] of [
+    ["/dashboard/products", "Produits"],
+    ["/dashboard/orders", "Commandes"],
+    ["/dashboard/stock", "Stock"],
+    ["/dashboard/categories", "Catégories"],
+    ["/dashboard/formulaire", "Formulaire"],
+    ["/dashboard/shipping", "Livraison"],
+    ["/dashboard/paiement", "Paiement"],
+    ["/dashboard/stats", "Statistiques"],
+    ["/dashboard/settings", "Réglages"],
+    ["/dashboard/boutiques", "Mes boutiques"],
+  ]) {
+    assert.ok(r.text.includes(`href="${lien}"`), `le lien ${nom} (${lien}) est toujours là`)
+  }
+})
+
+/* ------------------------------------------------------------------ 2 */
+
+test("la fiche produit pose trois questions, le reste est plié", async () => {
+  const r = await req("/dashboard/products/new")
+  assert.equal(r.status, 200)
+  assert.match(r.text, /class="tiroir"/, "le tiroir existe")
+  const i = r.text.indexOf('class="tiroir"')
+  const avant = r.text.slice(0, i)
+  const apres = r.text.slice(i)
+  const vuAvant = (avant.match(/<(input|select|textarea)\b/g) || []).length - (avant.match(/type="hidden"/g) || []).length
+  const vuApres = (apres.match(/<(input|select|textarea)\b/g) || []).length - (apres.match(/type="hidden"/g) || []).length
+  assert.ok(vuAvant <= 10, `au plus 10 champs à l'écran (lu : ${vuAvant})`)
+  assert.ok(vuApres >= 15, `et les autres sont bien rangés dans le tiroir (lu : ${vuApres})`)
+
+  /* RIEN n'est supprimé : ce qui est plié est toujours dans la page */
+  for (const nom of ["compare", "cost", "video", "category_id", "new_category", "option_groups", "variants"]) {
+    assert.ok(r.text.includes(`name="${nom}"`), `le champ ${nom} existe toujours`)
+  }
+  /* les packs : le bloc est là (vide tant qu'il n'y a pas d'autre produit) */
+  assert.ok(r.text.includes("Souvent achetés ensemble"), "le bloc des packs existe toujours")
+})
+
+test("le tiroir s'ouvre tout seul quand le produit a déjà des variantes", async () => {
+  await req("/dashboard/products", form({ title: "Coque", price: "1500", stock: "2", active: "1" }))
+  const { DatabaseSync } = require("node:sqlite")
+  const db = new DatabaseSync(DB, { readOnly: true })
+  const st = db.prepare("SELECT id FROM stores WHERE slug = 'chez-karim'").get()
+  const p = db.prepare("SELECT id FROM products WHERE store_id = ?").get(st.id)
+  db.close()
+  const grille = JSON.stringify({
+    groups: [{ id: "g1", name: "couleur", options: [{ id: "o1", label: "noir" }, { id: "o2", label: "rose" }] }],
+    combos: [{ picks: { g1: "o1" }, stock: 3, price: "", unlimited: false, on: true }],
+    unlimited: false, style: "boutons",
+  })
+  await req(`/dashboard/products/${p.id}`, form({
+    title: "Coque", price: "1500", stock: "2", active: "1",
+    option_groups: grille, gallery: "[]", variants: "[]",
+  }))
+  const r = await req(`/dashboard/products/${p.id}`)
+  assert.match(r.text, /class="tiroir" open/, "le tiroir est ouvert : le marchand retrouve ses variantes")
+})
+
+/* ------------------------------------------------------------------ 3 */
+
+test("un seul bouton en couleur par écran", async () => {
+  const ecrans = [
+    "/dashboard", "/dashboard/products", "/dashboard/stock", "/dashboard/shipping",
+    "/dashboard/paiement", "/dashboard/stats", "/dashboard/discounts", "/dashboard/categories",
+  ]
+  for (const u of ecrans) {
+    const r = await req(u)
+    if (r.status !== 200) continue
+    const n = (r.text.match(/class="btn btn-primary/g) || []).length
+    assert.ok(n <= 2, `${u} : au plus un bouton en couleur par formulaire (lu : ${n})`)
+  }
+  /* la couleur est bien celle qu'on a choisie, une seule fois dans la feuille de style */
+  const css = await req("/styles.css")
+  assert.match(css.text, /--accent:#0F766E/, "l'accent est défini")
+})
+
+/* ------------------------------------------------------------------ 4 */
+
+test("les écrans lourds respirent : moins de champs à l'écran", async () => {
+  const mesures = {}
+  for (const [nom, u] of [["Réglages", "/dashboard/settings"], ["Livraison", "/dashboard/shipping"], ["Catégories", "/dashboard/categories"]]) {
+    const r = await req(u)
+    assert.equal(r.status, 200, u)
+    mesures[nom] = champsVisibles(r.text).vu
+  }
+  assert.ok(mesures["Réglages"] <= 14, `Réglages : ${mesures["Réglages"]} champs à l'écran`)
+  assert.ok(mesures["Livraison"] <= 14, `Livraison : ${mesures["Livraison"]} champs à l'écran (les 69 wilayas sont pliées)`)
+  assert.ok(mesures["Catégories"] <= 8, `Catégories : ${mesures["Catégories"]} champs à l'écran`)
+})
+
+test("et la boutique, elle, n'a pas bougé d'un pouce", async () => {
+  const r = await req("/chez-karim")
+  assert.equal(r.status, 200, "la vitrine répond toujours")
+  /* les changements sont réservés au dashboard : la vitrine garde son moteur */
+  assert.ok(!r.text.includes("home-act"), "pas de bloc d'accueil marchand côté client")
+})

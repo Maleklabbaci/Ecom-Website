@@ -7513,3 +7513,219 @@ details.domain-opt > .dns-box{margin-bottom:16px}
 }
 /* le badge « Vitrine » du menu : texte blanc sur fond encre (sinon illisible) */
 .dash-store .dash-kind{background:var(--ink,#111);color:#fff}
+
+/* ==========================================================================
+   PRÉSENTATION DU DASHBOARD — demande du marchand (novembre 2026)
+   --------------------------------------------------------------------------
+   Quatre règles, appliquées partout :
+     1. trois questions par page, le reste dans un tiroir ;
+     2. UN SEUL bouton en couleur par page, les autres en gris ;
+     3. la hiérarchie vient de la taille et du vide, plus des filets ;
+     4. l'accueil dit quoi faire aujourd'hui.
+   Rien n'est supprimé : les champs sont PLIÉS, pas effacés.
+   ========================================================================== */
+:root{
+  --accent:#0F766E;          /* la seule couleur du dashboard */
+  --accent-dark:#0B5A53;
+  --accent-bg:#EFF6F4;
+  --paper:#F6F5F3;           /* fond des pages */
+  --card:#FFFFFF;
+  --card-line:#EAE7E2;
+  --field-line:#DDD9D3;
+  --ink-soft:#3F3F46;
+  --rhythm:40px;             /* l'air entre les blocs */
+}
+
+/* ---------- 1. le fond, l'air, les cartes ---------- */
+.dash{background:var(--paper)}
+.dash-main{padding:34px 38px 90px;max-width:1060px}
+.dash-head{margin-bottom:26px;align-items:center}
+.dash-head h1{font-size:26px;letter-spacing:-.035em;margin-bottom:4px}
+.dash-head p{font-size:14.5px;color:var(--muted)}
+.dash-head .head-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+.dash .panel{
+  background:var(--card);
+  border:1px solid var(--card-line);
+  border-radius:14px;
+  padding:24px 26px;
+  margin-bottom:22px;
+  box-shadow:0 1px 2px rgba(17,17,17,.03);
+}
+.dash .panel-head{margin-bottom:18px;padding-bottom:0;border-bottom:0;gap:12px}
+.dash .panel-head h2{font-size:16px;font-weight:600;letter-spacing:-.02em;color:var(--ink)}
+.dash .panel-head .muted{font-size:13px}
+.dash .panel-head a{font-size:13px;color:var(--muted)}
+.dash .panel-head a:hover{color:var(--accent)}
+
+/* sous-blocs : une carte douce dans la carte, plus un filet */
+.dash .sub-block{
+  background:#FAFAF9;border:0;border-radius:12px;
+  padding:16px 18px;margin:14px 0;
+}
+.dash .sub-head{margin-bottom:12px;flex-wrap:wrap;gap:4px}
+.dash .sub-head b{font-size:14px;font-weight:600;color:var(--ink)}
+.dash .sub-head span{font-size:12.5px;color:var(--muted)}
+
+/* ---------- 2. un seul bouton attire l'œil ---------- */
+.dash .btn{
+  background:#fff;color:var(--ink-soft);
+  border:1px solid var(--field-line);
+  height:38px;padding:0 15px;border-radius:9px;
+  font-size:13.5px;font-weight:500;
+}
+.dash .btn:hover{background:#FAFAF9;border-color:#C9C4BC;color:var(--ink)}
+.dash .btn-primary{
+  background:var(--accent);color:#fff;border-color:var(--accent);
+  font-weight:600;
+}
+.dash .btn-primary:hover{background:var(--accent-dark);border-color:var(--accent-dark);color:#fff}
+.dash .btn-ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.dash .btn-ghost:hover{background:#EFEDE9;color:var(--ink)}
+.dash .btn-lg{height:46px;padding:0 24px;font-size:15px;border-radius:10px}
+/* les petites actions d'une ligne restent discrètes : l'œil va au bouton plein */
+.dash .icon-btn{color:var(--faint)}
+.dash .icon-btn:hover{color:var(--ink);background:#F2F0EC}
+.dash .link-danger{color:#B91C1C;font-size:13px}
+.dash .link-danger:hover{color:#7F1D1D}
+
+/* ---------- 3. des champs lisibles, étiquette au-dessus ---------- */
+.dash .form label,
+.dash form.panel > label,
+.dash .form-row label{
+  display:block;font-size:13px;font-weight:600;color:var(--ink-soft);
+  margin-bottom:6px;letter-spacing:-.005em;
+}
+.dash input[type=text],.dash input[type=number],.dash input[type=email],
+.dash input[type=tel],.dash input[type=password],.dash input[type=search],
+.dash input[type=url],.dash input[type=date],.dash select,.dash textarea{
+  width:100%;box-sizing:border-box;
+  min-height:42px;padding:10px 13px;
+  font-size:15px;color:var(--ink);
+  background:#fff;border:1px solid var(--field-line);border-radius:10px;
+  transition:border-color .15s ease,box-shadow .15s ease;
+}
+.dash textarea{min-height:96px;line-height:1.55}
+.dash input:focus,.dash select:focus,.dash textarea:focus{
+  outline:none;border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(15,118,110,.13);
+}
+.dash input[readonly],.dash input[disabled]{background:#F7F6F4;color:var(--muted)}
+.dash .field-hint{display:block;font-size:12.5px;font-weight:400;color:var(--faint);margin-top:6px;line-height:1.45}
+.dash .form-row{margin-bottom:18px}
+.dash .form-row.two,.dash .form-row.three{gap:18px}
+/* cases et radios : une seule ligne, jamais serrée */
+.dash label.ck-f,.dash .dlv-mode{
+  display:flex;align-items:flex-start;gap:10px;
+  font-size:14px;font-weight:500;margin-bottom:10px;
+}
+.dash input[type=checkbox],.dash input[type=radio]{
+  width:17px;height:17px;margin:2px 0 0;flex:0 0 auto;accent-color:var(--accent);
+}
+
+/* ---------- 4. le tiroir « Plus de réglages » ---------- */
+.tiroir{margin-top:16px;border-top:1px solid #EFEDE9;padding-top:12px}
+.tiroir>summary{
+  cursor:pointer;list-style:none;
+  display:flex;align-items:center;gap:10px;
+  font-size:13.5px;font-weight:600;color:#52525B;
+  padding:8px 0;user-select:none;
+}
+.tiroir>summary::-webkit-details-marker{display:none}
+.tiroir>summary::after{
+  content:"";width:9px;height:9px;flex:0 0 auto;
+  border-right:2px solid currentColor;border-bottom:2px solid currentColor;
+  transform:rotate(45deg) translate(-2px,-2px);
+  transition:transform .18s ease;opacity:.6;
+}
+.tiroir[open]>summary::after{transform:rotate(-135deg) translate(-2px,-2px)}
+.tiroir>summary:hover{color:var(--ink)}
+.tiroir>summary .tiroir-n{font-weight:400;color:var(--faint)}
+.tiroir[open]>summary{margin-bottom:16px;color:var(--ink)}
+
+/* ---------- les chiffres du haut ---------- */
+.dash .kpis{gap:14px;margin-bottom:22px}
+.dash .kpi{
+  background:var(--card);border:1px solid var(--card-line);border-radius:14px;
+  padding:18px 20px;box-shadow:0 1px 2px rgba(17,17,17,.03);
+}
+.dash .kpi>span{font-size:12.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.dash .kpi>b{font-size:30px;font-weight:600;letter-spacing:-.04em;color:var(--ink);margin:6px 0 2px}
+.dash .kpi>i{font-size:12.5px;color:var(--faint);font-style:normal}
+
+/* ---------- tableau : plus d'air, moins de filets ---------- */
+.dash .table{font-size:14px}
+.dash .table th{
+  font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--faint);border-bottom:1px solid var(--card-line);padding:0 12px 10px;
+}
+.dash .table td{padding:14px 12px;border-bottom:1px solid #F4F2EF}
+.dash .table tbody tr:last-child td{border-bottom:0}
+
+/* ---------- téléphone ---------- */
+@media (max-width:860px){
+  .dash-main{padding:22px 16px 70px}
+  .dash .panel{padding:18px 16px;border-radius:12px}
+  .dash-head h1{font-size:22px}
+  .dash .kpi>b{font-size:26px}
+}
+
+/* ---------- l'accueil : AUJOURD'HUI / POUR AVANCER / LE RESTE ---------- */
+.dash .home-titre{
+  margin:30px 0 14px;
+  font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;
+  color:var(--faint);
+}
+.dash .home-titre:first-of-type{margin-top:0}
+.dash .home-actions{padding:6px 0}
+.home-act{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:15px 26px;border-bottom:1px solid #F4F2EF;
+}
+.home-act:last-child{border-bottom:0}
+.home-act b{font-size:15px;font-weight:600;color:var(--ink)}
+.home-act span{font-size:13px;color:var(--muted);flex:1;min-width:180px}
+.home-act i{
+  font-style:normal;font-size:13px;font-weight:600;color:var(--accent);
+  white-space:nowrap;
+}
+.home-act:hover{background:#FAFAF9}
+.home-act.danger i{color:#B91C1C}
+.home-calme{
+  display:flex;align-items:center;gap:10px;
+  padding:16px 26px;margin:0;font-size:14.5px;color:var(--muted);
+}
+.dash .home-reste{padding:20px 26px}
+.reste-grp{display:flex;flex-wrap:wrap;gap:4px 14px;padding:7px 0;border-bottom:1px solid #F7F5F2}
+.reste-grp:last-child{border-bottom:0}
+.reste-grp>b{
+  flex:0 0 110px;font-size:12px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.05em;color:var(--faint);padding-top:2px;
+}
+.reste-grp>p{margin:0;flex:1;font-size:13.5px;line-height:1.9}
+.reste-grp a{color:#52525B}
+.reste-grp a:hover{color:var(--accent);text-decoration:underline}
+@media (max-width:860px){
+  .home-act{padding:13px 16px}
+  .dash .home-reste{padding:14px 16px}
+  .reste-grp>b{flex:0 0 100%}
+}
+
+/* ---------- les anciens tiroirs prennent la tête des nouveaux ---------- */
+.dash details.adv{
+  margin:16px 0 6px;background:#FAFAF9;border:0;border-radius:12px;padding:0;
+}
+.dash details.adv>summary{
+  padding:14px 18px;font-size:13.5px;font-weight:600;color:#52525B;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.dash details.adv>summary::before{
+  content:"";width:9px;height:9px;flex:0 0 auto;
+  border-right:2px solid currentColor;border-bottom:2px solid currentColor;
+  transform:rotate(45deg) translate(-2px,-2px);opacity:.6;
+  transition:transform .18s ease;
+}
+.dash details.adv[open]>summary::before{transform:rotate(-135deg) translate(-2px,-2px)}
+.dash details.adv[open]>summary{border-bottom:1px solid #F0EEEA;margin-bottom:6px;color:var(--ink)}
+.dash details.adv>summary b{color:var(--ink)}
+.dash details.adv .ship-grid{padding:8px 18px 18px}

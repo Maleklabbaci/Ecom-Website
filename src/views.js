@@ -706,7 +706,7 @@ ${shops.length > 1 ? `<div class="kpis">
 const dashPages = (user, store, pages) => dashLayout(user, store, `
 <header class="dash-head">
   <div><h1>Pages</h1><p class="muted">${store.site_kind === "vitrine" ? "À propos, services, portfolio." : "À propos, Contact, conditions de vente…"}</p></div>
-  <a class="btn btn-primary" href="/dashboard/pages/new">${icon("plus", 15)} Nouvelle page</a>
+  <a class="btn" href="/dashboard/pages/new">${icon("plus", 15)} Nouvelle page</a>
 </header>
 <section class="panel">
   ${pages.length ? `<table class="table">
@@ -724,7 +724,7 @@ const dashPages = (user, store, pages) => dashLayout(user, store, `
     </tr>`).join("")}</tbody>
   </table>` : `<div class="empty-state">${icon("receipt", 22)}<h3>Aucune page</h3>
   <p>Créez « À propos », « Livraison » ou « Conditions de vente » pour rassurer vos clients.</p>
-  <a class="btn btn-primary" href="/dashboard/pages/new">Créer une page</a></div>`}
+  <a class="btn" href="/dashboard/pages/new">Créer une page</a></div>`}
 </section>`, "pages")
 
 const pageForm = (user, store, page, error) => dashLayout(user, store, `
@@ -1340,7 +1340,7 @@ ${saved ? `<div class="alert ok">Catégorie enregistrée.</div>` : ""}
           <a class="link small" target="_blank" href="/${esc(store.slug)}?cat=${esc(c.slug)}">?cat=${esc(c.slug)}</a>
           <span class="muted small">${c.n} produit(s)</span>
         </div>
-        <a class="btn btn-primary" href="/dashboard/products/new?category=${c.id}">Ajouter un produit</a>
+        <a class="btn" href="/dashboard/products/new?category=${c.id}">Ajouter un produit</a>
       </div>
       <details class="cat-edit">
         <summary>Modifier le nom ou la photo</summary>
@@ -1354,7 +1354,7 @@ ${saved ? `<div class="alert ok">Catégorie enregistrée.</div>` : ""}
             </span>
             <input type="hidden" name="image" data-cat-url value="">
           </div>
-          <button class="btn btn-primary">Enregistrer</button>
+          <button class="btn">Enregistrer</button>
         </form>
       </details>
       <form method="post" action="/dashboard/categories/${c.id}/delete" class="cat-del-form">
@@ -1422,7 +1422,7 @@ ${err ? `<div class="alert">${esc(err)}</div>` : ""}
   <p class="muted small">Le transporteur connaît ses vrais prix : demande-les au lieu de les deviner.
     Vous voyez d'abord la liste, puis vous décidez de les garder.</p>
   <div class="api-rates-bar">
-    <button type="button" class="btn btn-primary" data-api-fetch>Récupérer les tarifs</button>
+    <button type="button" class="btn" data-api-fetch>Récupérer les tarifs</button>
     <span class="muted small" data-api-msg role="status"></span>
   </div>
   <div data-api-out hidden></div>
@@ -1458,7 +1458,7 @@ ${err ? `<div class="alert">${esc(err)}</div>` : ""}
         <input name="eta_max" type="number" min="0" max="60" value="${store.eta_max || 4}" aria-label="Délai maximum">
       </span>
         <small class="muted">Affiché au client : « Livraison estimée : 2 à 4 jours ».</small></label>
-      <button class="btn btn-primary" name="applyAll" value="1">Appliquer partout</button>
+      <button class="btn" name="applyAll" value="1">Appliquer partout</button>
     </div>
 
     <details class="adv">
@@ -1516,7 +1516,7 @@ ${err ? `<div class="alert">${esc(err)}</div>` : ""}
       (data.found ? "<p class=\"muted small\">Les wilayas de 2026 (Bou Saâda, Barika, Aflou…) prennent le tarif de leur wilaya mère : les transporteurs ne les connaissent pas encore.</p>" : "") +
       (data.found ? "<div class=\"api-apply\">" +
         "<label class=\"check\"><input type=\"checkbox\" data-api-replace> Remplacer aussi les tarifs que j'ai déjà saisis</label>" +
-        "<button type=\"button\" class=\"btn btn-primary\" data-api-save>Appliquer ces tarifs</button>" +
+        "<button type=\"button\" class=\"btn\" data-api-save>Appliquer ces tarifs</button>" +
         "</div>" : ""))
     msg.textContent = data.found ? data.carrier + " · " + data.found + " wilaya(s) avec un tarif" : ""
     btn.disabled = false
@@ -2665,7 +2665,7 @@ ${ok ? `<div class="alert ok">Formulaire enregistré. Il est déjà sur la bouti
         <option value="select">Liste</option>
       </select>
       <input id="fmAddOpts" maxlength="120" placeholder="36, 37, 38" aria-label="Choix" hidden>
-      <button type="button" class="btn btn-primary" id="fmAdd">Ajouter</button>
+      <button type="button" class="btn" id="fmAdd">Ajouter</button>
     </div>
     <div class="fm-presets" id="fmChips"></div>
   </section>
@@ -2976,6 +2976,53 @@ const sitePreview = (store) => `
   </script>
 </section>`
 
+/**
+ * « Le reste » : tous les écrans du dashboard, en petits liens gris.
+ * Rien n'est supprimé — on range. Le marchand qui cherche un réglage le
+ * trouve à la même place, au lieu de le deviner dans 27 entrées de menu.
+ */
+const homeReste = (user) => {
+  const groupes = [
+    ["Vendre", [
+      ["/dashboard/products", "Produits"],
+      ["/dashboard/stock", "Stock"],
+      ["/dashboard/categories", "Catégories"],
+      ["/dashboard/discounts", "Codes promo"],
+    ]],
+    ["Commandes", [
+      ["/dashboard/orders", "Commandes"],
+      ["/dashboard/paniers", "Paniers abandonnés"],
+      ["/dashboard/relances", "Relances"],
+      ["/dashboard/reversements", "Reversements"],
+      ["/dashboard/stats", "Statistiques"],
+    ]],
+    ["Boutique", [
+      ["/dashboard/studio", "Studio"],
+      ["/dashboard/formulaire", "Formulaire"],
+      ["/dashboard/transporteur", "Transporteur"],
+      ["/dashboard/shipping", "Livraison"],
+      ["/dashboard/paiement", "Paiement"],
+    ]],
+    ["Clients", [
+      ["/dashboard/customers", "Clients"],
+      ["/dashboard/reviews", "Avis"],
+      ["/dashboard/marketing", "Marketing"],
+      ["/dashboard/landings", "Pages de vente"],
+      ["/dashboard/mails", "E-mails"],
+    ]],
+    ["Réglages", [
+      ["/dashboard/reseaux", "Réseaux sociaux"],
+      ["/dashboard/equipe", "Équipe"],
+      ["/dashboard/settings", "Réglages"],
+      ["/dashboard/boutiques", "Mes boutiques"],
+    ]],
+  ]
+  return groupes.map(([titre, liens]) => `<div class="reste-grp">
+    <b>${titre}</b>
+    <p>${liens.map(([href, nom]) => `<a href="${href}">${nom}</a>`).join(" · ")}</p>
+  </div>`).join("")
+}
+
 const dashHome = (user, store, stats, recentOrders) => store.site_kind === "vitrine"
   ? dashLayout(user, store, `
 <header class="dash-head">
@@ -3017,37 +3064,53 @@ ${sitePreview(store)}
 </section>`, "home")
   : dashLayout(user, store, `
 <header class="dash-head">
-  <div><h1>Bonjour, ${esc(user.name.split(" ")[0])}</h1><p class="muted">Voici l'activité de ${esc(store.name)}.</p></div>
+  <div><h1>Bonjour, ${esc(user.name.split(" ")[0])}</h1><p class="muted">Voici où en est ${esc(store.name)}.</p></div>
   <a class="btn btn-primary" href="/dashboard/products/new">${icon("plus", 15)} Ajouter un produit</a>
 </header>
 ${startGuide(store, stats)}
+
+<h2 class="home-titre">Aujourd'hui</h2>
 <div class="kpis">
-  <div class="kpi"><span>Chiffre d'affaires</span>${icon("cash", 16)}<b>${money(stats.revenue, store.currency)}</b><i>sur ${stats.orderCount} commande(s)</i></div>
-  <div class="kpi"><span>Commandes</span>${icon("receipt", 16)}<b>${stats.orderCount}</b><i>${stats.newOrders} nouvelle(s)</i></div>
-  <div class="kpi"><span>Produits</span>${icon("box", 16)}<b>${stats.productCount}</b><i>${stats.lowStock} en stock faible</i></div>
-  <div class="kpi"><span>Panier moyen</span>${icon("cart", 16)}<b>${money(stats.avgBasket, store.currency)}</b><i>par commande</i></div>
+  <div class="kpi"><span>Argent encaissé</span>${icon("cash", 16)}<b>${money(stats.revenue, store.currency)}</b><i>sur ${stats.orderCount} commande(s)</i></div>
+  <div class="kpi"><span>Nouvelles commandes</span>${icon("receipt", 16)}<b>${stats.newOrders || 0}</b><i>à appeler</i></div>
+  <div class="kpi"><span>En rupture</span>${icon("layers", 16)}<b>${stats.lowStock || 0}</b><i>produit(s) à remettre en stock</i></div>
 </div>
-${sitePreview(store)}
-<section class="panel">
-  <div class="panel-head"><h2>Livraisons à suivre</h2><a href="/dashboard/orders">Toutes les commandes →</a></div>
-  <div class="suivi-tiles">
-    <a class="suivi-tile" href="/dashboard/orders?statut=nouvelle"><b>${(stats.newOrders || 0) + (stats.toCheck || 0)}</b><span>À traiter</span><i>commandes en attente d'appel</i></a>
-    <a class="suivi-tile" href="/dashboard/orders?statut=expediee"><b>${stats.shipped || 0}</b><span>Colis en route</span><i>confiés au transporteur</i></a>
-    <a class="suivi-tile ${(stats.lost || 0) > 0 ? "danger" : ""}" href="/dashboard/orders?statut=perdue"><b>${stats.lost || 0}</b><span>Colis perdus</span><i>à renvoyer ou rembourser</i></a>
-  </div>
+
+<h2 class="home-titre">Pour avancer</h2>
+<section class="panel home-actions">
+  ${(stats.newOrders || 0) + (stats.toCheck || 0) > 0 ? `<a class="home-act" href="/dashboard/orders?statut=nouvelle">
+    <b>Appeler ${(stats.newOrders || 0) + (stats.toCheck || 0)} client(s)</b><span>des commandes attendent depuis ce matin</span><i>Aller →</i></a>` : ""}
+  ${(stats.lowStock || 0) > 0 ? `<a class="home-act" href="/dashboard/stock?alerte=1">
+    <b>Remettre ${stats.lowStock} produit(s) en stock</b><span>ils ne se vendent plus</span><i>Aller →</i></a>` : ""}
+  ${(stats.lost || 0) > 0 ? `<a class="home-act danger" href="/dashboard/orders?statut=perdue">
+    <b>${stats.lost} colis perdu(s)</b><span>à renvoyer ou rembourser</span><i>Aller →</i></a>` : ""}
+  ${!stats.productCount ? `<a class="home-act" href="/dashboard/products/new">
+    <b>Ajouter votre premier produit</b><span>sans produit, la boutique est vide</span><i>Aller →</i></a>` : ""}
+  ${(stats.shipped || 0) > 0 ? `<a class="home-act" href="/dashboard/orders?statut=expediee">
+    <b>${stats.shipped} colis en route</b><span>chez le transporteur</span><i>Aller →</i></a>` : ""}
+  ${!(stats.newOrders + stats.toCheck + stats.lowStock + stats.lost) && stats.productCount && !(stats.shipped || 0)
+    ? `<p class="home-calme">${icon("check", 16)} Tout est à jour. Rien à faire pour l'instant.</p>` : ""}
 </section>
+
+<h2 class="home-titre">Dernières commandes</h2>
 <section class="panel">
-  <div class="panel-head"><h2>Dernières commandes</h2><a href="/dashboard/orders">Tout voir →</a></div>
+  <div class="panel-head"><h2>Les ${Math.min(recentOrders.length, 5)} plus récentes</h2><a href="/dashboard/orders">Tout voir →</a></div>
   ${recentOrders.length ? `<table class="table">
     <thead><tr><th>Réf.</th><th>Client</th><th>Total</th><th>Statut</th><th>Date</th></tr></thead>
-    <tbody>${recentOrders.map((o) => `<tr>
+    <tbody>${recentOrders.slice(0, 5).map((o) => `<tr>
       <td><a class="link" href="/dashboard/orders/${o.id}"><b>#${esc(o.ref)}</b></a></td><td>${esc(o.customer_name)}<br><small class="muted">${esc(o.wilaya)}</small></td>
       <td>${money(o.total_cents, store.currency)}</td>
       <td><span class="status s-${esc(o.status)}">${esc(o.status)}</span></td>
       <td class="muted">${esc(o.created_at.slice(0, 16))}</td></tr>`).join("")}</tbody>
   </table>` : `<div class="empty small"><p>Aucune commande pour l'instant. Partagez le lien de votre boutique :</p>
       <code>${esc(showAddress(store))}</code></div>`}
-</section>`, "home")
+</section>
+
+<h2 class="home-titre">Le reste</h2>
+<section class="panel home-reste">
+  ${homeReste(user)}
+</section>
+${sitePreview(store)}`, "home")
 
 /**
  * Vignette d'un produit : sa PHOTO PRINCIPALE dès qu'il en a une, sinon l'initiale
@@ -3081,6 +3144,22 @@ const dashProducts = (user, store, products) => dashLayout(user, store, `
       </td></tr>`).join("")}</tbody></table>`
       : `<div class="empty"><h3>Aucun produit</h3><p>Ajoutez votre premier produit pour ouvrir votre boutique.</p><a class="btn btn-primary" href="/dashboard/products/new">Ajouter un produit</a></div>`}
 </section>`, "products")
+
+/**
+ * Le tiroir « Plus de réglages » s'ouvre tout seul quand le produit a DÉJÀ
+ * une variante, un pack ou une vidéo. Sinon le marchand croirait que tout a
+ * disparu au premier coup d'œil.
+ */
+const dejaRempli = (product) => {
+  if (!product) return false
+  if (String(product.bundle_ids || "").trim()) return true
+  if (String(product.video || "").trim()) return true
+  try {
+    const g = JSON.parse(product.option_groups || "[]")
+    if (Array.isArray(g)) return g.length > 0
+    return ((g && g.groups) || []).length > 0
+  } catch (_) { return false }
+}
 
 const productForm = (user, store, product, extra = {}) => {
   const cats = extra.categories || []
@@ -3118,6 +3197,9 @@ const productForm = (user, store, product, extra = {}) => {
     <label>Prix barré (${esc(store.currency)})<input name="compare" type="number" step="0.01" min="0" value="${product && product.compare_cents ? (product.compare_cents / 100).toFixed(2) : ""}" placeholder="5000.00">
       <span class="field-hint">Facultatif : affiche l'ancien prix barré + un badge « Promo ». Laisser vide s'il n'y a pas de promo.</span></label>
   </div>
+  <details class="tiroir"${dejaRempli(product) ? " open" : ""}>
+    <summary>Plus de réglages <span class="tiroir-n">(promo, vidéo, catégorie, variantes, packs)</span></summary>
+
   <div class="form-row two">
     <label>Prix d'achat (${esc(store.currency)})
       <input name="cost" type="number" step="0.01" min="0" value="${product && product.cost_cents ? (product.cost_cents / 100).toFixed(2) : ""}" placeholder="1800.00">
@@ -3175,6 +3257,8 @@ const productForm = (user, store, product, extra = {}) => {
     <div class="var-editor" id="varList"></div>
     <button type="button" class="btn btn-ghost img-btn" id="varAdd">+ Ajouter une variante</button>
     <input type="hidden" name="variants" id="varJson">
+  </details>
+
   </details>
 
   <label class="check"><input type="checkbox" name="active" ${!product || product.active ? "checked" : ""}> Afficher dans la boutique</label>
@@ -3964,6 +4048,9 @@ ${error ? `<div class="alert">${esc(error)}</div>` : ""}
 
   <h3>Informations légales</h3>
   <p class="muted">Affichées sur la page « Informations légales » et sur les factures.</p>
+  <details class="tiroir">
+    <summary>Plus de réglages <span class="tiroir-n">(facturation, acompte, pixels, devise, domaine)</span></summary>
+
   <div class="form-row two">
     <label>Raison sociale<input name="legal_name" value="${esc(store.legal_name || "")}" placeholder="SARL Amina Mode"></label>
     <label>Adresse<input name="legal_address" value="${esc(store.legal_address || "")}" placeholder="12 rue Didouche, Alger"></label>
@@ -4047,6 +4134,8 @@ ${error ? `<div class="alert">${esc(error)}</div>` : ""}
       return `<p class="muted">Nom public connu de ce serveur : <b>${esc(known)}</b>. Le www peut aussi être un CNAME vers ce nom. Le @ doit rester un A vers son IP.</p>`
     })()}
   </div>
+  </details>
+
   </details>
   <div class="form-actions"><button class="btn btn-primary">Enregistrer</button></div>
 </form>`, "settings")
@@ -4231,7 +4320,7 @@ ${data.alerts.length ? `<section class="panel panel-warn">
 const dashLandings = (user, store, rows, base) => dashLayout(user, store, `
 <header class="dash-head">
   <div><h1>Pages de vente</h1><p class="muted">Une page par publicité : prix propre, offres de quantité, formulaire court. C'est le format qui convertit en paiement à la livraison.</p></div>
-  <a class="btn btn-primary" href="/dashboard/landings/new">${icon("plus", 15)} Nouvelle page</a>
+  <a class="btn" href="/dashboard/landings/new">${icon("plus", 15)} Nouvelle page</a>
 </header>
 ${rows.length ? `<section class="panel">
   <table class="table">
@@ -4254,7 +4343,7 @@ ${rows.length ? `<section class="panel">
   </table>
 </section>` : `<section class="panel"><div class="empty-state">${icon("store", 22)}<h3>Aucune page de vente</h3>
   <p>Créez une page dédiée à un produit : titre accrocheur, offre « 2 pièces », compte à rebours, puis un formulaire de 4 champs.</p>
-  <a class="btn btn-primary" href="/dashboard/landings/new">Créer ma première page</a></div></section>`}`, "landings")
+  <a class="btn" href="/dashboard/landings/new">Créer ma première page</a></div></section>`}`, "landings")
 
 const landingForm = (user, store, landing, products, error) => {
   const offers = landing ? (() => { try { return JSON.parse(landing.offers || "[]") } catch (_) { return [] } })() : []

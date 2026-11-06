@@ -79,8 +79,8 @@ test("boutique : l'accueil marchand montre l'aperçu du site et le suivi des liv
   assert.equal(status, 200)
   assert.ok(text.includes("Aperçu du site"), "panneau d'aperçu présent")
   assert.ok(text.includes("?preview=1"), "iframe d'aperçu (sans compter la visite)")
-  assert.ok(text.includes("Livraisons à suivre"), "tuiles de suivi présentes")
-  assert.ok(text.includes("Colis perdus"), "tuile colis perdus présente")
+  assert.ok(text.includes("Pour avancer"), "le bloc « pour avancer » est là")
+  assert.ok(text.includes("home-act"), "avec les actions du jour")
 })
 
 test("boutique : marquer un colis perdu le fait ressortir dans l'interface", async () => {
@@ -94,7 +94,8 @@ test("boutique : marquer un colis perdu le fait ressortir dans l'interface", asy
   assert.ok(liste.text.includes("Client Test"), "la commande apparaît dans le filtre « perdue »")
   assert.ok(liste.text.includes("Colis perdu"), "le libellé « Colis perdu » s'affiche")
   const home = await req(jar, "/dashboard")
-  assert.ok(home.text.includes("suivi-tile danger"), "la tuile passe en alerte quand un colis est perdu")
+  assert.ok(home.text.includes("home-act danger"), "le colis perdu ressort en alerte sur l'accueil")
+  assert.ok(/colis perdu/i.test(home.text), "et il est nommé")
 })
 
 test("vitrine : aperçu du site, et les messages du formulaire arrivent dans l'interface", async () => {
