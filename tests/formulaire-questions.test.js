@@ -52,13 +52,28 @@ const corpsDeLaPage = (html) => {
     if (!nom) continue
     const type = (at("type") || "text").toLowerCase()
     if (type === "hidden") body[nom] = at("value")
-    else if (type === "checkbox" || type === "radio") { if (/\bchecked\b/i.test(tag)) body[nom] = at("value") || "1" }
+    else if (type === "checkbox" || type === "radio") {
+      /* Attention : une case cochée peut avoir une valeur VIDE (le bouton
+         radio « Boutique » de la langue, par exemple). On la respecte :
+         sinon on envoie « 1 » là où le navigateur envoie « » et le test
+         accuse le produit à tort. */
+      if (/\bchecked\b/i.test(tag)) body[nom] = /\bvalue=/i.test(tag) ? at("value") : "1"
+    }
     else body[nom] = at("value")
   }
   for (const m of String(html || "").matchAll(/<select\b[^>]*name="([^"]+)"[^>]*>([\s\S]*?)<\/select>/gi)) {
-    const sel = /<option\b[^>]*\bselected\b[^>]*value="([^"]*)"/i.exec(m[2])
-    if (sel) body[m[1]] = sel[1]
-    else { const first = /<option\b[^>]*value="([^"]*)"/i.exec(m[2]); if (first) body[m[1]] = first[1] }
+    /* « selected » n'est pas toujours écrit avant « value » : on lit les deux
+       séparément, option par option, comme le fait le navigateur. */
+    let choisi = null
+    let premier = null
+    for (const o of m[2].matchAll(/<option\b([^>]*)>/gi)) {
+      const v = /value="([^"]*)"/i.exec(o[1])
+      if (!v) continue
+      if (premier === null) premier = v[1]
+      if (/\bselected\b/i.test(o[1])) choisi = v[1]
+    }
+    const retenu = choisi !== null ? choisi : premier
+    if (retenu !== null) body[m[1]] = retenu
   }
   return body
 }
@@ -133,6 +148,23 @@ test("une question enlevée disparaît pour de bon", async () => {
   assert.ok(
     !clesRendues(apres.text).includes("f_pointure"),
     "la question enlevée est revenue (clés rendues : " + clesRendues(apres.text).join(", ") + ")",
+  )
+})
+
+test("enregistrer sans rien personnaliser ne rouvre pas le tiroir", async () => {
+  /* Le piège : les champs du bouton renvoient les valeurs déjà affichées
+     (noir, blanc, grand, plein, gras). Si on ouvre le tiroir dès qu'une
+     valeur existe, le marchand qui enregistre sa nouvelle question se
+     retrouve avec les 28 champs d'allure sur les bras, pour de bon. */
+  const page = await req("/dashboard/formulaire")
+  assert.ok(!/class="tiroir" open/.test(page.text), "le tiroir est fermé au départ")
+  const body = corpsDeLaPage(page.text)
+  const post = await req("/dashboard/formulaire", form(body))
+  assert.ok([302, 303].includes(post.status))
+  const apres = await req("/dashboard/formulaire")
+  assert.ok(
+    !/class="tiroir" open/.test(apres.text),
+    "le tiroir s'est ouvert alors qu'on n'a rien personnalisé — un simple Enregistrer ne compte pas",
   )
 })
 

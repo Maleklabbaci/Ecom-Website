@@ -2519,8 +2519,17 @@ const dashForm = (user, store, list, ok) => {
      choisi un modèle, une couleur ou un bouton : sinon il croirait avoir
      perdu ses réglages. Une boutique qui n'a rien demandé garde le modèle et
      la couleur de son thème, et le tiroir reste fermé. */
-  const fmTouche = look.model !== "classique" || look.color !== "#111111"
-    || !!look.lang || CF.btnCustomized(look)
+  /* Attention à ne pas ouvrir le tiroir pour rien : les champs du bouton
+     renvoient les valeurs déjà affichées (noir #111111, blanc, grand, plein,
+     gras). Si on se contente de « une valeur est-elle présente », un simple
+     clic sur Enregistrer — pour ajouter une question, par exemple — marque
+     le bouton comme réglé et le tiroir s'ouvre pour de bon. On ne compte
+     que ce qui DIFFÈRE de l'état d'origine. */
+  const b = CF.btnOf(look.btn)
+  const fmTouche = look.model !== "classique" || look.color !== "#111111" || !!look.lang
+    || !!b.text || (b.bg && b.bg !== look.color) || (b.ink && b.ink !== look.ink)
+    || !!b.font || b.radius !== "" || b.size !== "grand" || !b.full || !b.bold
+    || b.italic || b.upper || b.shadow
   const typeName = (f) => f.type === "wilaya" ? "Wilaya" : f.type === "commune" ? "Commune" : f.type === "select" ? "Liste" : f.type === "tel" ? "Téléphone" : f.type === "email" ? "E-mail" : f.type === "textarea" ? "Texte long" : "Texte"
   const rows = CF.pieces(store, { all: true })
   const gone = CF.pieces(store, { all: true }).length
