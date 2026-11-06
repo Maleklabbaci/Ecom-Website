@@ -137,7 +137,7 @@ Après l'installation, dans le dossier de la boutique :
 
     npm test
 
-Vous devez lire :  # tests 522   # pass 522   # fail 0   # skipped 0
+Vous devez lire :  # tests 523   # pass 523   # fail 0   # skipped 0
 
 Si votre machine n'a pas de navigateur installé, les deux tests visuels
 sont sautés proprement (vous lirez # skipped 2) — ce n'est pas une erreur,
