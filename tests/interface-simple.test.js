@@ -156,7 +156,45 @@ test("un seul bouton en couleur par écran", async () => {
   }
   /* la couleur est bien celle qu'on a choisie, une seule fois dans la feuille de style */
   const css = await req("/styles.css")
-  assert.match(css.text, /--accent:#0F766E/, "l'accent est défini")
+  assert.match(css.text, /--accent:\s*#d6ff45/i, "l'accent, c'est le vert fluo de la landing")
+  assert.ok(!/0F766E|0B5A53|5EEAD4/i.test(css.text), "plus aucune trace de l'ancien vert")
+  /* le vert fluo remplit, il ne s'écrit pas : le bouton plein est en texte noir */
+  assert.match(css.text, /--accent-ink:\s*#0{3,6}\b/i, "le texte posé sur le vert fluo est noir")
+})
+
+test("blanc, noir, gris et le vert fluo — rien d'autre", async () => {
+  const fs = require("node:fs")
+  const chemin = path.join(__dirname, "..", "public", "landing.css")
+  const landing = fs.readFileSync(chemin, "utf8")
+  /* le vert fluo est bien celui de la landing */
+  assert.match(landing, /--lime:\s*#d6ff45/i, "le vert de la landing")
+  /* et aucune autre couleur vive ne traîne : ni bleu, ni violet, ni orange.
+     Sont admis : les gris/noirs/blancs (les trois composantes presque égales)
+     et le vert fluo. Tout le reste est interdit. */
+  const admis = (h) => {
+    const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16)
+    const ecart = Math.max(r, g, b) - Math.min(r, g, b)
+    if (ecart <= 14) return true                 /* gris, noir, blanc */
+    if (r > 150 && g > 200 && b < 120) return true /* le vert fluo #d6ff45 */
+    return false
+  }
+  const vives = [...landing.matchAll(/#([0-9a-f]{6})\b/gi)].map(m => m[1].toLowerCase()).filter(h => !admis(h))
+  assert.deepEqual([...new Set(vives)], [], `couleur(s) interdite(s) dans la landing : ${[...new Set(vives)].join(", ")}`)
+})
+
+test("le dashboard a les mêmes couleurs que la landing page", async () => {
+  const fs = require("node:fs", )
+  const app = fs.readFileSync(path.join(__dirname, "..", "public", "styles.css"), "utf8")
+  const landing = fs.readFileSync(path.join(__dirname, "..", "public", "landing.css"), "utf8")
+  const vert = /--lime:\s*#d6ff45/i.exec(landing)
+  assert.ok(vert, "le vert de la landing")
+  /* ce même vert est l'accent du dashboard */
+  assert.match(app, /--accent:\s*#d6ff45/i, "le dashboard prend le même vert")
+  /* et le fond, les cartes et le texte reprennent les valeurs de la landing */
+  const dash = app.slice(app.indexOf(".dash{\n  --bg:#000000"))
+  assert.match(dash, /--bg:#000000/, "fond noir, comme la landing")
+  assert.match(dash, /--card:#0c0c0c/, "cartes #0c0c0c, comme la landing")
+  assert.match(dash, /--ink:#ffffff/, "texte blanc, comme la landing")
 })
 
 /* ------------------------------------------------------------------ 4 */

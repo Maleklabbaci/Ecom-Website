@@ -1,9 +1,10 @@
 /* =====================================================================
    NovaDZ — application (auth, vitrine, dashboard, admin)
-   CHARTE : tout est neutre — encre #111111, texte #313131, papier #F6F5F3,
-   bordures #E4E4E7. UN SEUL accent, le vert NovaDZ #0F766E (et sa version
-   claire #5EEAD4 sur fond sombre). Rien d'autre en couleur : ni emoji,
-   ni dégradé, ni troisième teinte. Le détail est dans CHARTE-GRAPHIQUE.md.
+   CHARTE : du blanc, du noir, du gris — et le vert fluo #d6ff45, celui de
+   la landing page. C'est tout. Pas de bleu, pas de violet, pas de dégradé,
+   pas d'emoji. Le vert fluo REMPLIT (bouton, pastille, halo) mais ne
+   s'écrit jamais en texte sur du blanc : là, on met du noir. Détail dans
+   CHARTE-GRAPHIQUE.md.
    ===================================================================== */
 *,*::before,*::after{box-sizing:border-box}
 :root{
@@ -2024,7 +2025,7 @@ input[type=checkbox],input[type=radio]{width:15px;height:15px;flex:0 0 auto;marg
 .pwa-install[hidden]{display:none}
 .pwa-install:hover{border-color:#D4D4D8}
 .pwa-install:focus-visible{box-shadow:var(--ring,#0000)}
-.pwa-install-ico{width:24px;height:24px;flex:0 0 auto;border-radius:50%;background:#111;color:var(--accent-clair);
+.pwa-install-ico{width:24px;height:24px;flex:0 0 auto;border-radius:50%;background:#111;color:var(--accent);
   display:grid;place-items:center;font-size:15px;font-weight:500;line-height:1}
 .pwa-install-txt{font-size:10.5px;color:var(--muted);letter-spacing:.01em}
 .pwa-install-txt b{display:block;font-size:12.5px;color:var(--ink);font-weight:600;letter-spacing:-.01em}
@@ -2134,7 +2135,7 @@ input[type=url]:hover,input[type=search]:hover,input[type=tel]:hover,select:hove
   border-color:#D8D8D2;background:#FFFDF8}
 input:focus,select:focus,textarea:focus{
   border-color:var(--y-600);background:#fff;
-  box-shadow:0 0 0 4px rgba(15,118,110,.16),inset 0 1px 2px rgba(24,24,27,.02)}
+  box-shadow:0 0 0 4px rgba(214,255,69,.5),inset 0 1px 2px rgba(24,24,27,.02)}
 label{font-weight:500}
 label > input,label > select,label > textarea{margin-top:8px}
 .grid-2 > label,.grid-3 > label,.stack > label,.form > label,.pay-field,.pay-note{
@@ -2194,7 +2195,7 @@ a.link:hover,.link:hover{color:#3D3D45}
 .dash-side::-webkit-scrollbar{display:none}
 .dash-side .brand{font-size:15px;padding-bottom:2px}
 .dash-brand{gap:8px}
-.dash-bolt{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#141414;color:var(--accent-clair);box-shadow:0 0 18px rgba(94,234,212,.35)}
+.dash-bolt{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#141414;color:var(--accent);box-shadow:0 0 18px rgba(214,255,69,.35)}
 .dash-bolt svg{width:13px;height:13px;display:block}
 .dash-store{padding:10px 11px;border-radius:var(--r-md)}
 .dash-store b{font-size:12.5px}
@@ -4756,7 +4757,7 @@ img#cropImg:not([src]), img#cropImg[src=""] { display: none !important; }
 .nav-badge.warn { background: #B45309; }
 .nav-badge.danger { background: #B91C1C; }
 .nav-count { margin-left: auto; font-size: 11.5px; font-weight: 600; color: #A1A1AA; }
-.dash-nav a.on .nav-badge { background: #18181B; color: var(--accent-clair); }
+.dash-nav a.on .nav-badge { background: #18181B; color: var(--accent); }
 .dash-nav a.on .nav-count { color: #52525B; }
 .dash-more > summary .nav-badge { margin-left: auto; }
 
@@ -7013,7 +7014,7 @@ html[data-searchalign="droite"] .theme header .ndz-search-in { margin-left: auto
   background:
     linear-gradient(180deg,rgba(0,0,0,.62) 0%,rgba(0,0,0,.2) 12%,rgba(0,0,0,.28) 74%,rgba(0,0,0,.72) 100%),
     linear-gradient(90deg,#000 0%,rgba(0,0,0,.92) 18%,rgba(0,0,0,.78) 36%,rgba(0,0,0,.42) 64%,rgba(0,0,0,.5) 100%),
-    radial-gradient(380px 200px at 14% 34%,rgba(94,234,212,.12),transparent 72%);
+    radial-gradient(380px 200px at 14% 34%,rgba(214,255,69,.12),transparent 72%);
 }
 .auth-pitch{text-shadow:0 1px 14px rgba(0,0,0,.55)}
 .auth-veil::after{
@@ -7030,7 +7031,7 @@ html[data-searchalign="droite"] .theme header .ndz-search-in { margin-left: auto
 .auth-brand em{font-style:normal;color:rgba(255,255,255,.62);font-weight:500}
 .auth-bolt{
   width:28px;height:28px;border-radius:50%;display:grid;place-items:center;
-  background:#141414;color:var(--accent-clair);box-shadow:0 0 0 1px rgba(255,255,255,.08);
+  background:#141414;color:var(--accent);box-shadow:0 0 0 1px rgba(255,255,255,.08);
 }
 .auth-nav-links{display:flex;align-items:center;gap:18px}
 .auth-nav-links a{color:rgba(255,255,255,.82);text-decoration:none;font-size:14px}
@@ -7040,11 +7041,11 @@ html[data-searchalign="droite"] .theme header .ndz-search-in { margin-left: auto
   -webkit-tap-highlight-color:transparent;
   transition:background .16s ease,color .16s ease,transform .06s ease;
 }
-.auth-pill:hover,.auth-pill:focus-visible,.auth-pill:active{background:var(--accent-clair);color:#111 !important}
+.auth-pill:hover,.auth-pill:focus-visible,.auth-pill:active{background:var(--accent);color:#111 !important}
 .auth-pill:active{transform:translateY(.5px)}
 .auth-pill svg{
   width:24px;height:24px;padding:5px;box-sizing:border-box;border-radius:50%;
-  background:#111;color:var(--accent-clair);box-shadow:0 0 0 1px rgba(17,17,17,.06);
+  background:#111;color:var(--accent);box-shadow:0 0 0 1px rgba(17,17,17,.06);
 }
 .auth-mix{
   display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:56px;align-items:center;justify-content:center;
@@ -7057,10 +7058,10 @@ html[data-searchalign="droite"] .theme header .ndz-search-in { margin-left: auto
   background:radial-gradient(90% 80% at 18% 42%,rgba(0,0,0,.62),rgba(0,0,0,.28) 58%,transparent 78%);
 }
 .auth-pitch h1{
-  margin:0;color:var(--accent-clair);font:650 36px/1.05 Urbanist,Geist,Inter,sans-serif;letter-spacing:-.03em;
+  margin:0;color:var(--accent);font:650 36px/1.05 Urbanist,Geist,Inter,sans-serif;letter-spacing:-.03em;
 }
 .auth-kicker{margin:0 0 8px;font:500 15px/1.25 Urbanist,sans-serif;letter-spacing:-.02em;color:rgba(255,255,255,.68)}
-.auth-spin,.auth-spin b{color:var(--accent-clair)}
+.auth-spin,.auth-spin b{color:var(--accent)}
 .auth-spin{display:inline-block;height:1.15em;overflow:hidden;vertical-align:bottom;width:11.8em;text-align:left}
 .auth-spin b{display:block;height:1.15em;line-height:1.15;font-weight:500;animation:authspin 24s cubic-bezier(.65,0,.35,1) infinite}
 @keyframes authspin{0%,6.6%{transform:translateY(0)}9.2%,15.8%{transform:translateY(-1.15em)}18.4%,25%{transform:translateY(-2.3em)}27.6%,34.2%{transform:translateY(-3.45em)}36.8%,43.4%{transform:translateY(-4.6em)}46%,52.6%{transform:translateY(-5.75em)}55.2%,61.8%{transform:translateY(-6.9em)}64.4%,71%{transform:translateY(-8.05em)}73.6%,80.2%{transform:translateY(-9.2em)}82.8%,89.4%{transform:translateY(-10.35em)}92%,100%{transform:translateY(-11.5em)}}
@@ -7068,8 +7069,8 @@ html[data-searchalign="droite"] .theme header .ndz-search-in { margin-left: auto
 .auth-kinds{display:flex;flex-direction:column;gap:12px;margin-top:16px;max-width:340px}
 .auth-kinds b{display:flex;align-items:center;gap:8px;font:650 14px/1 Geist,Inter,sans-serif;letter-spacing:-.02em}
 .auth-kinds i{
-  width:26px;height:26px;border-radius:50%;background:var(--accent-clair);color:#111;
-  display:grid;place-items:center;box-shadow:0 0 16px rgba(94,234,212,.28);
+  width:26px;height:26px;border-radius:50%;background:var(--accent);color:#111;
+  display:grid;place-items:center;box-shadow:0 0 16px rgba(214,255,69,.28);
 }
 .auth-kinds i svg{width:13px;height:13px;display:block}
 .auth-kinds ul{list-style:none;margin:8px 0 0;padding:0 0 0 34px;display:flex;flex-direction:column;gap:6px}
@@ -7083,19 +7084,19 @@ html[data-searchalign="droite"] .theme header .ndz-search-in { margin-left: auto
 .auth-stage .auth-card .btn-primary:hover,
 .auth-stage .auth-card .btn-primary:focus-visible,
 .auth-stage .auth-card .btn-primary:active{
-  background:var(--accent-clair);border-color:var(--accent-clair);color:#111;
-  box-shadow:0 0 0 3px rgba(94,234,212,.3);
+  background:var(--accent);border-color:var(--accent);color:#111;
+  box-shadow:0 0 0 3px rgba(214,255,69,.3);
 }
 .auth-choice{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:18px}
 .auth-card .auth-pick{position:relative;height:42px;margin:0;border:0;border-radius:999px;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font:600 13.5px/1 Geist,Inter,sans-serif;padding:0 8px;min-width:0;cursor:pointer}
 .auth-pick input{position:absolute;opacity:0;width:1px;height:1px}
-.auth-pick i{width:22px;height:22px;border-radius:50%;background:var(--accent-clair);color:#111;display:grid;place-items:center;flex:0 0 auto}
+.auth-pick i{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#111;display:grid;place-items:center;flex:0 0 auto}
 .auth-pick i svg{width:12px;height:12px;display:block}
 .auth-pick:hover{background:#242424}
-.auth-card .auth-pick:has(input:checked){background:var(--accent-clair);color:#111;box-shadow:none}
-.auth-card .auth-pick:has(input:checked) i{background:#111;color:var(--accent-clair)}
+.auth-card .auth-pick:has(input:checked){background:var(--accent);color:#111;box-shadow:none}
+.auth-card .auth-pick:has(input:checked) i{background:#111;color:var(--accent)}
 .auth-mode{display:flex;align-items:center;gap:8px;margin:16px 0 0;color:#111;font:650 15px/1 Geist,Inter,sans-serif;letter-spacing:-.02em}
-.auth-mode i{width:8px;height:8px;border-radius:50%;background:var(--accent-clair);box-shadow:0 0 0 4px rgba(94,234,212,.28);flex:0 0 auto}
+.auth-mode i{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(214,255,69,.28);flex:0 0 auto}
 .auth-note{margin:8px 0 2px;font-size:12.5px;line-height:1.45;color:#5A5A5A;max-width:44ch}
 .auth-pane{display:none}
 .wel{min-height:100vh;background:#fff;color:var(--ink-2)}
@@ -7130,18 +7131,18 @@ html[data-searchalign="droite"] .theme header .ndz-search-in { margin-left: auto
 .auth-type span{color:rgba(255,255,255,.5);font:500 12px/1 Geist,Inter,sans-serif;letter-spacing:.12em;text-transform:uppercase}
 .auth-type b{display:flex;align-items:center;gap:14px;margin:12px 0 8px;font:700 40px/1 Urbanist,Geist,Inter,sans-serif;letter-spacing:-.03em}
 .auth-dot{
-  width:46px;height:46px;border-radius:50%;background:var(--accent-clair);color:#111;
-  display:grid;place-items:center;box-shadow:0 0 28px rgba(94,234,212,.32);flex:0 0 auto;
+  width:46px;height:46px;border-radius:50%;background:var(--accent);color:#111;
+  display:grid;place-items:center;box-shadow:0 0 28px rgba(214,255,69,.32);flex:0 0 auto;
 }
 .auth-dot svg{width:20px;height:20px;display:block}
 .auth-type p{margin:0;color:rgba(255,255,255,.68);font-size:15px;max-width:420px}
-.auth-type:hover{border-color:rgba(94,234,212,.45)}
+.auth-type:hover{border-color:rgba(214,255,69,.45)}
 @media(max-width:880px){
   .auth-bg{background-position:78% 12%}
   .auth-veil{
     background:
       linear-gradient(180deg,rgba(0,0,0,.94) 0%,rgba(0,0,0,.9) 46%,rgba(0,0,0,.55) 64%,rgba(0,0,0,.42) 100%),
-      radial-gradient(260px 140px at 18% 16%,rgba(94,234,212,.1),transparent 72%);
+      radial-gradient(260px 140px at 18% 16%,rgba(214,255,69,.1),transparent 72%);
   }
   .auth-mix{grid-template-columns:1fr;padding:24px 20px 40px;gap:22px;align-content:center}
   /* tactile : zones à hauteur de doigt ; 16px dans les champs = pas de zoom iOS au focus */
@@ -7527,20 +7528,68 @@ details.domain-opt > .dns-box{margin-bottom:16px}
    Rien n'est supprimé : les champs sont PLIÉS, pas effacés.
    ========================================================================== */
 :root{
-  --accent:#0F766E;          /* la seule couleur du dashboard */
-  --accent-clair:#5EEAD4;    /* la même, pour les fonds sombres (connexion, badges) */
-  --accent-dark:#0B5A53;
-  --accent-bg:#EFF6F4;
-  --paper:#F6F5F3;           /* fond des pages */
-  --card:#FFFFFF;
-  --card-line:#EAE7E2;
-  --field-line:#DDD9D3;
-  --ink-soft:#3F3F46;
-  --rhythm:40px;             /* l'air entre les blocs */
+  /* LE vert fluo, celui de la landing page. C'est le seul accent du projet. */
+  --accent:#d6ff45;
+  --accent-dark:#c2eb2e;         /* le même, appuyé (survol) */
+  --accent-ink:#000000;          /* le texte posé SUR le vert fluo : du noir */
+  --accent-texte:#d6ff45;        /* sur fond noir, le vert fluo se lit très bien */
+  --accent-bg:rgba(214,255,69,.1);
+  --rhythm:40px;                 /* l'air entre les blocs */
+}
+
+/* ---------- le dashboard prend EXACTEMENT la palette de la landing ----------
+   Mêmes valeurs, mêmes noms : --bg #000, --card #0c0c0c, --ink #fff, et le
+   blanc en transparence pour les gris. Rien n'est réinventé. La vitrine
+   garde sa palette : elle n'est pas dans .dash.                          */
+.dash{
+  --bg:#000000;
+  --bg-sub:#0c0c0c;
+  --bg-sub2:#141414;
+  --ink:#ffffff;
+  --ink-2:rgba(255,255,255,.72);
+  --ink-soft:rgba(255,255,255,.72);
+  --muted:rgba(255,255,255,.62);
+  --faint:rgba(255,255,255,.55);
+  --line:rgba(255,255,255,.1);
+  --line-2:rgba(255,255,255,.06);
+  --card:#0c0c0c;
+  --card-line:rgba(255,255,255,.1);
+  --field-line:rgba(255,255,255,.14);
+  --paper:#000000;
+  /* les états, relus pour fond noir */
+  --ok:#4ADE80; --warn:#FBBF24; --info:#7DD3FC; --danger:#F87171;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:Geist,Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 }
 
 /* ---------- 1. le fond, l'air, les cartes ---------- */
-.dash{background:var(--paper)}
+.dash .dash-side{background:#000;border-right:1px solid rgba(255,255,255,.1)}
+.dash .dash-nav a.on{background:rgba(255,255,255,.1);color:#fff;box-shadow:inset 3px 0 0 var(--accent)}
+.dash .dash-nav a:hover{background:rgba(255,255,255,.05)}
+.dash .dash-foot{border-top-color:rgba(255,255,255,.1)}
+.dash .dash-head h1::after{background:var(--accent)}
+.dash .kpi::before{background:var(--accent)}
+/* les blocs venus d'avant, qui étaient blancs : ils passent au noir de la landing */
+.dash .start{background:#0c0c0c;border:1px solid rgba(255,255,255,.1);border-left:3px solid var(--accent);box-shadow:none}
+.dash .start-head h2{color:#fff}
+.dash .start-progress{background:rgba(214,255,69,.1);border:1px solid rgba(214,255,69,.25);color:var(--accent)}
+.dash .start-item.done .start-dot{background:var(--accent);border-color:var(--accent);color:#000}
+.dash .prev-tools,.dash .prev-devices{background:#0c0c0c;border-color:rgba(255,255,255,.1)}
+.dash .prev-dev{color:rgba(255,255,255,.62)}
+.dash .prev-dev.on{background:rgba(255,255,255,.12);color:#fff}
+.dash .dash-store{border-color:rgba(255,255,255,.1)}
+/* ...et tous les sous-blocs qui étaient restés en blanc */
+.dash .lang-opt,.dash .bundle-opt,.dash .theme-now,.dash .dns-box,
+.dash .free-addr,.dash .domain-opt,.dash .opt-card,.dash .pay-card{
+  background:#0c0c0c;border-color:rgba(255,255,255,.1)}
+.dash .lang-opt:hover,.dash .bundle-opt:hover,.dash .theme-now:hover{border-color:rgba(255,255,255,.24)}
+.dash .lang-opt:has(input:checked){border-color:var(--accent);box-shadow:0 0 0 2px rgba(214,255,69,.18)}
+.dash .lang-opt span span{color:var(--muted)}
+.dash .free-addr{background:linear-gradient(180deg,#0f0f0f,#0c0c0c)}
+.dash .free-addr-tag{background:rgba(74,222,128,.12);color:#4ADE80;border-color:rgba(74,222,128,.28)}
+.dash .domain-steps .n{background:var(--accent);color:#000}
+.dash .nav-count{color:#000;background:var(--accent);border-radius:999px;padding:1px 7px}
 .dash-main{padding:34px 38px 90px;max-width:1060px}
 .dash-head{margin-bottom:26px;align-items:center}
 .dash-head h1{font-size:26px;letter-spacing:-.035em;margin-bottom:4px}
@@ -7553,17 +7602,17 @@ details.domain-opt > .dns-box{margin-bottom:16px}
   border-radius:14px;
   padding:24px 26px;
   margin-bottom:22px;
-  box-shadow:0 1px 2px rgba(17,17,17,.03);
+  box-shadow:none;
 }
 .dash .panel-head{margin-bottom:18px;padding-bottom:0;border-bottom:0;gap:12px}
 .dash .panel-head h2{font-size:16px;font-weight:600;letter-spacing:-.02em;color:var(--ink)}
 .dash .panel-head .muted{font-size:13px}
 .dash .panel-head a{font-size:13px;color:var(--muted)}
-.dash .panel-head a:hover{color:var(--accent)}
+.dash .panel-head a:hover{color:var(--accent-texte)}
 
 /* sous-blocs : une carte douce dans la carte, plus un filet */
 .dash .sub-block{
-  background:#FAFAF9;border:0;border-radius:12px;
+  background:#141414;border:1px solid rgba(255,255,255,.06);border-radius:12px;
   padding:16px 18px;margin:14px 0;
 }
 .dash .sub-head{margin-bottom:12px;flex-wrap:wrap;gap:4px}
@@ -7572,25 +7621,25 @@ details.domain-opt > .dns-box{margin-bottom:16px}
 
 /* ---------- 2. un seul bouton attire l'œil ---------- */
 .dash .btn{
-  background:#fff;color:var(--ink-soft);
-  border:1px solid var(--field-line);
+  background:#141414;color:rgba(255,255,255,.82);
+  border:1px solid rgba(255,255,255,.14);
   height:38px;padding:0 15px;border-radius:9px;
   font-size:13.5px;font-weight:500;
 }
-.dash .btn:hover{background:#FAFAF9;border-color:#C9C4BC;color:var(--ink)}
+.dash .btn:hover{background:#1e1e1e;border-color:rgba(255,255,255,.28);color:#fff}
 .dash .btn-primary{
-  background:var(--accent);color:#fff;border-color:var(--accent);
+  background:var(--accent);color:var(--accent-ink);border-color:var(--accent);
   font-weight:600;
 }
-.dash .btn-primary:hover{background:var(--accent-dark);border-color:var(--accent-dark);color:#fff}
+.dash .btn-primary:hover{background:var(--accent-dark);border-color:var(--accent-dark);color:var(--accent-ink)}
 .dash .btn-ghost{background:transparent;border-color:transparent;color:var(--muted)}
-.dash .btn-ghost:hover{background:#EFEDE9;color:var(--ink)}
+.dash .btn-ghost:hover{background:rgba(255,255,255,.07);color:#fff}
 .dash .btn-lg{height:46px;padding:0 24px;font-size:15px;border-radius:10px}
 /* les petites actions d'une ligne restent discrètes : l'œil va au bouton plein */
 .dash .icon-btn{color:var(--faint)}
-.dash .icon-btn:hover{color:var(--ink);background:#F2F0EC}
-.dash .link-danger{color:#B91C1C;font-size:13px}
-.dash .link-danger:hover{color:#7F1D1D}
+.dash .icon-btn:hover{color:#fff;background:rgba(255,255,255,.08)}
+.dash .link-danger{color:#F87171;font-size:13px}
+.dash .link-danger:hover{color:#FCA5A5}
 
 /* ---------- 3. des champs lisibles, étiquette au-dessus ---------- */
 .dash .form label,
@@ -7604,17 +7653,18 @@ details.domain-opt > .dns-box{margin-bottom:16px}
 .dash input[type=url],.dash input[type=date],.dash select,.dash textarea{
   width:100%;box-sizing:border-box;
   min-height:42px;padding:10px 13px;
-  font-size:15px;color:var(--ink);
-  background:#fff;border:1px solid var(--field-line);border-radius:10px;
+  font-size:15px;color:#fff;
+  background:#121212;border:1px solid var(--field-line);border-radius:10px;
   transition:border-color .15s ease,box-shadow .15s ease;
 }
 .dash textarea{min-height:96px;line-height:1.55}
 .dash input:focus,.dash select:focus,.dash textarea:focus{
   outline:none;border-color:var(--accent);
-  box-shadow:0 0 0 3px rgba(15,118,110,.13);
+  box-shadow:0 0 0 4px rgba(214,255,69,.28);
 }
-.dash input[readonly],.dash input[disabled]{background:#F7F6F4;color:var(--muted)}
+.dash input[readonly],.dash input[disabled]{background:#191919;color:var(--faint)}
 .dash .field-hint{display:block;font-size:12.5px;font-weight:400;color:var(--faint);margin-top:6px;line-height:1.45}
+.dash input::placeholder,.dash textarea::placeholder{color:rgba(255,255,255,.3)}
 .dash .form-row{margin-bottom:18px}
 .dash .form-row.two,.dash .form-row.three{gap:18px}
 /* cases et radios : une seule ligne, jamais serrée */
@@ -7627,11 +7677,11 @@ details.domain-opt > .dns-box{margin-bottom:16px}
 }
 
 /* ---------- 4. le tiroir « Plus de réglages » ---------- */
-.tiroir{margin-top:16px;border-top:1px solid #EFEDE9;padding-top:12px}
+.tiroir{margin-top:16px;border-top:1px solid rgba(255,255,255,.1);padding-top:12px}
 .tiroir>summary{
   cursor:pointer;list-style:none;
   display:flex;align-items:center;gap:10px;
-  font-size:13.5px;font-weight:600;color:#52525B;
+  font-size:13.5px;font-weight:600;color:rgba(255,255,255,.62);
   padding:8px 0;user-select:none;
 }
 .tiroir>summary::-webkit-details-marker{display:none}
@@ -7650,7 +7700,7 @@ details.domain-opt > .dns-box{margin-bottom:16px}
 .dash .kpis{gap:14px;margin-bottom:22px}
 .dash .kpi{
   background:var(--card);border:1px solid var(--card-line);border-radius:14px;
-  padding:18px 20px;box-shadow:0 1px 2px rgba(17,17,17,.03);
+  padding:18px 20px;box-shadow:none;
 }
 .dash .kpi>span{font-size:12.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .dash .kpi>b{font-size:30px;font-weight:600;letter-spacing:-.04em;color:var(--ink);margin:6px 0 2px}
@@ -7662,7 +7712,7 @@ details.domain-opt > .dns-box{margin-bottom:16px}
   font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;
   color:var(--faint);border-bottom:1px solid var(--card-line);padding:0 12px 10px;
 }
-.dash .table td{padding:14px 12px;border-bottom:1px solid #F4F2EF}
+.dash .table td{padding:14px 12px;border-bottom:1px solid rgba(255,255,255,.06);color:rgba(255,255,255,.72)}
 .dash .table tbody tr:last-child td{border-bottom:0}
 
 /* ---------- téléphone ---------- */
@@ -7683,31 +7733,31 @@ details.domain-opt > .dns-box{margin-bottom:16px}
 .dash .home-actions{padding:6px 0}
 .home-act{
   display:flex;align-items:center;gap:14px;flex-wrap:wrap;
-  padding:15px 26px;border-bottom:1px solid #F4F2EF;
+  padding:15px 26px;border-bottom:1px solid rgba(255,255,255,.06);
 }
 .home-act:last-child{border-bottom:0}
 .home-act b{font-size:15px;font-weight:600;color:var(--ink)}
 .home-act span{font-size:13px;color:var(--muted);flex:1;min-width:180px}
 .home-act i{
-  font-style:normal;font-size:13px;font-weight:600;color:var(--accent);
+  font-style:normal;font-size:13px;font-weight:600;color:var(--accent-texte);
   white-space:nowrap;
 }
-.home-act:hover{background:#FAFAF9}
-.home-act.danger i{color:#B91C1C}
+.home-act:hover{background:rgba(255,255,255,.04)}
+.home-act.danger i{color:#F87171}
 .home-calme{
   display:flex;align-items:center;gap:10px;
   padding:16px 26px;margin:0;font-size:14.5px;color:var(--muted);
 }
 .dash .home-reste{padding:20px 26px}
-.reste-grp{display:flex;flex-wrap:wrap;gap:4px 14px;padding:7px 0;border-bottom:1px solid #F7F5F2}
+.reste-grp{display:flex;flex-wrap:wrap;gap:4px 14px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06)}
 .reste-grp:last-child{border-bottom:0}
 .reste-grp>b{
   flex:0 0 110px;font-size:12.5px;font-weight:700;text-transform:uppercase;
   letter-spacing:.05em;color:var(--faint);padding-top:2px;
 }
 .reste-grp>p{margin:0;flex:1;font-size:13.5px;line-height:1.9}
-.reste-grp a{color:#52525B}
-.reste-grp a:hover{color:var(--accent);text-decoration:underline}
+.reste-grp a{color:rgba(255,255,255,.62)}
+.reste-grp a:hover{color:var(--accent-texte);text-decoration:underline}
 @media (max-width:860px){
   .home-act{padding:13px 16px}
   .dash .home-reste{padding:14px 16px}
@@ -7716,10 +7766,10 @@ details.domain-opt > .dns-box{margin-bottom:16px}
 
 /* ---------- les anciens tiroirs prennent la tête des nouveaux ---------- */
 .dash details.adv{
-  margin:16px 0 6px;background:#FAFAF9;border:0;border-radius:12px;padding:0;
+  margin:16px 0 6px;background:#0c0c0c;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:0;
 }
 .dash details.adv>summary{
-  padding:14px 18px;font-size:13.5px;font-weight:600;color:#52525B;
+  padding:14px 18px;font-size:13.5px;font-weight:600;color:rgba(255,255,255,.62);
   display:flex;align-items:center;gap:10px;flex-wrap:wrap;
 }
 .dash details.adv>summary::before{
@@ -7729,6 +7779,66 @@ details.domain-opt > .dns-box{margin-bottom:16px}
   transition:transform .18s ease;
 }
 .dash details.adv[open]>summary::before{transform:rotate(-135deg) translate(-2px,-2px)}
-.dash details.adv[open]>summary{border-bottom:1px solid #F0EEEA;margin-bottom:6px;color:var(--ink)}
+.dash details.adv[open]>summary{border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:6px;color:#fff}
 .dash details.adv>summary b{color:var(--ink)}
 .dash details.adv .ship-grid{padding:8px 18px 18px}
+
+/* ==========================================================================
+   LES BLOCS QUI ÉTAIENT RESTÉS BLANCS
+   Trouvés un par un par le navigateur (audit de contraste) : du texte clair
+   posé sur un fond blanc, donc illisible. Ils passent au noir de la landing.
+   Les sélecteurs sont volontairement précis (.dash .dash-main …) parce que
+   certaines règles d'origine le sont encore plus.
+   Une seule exception, en bas : l'aperçu du formulaire, qui montre ce que
+   VOIT LE CLIENT — lui, il reste clair, comme la vitrine.
+   ========================================================================== */
+.dash .dash-main .ship-cell,.dash .dash-main .ship-all,
+.dash .dash-main .dlv-mode,.dash .dash-main .cat-card,.dash .dash-main .stat,
+.dash .dash-main .stock-step,.dash .dash-main .ml-title,.dash .dash-main .ml-skip,
+.dash .dash-main .cat-edit-form,.dash .dash-main .ndz-bell-btn{
+  background:#0c0c0c;border-color:rgba(255,255,255,.1)}
+.dash .dash-main .table tbody tr.sub-row td,
+.dash .dash-main .stock-table tr.sub-row td,
+.dash .dash-main .m-list .ml-more{background:#101010;color:rgba(255,255,255,.72)}
+.dash .dash-main .table tbody tr:hover{background:rgba(255,255,255,.05)}
+/* le constructeur de formulaire */
+.dash .dash-main .fm-side,.dash .dash-main .fm-block{background:#0c0c0c;border-color:rgba(255,255,255,.1)}
+.dash .dash-main .fm-card,.dash .dash-main label.fm-card,
+.dash .dash-main .fm-custom,.dash .dash-main .fm-btn-preview,
+.dash .dash-main .pay-card{background:#0c0c0c;border-color:rgba(255,255,255,.1);color:rgba(255,255,255,.72)}
+.dash .dash-main .fm-card b,.dash .dash-main .fm-block h2,
+.dash .dash-main .fm-block label,.dash .dash-main label.fm-card b{color:#fff}
+.dash .dash-main .fm-card.on{border-color:var(--accent);box-shadow:0 0 0 2px rgba(214,255,69,.16)}
+.dash .dash-main .fm-card:hover,.dash .dash-main .pay-card:hover{border-color:rgba(255,255,255,.26);background:#141414}
+/* tous les champs, où qu'ils soient */
+.dash .dash-main select,.dash .dash-main .inline select,
+.dash .dash-main .stock-form select,.dash .dash-main .fld-more select,
+.dash .dash-main .fm-add select{
+  background:#121212;color:#fff;border-color:rgba(255,255,255,.14)}
+/* la carte du parcours guidé n'est pas dans .dash-main, mais bien dans .dash */
+.dash .tour-card{background:#0c0c0c;border-color:rgba(255,255,255,.12);color:rgba(255,255,255,.72)}
+.dash .tour-card b,.dash .tour-card h3,.dash .tour-card h4{color:#fff}
+/* les derniers gris qui dataient du fond blanc */
+.dash .ship-eta em{color:var(--muted)}
+.dash .tour-sous,.dash .inline-form label{color:var(--ink-soft)}
+.dash .pill.off{color:#52525B}
+.dash .cat-edit>summary,.dash .cat-del{color:var(--muted)}
+.dash .pay-field,.dash .pay-note,.dash .pay-sub{color:var(--ink-soft)}
+.dash .link-danger,.dash button.link-danger{color:#F87171}
+.dash .dash-main button.link-danger{color:#F87171}
+/* une règle d'avant force la couleur avec !important : on la reprend de la même façon */
+.dash .link-danger,.dash button.link-danger{color:#F87171 !important;border-color:rgba(248,113,113,.4) !important}
+.dash .dash-main label.check small{color:var(--muted)}
+.dash .dash-main .grid-2>label,.dash .dash-main .grid-3>label,
+.dash .dash-main .stack>label,.dash .dash-main .dz-cred>span,
+.dash .dash-main .dz-cred>label{color:var(--ink-soft)}
+.dash .dash-main .fm-add select,.dash .dash-main .fm-add input,
+.dash .dash-main .fm-add textarea{background:#121212;color:#fff;border-color:rgba(255,255,255,.14)}
+/* l'aperçu du formulaire : ce que voit le client, donc la palette de la vitrine */
+.dash .fm-preview,.dash .fm-phone{
+  --ink:#111111;--ink-2:#313131;--muted:#71717A;--faint:#A1A1AA;
+  --line:#E4E4E7;--line-2:#F4F4F5;--card:#FFFFFF;--bg:#FFFFFF;--bg-sub:#FAFAFA;
+  background:#ffffff;color:#313131}
+.dash .fm-preview b,.dash .fm-preview span,.dash .fm-preview label,
+.dash .fm-preview p,.dash .fm-preview small,.dash .fm-preview div{color:#313131}
+.dash .fm-phone{background:#f4f1eb}

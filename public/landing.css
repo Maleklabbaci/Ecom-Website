@@ -354,7 +354,7 @@ body.lp{
   background:radial-gradient(circle at 50% 40%,rgba(80,120,255,.18),#0a0a0a 70%);
   border:1px solid rgba(80,140,255,.35);border-radius:14px;
 }
-.pub span{background:#3b6cff;color:#fff;border-radius:10px;padding:12px 18px;font:600 14px/1 Geist,sans-serif;display:inline-flex;gap:6px;align-items:center}
+.pub span{background:#d6ff45;color:#111;border-radius:10px;padding:12px 18px;font:600 14px/1 Geist,sans-serif;display:inline-flex;gap:6px;align-items:center}
 
 .bento{display:grid;grid-template-columns:1.3fr .9fr .9fr;gap:14px}
 .bcard{

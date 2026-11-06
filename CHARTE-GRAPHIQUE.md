@@ -1,69 +1,70 @@
 # NovaDZ — charte graphique
 
-Écrite le 6 novembre, au moment où on a rangé le dashboard.
-**Elle sert à une seule chose : que deux écrans faits à six mois d'intervalle
-se ressemblent.** Tout le reste — polices, couleurs, tailles — est déjà décidé
-ici. Si un écran a besoin d'une règle qui n'est pas dans ce fichier, on
-l'ajoute ici d'abord.
+Écrite le 6 novembre. **Le dashboard prend exactement les couleurs de la
+landing page.** Mêmes valeurs, mêmes noms, rien de réinventé.
 
 ---
 
-## 1. L'idée
+## 1. La palette
 
-Le marchand n'a pas le temps de lire une interface. Une page doit se comprendre
-en trois secondes, sans réfléchir. Donc :
+Ce sont les valeurs de `landing.css`, reprises telles quelles.
 
-- **une page = une seule chose à faire**, et un seul bouton qui la fait ;
-- **la hiérarchie vient de la taille et du vide**, jamais de la couleur ;
-- **le gris est la couleur par défaut.** La couleur est une récompense.
-
-C'est pour ça que tout est noir, blanc et gris. Ce n'est pas une absence de
-décision : c'est ce qui fait que le seul bouton vert saute aux yeux.
-
----
-
-## 2. Les couleurs
-
-| Rôle | Valeur | Où |
+| Rôle | Valeur | Note |
 |---|---|---|
-| **Vert NovaDZ** (le seul accent) | `#0F766E` | le bouton qui enregistre, le liseré d'un champ actif, les liens au survol |
-| Vert appuyé | `#0B5A53` | ce même bouton, au survol |
-| Vert clair | `#5EEAD4` | **uniquement** sur fond sombre (écran de connexion, pastilles) |
-| Vert en nappe | `#EFF6F4` | fond d'un bloc qu'on veut signaler sans crier |
-| Encre (titres) | `#111111` | les titres, les chiffres |
-| Texte | `#313131` | le corps de texte |
-| Gris moyen | `#71717A` | les sous-titres, les aides |
-| Gris clair | `#A1A1AA` | les étiquettes de section, les rappels |
-| Papier (fond des pages) | `#F6F5F3` | le fond du dashboard |
-| Carte | `#FFFFFF` | les blocs |
-| Bordure de carte | `#EAE7E2` | le tour des blocs |
-| Bordure de champ | `#DDD9D3` | le tour des champs |
+| Fond des pages | `#000000` | noir, comme la landing |
+| Carte / panneau | `#0c0c0c` | noir à peine éclairci |
+| Bloc dans un bloc | `#141414` | pour les sous-blocs et les champs |
+| Champ | `#121212` | |
+| Texte | `#ffffff` | |
+| Texte secondaire | `rgba(255,255,255,.72)` | |
+| Gris moyen | `rgba(255,255,255,.62)` | `--muted` |
+| Gris discret | `rgba(255,255,255,.55)` | `--faint`, le plus clair autorisé |
+| Bordure | `rgba(255,255,255,.1)` | `--line` |
+| Bordure de champ | `rgba(255,255,255,.14)` | |
+| Filet discret | `rgba(255,255,255,.06)` | |
 
-Les quatre états gardent leurs couleurs, parce qu'un marchand doit les
-reconnaître sans lire : succès `#15803D`, attention `#B45309`, information
-`#1D4ED8`, danger `#B91C1C`.
+**Et le vert fluo :**
 
-**Rien d'autre.** Pas de bleu ailleurs, pas de violet, pas de dégradé.
+| Rôle | Valeur |
+|---|---|
+| Le vert fluo (le seul accent) | `#d6ff45` |
+| Le même, appuyé (survol) | `#c2eb2e` |
+| Le texte posé dessus | `#000000` |
+| Le vert en nappe | `rgba(214,255,69,.1)` |
+
+Les états gardent leurs couleurs, relues pour le fond noir : succès
+`#4ADE80`, attention `#FBBF24`, information `#7DD3FC`, danger `#F87171`.
+
+**Rien d'autre.** Ni bleu, ni violet, ni dégradé, ni emoji.
+
+---
+
+## 2. Comment on se sert du vert fluo
+
+Le vert fluo **remplit**, il ne s'écrit presque jamais :
+
+- **Oui** : le bouton qui enregistre (fond vert fluo, **texte noir**), une
+  pastille, un liseré, le halo d'un champ actif, le filet de 3 px d'une carte.
+- **Non** : du texte vert fluo minuscule sur du blanc — on ne le lirait pas.
+  Sur fond noir en revanche, il se lit très bien : c'est sa place.
 
 ---
 
 ## 3. La règle des boutons
 
-C'est la règle la plus importante, celle qui a manqué le plus longtemps.
-
-- **Un seul bouton en couleur par formulaire** : celui qui enregistre, qui
-  crée, qui valide. Les marchands cliquent dessus sans chercher.
-- Tous les autres sont **gris, à bordure fine** : « Ajouter », « Nouvelle
-  page », « Récupérer les tarifs », « Exporter ». Ils restent là, ils ne
-  crient pas.
-- Les actions destructives sont **un lien rouge**, jamais un bouton plein.
+- **Un seul bouton en vert fluo par formulaire** : celui qui enregistre, crée
+  ou valide.
+- Tous les autres sont **gris** : fond `#141414`, bordure
+  `rgba(255,255,255,.14)`, texte `rgba(255,255,255,.82)`.
+- Les actions destructives sont un **lien rouge** `#F87171`, jamais un bouton
+  plein.
 - Les petites actions d'une ligne (modifier, voir) sont des **icônes grises**.
 
 ---
 
 ## 4. Le texte
 
-Police : **Inter**, avec la police du système en secours.
+Police : **Geist** (celle de la landing), avec Inter en secours.
 Corps de texte 14 px, interligne 1,5.
 
 | Usage | Taille | Graisse |
@@ -77,47 +78,52 @@ Corps de texte 14 px, interligne 1,5.
 | Bouton | 13,5 px | 500 |
 | Aide sous un champ | 12,5 px | 400, gris |
 
+**Aucun texte en dessous de 12 px**, et aucun sous 4,5:1 de contraste. Ça se
+vérifie : un audit automatique passe sur les vingt écrans du dashboard et
+compte les textes illisibles. Aujourd'hui il en compte **zéro**.
+
 ---
 
 ## 5. L'air et les angles
 
-- **40 px** entre deux blocs. C'est le rythme (`--rhythm`).
+- **40 px** entre deux blocs (le rythme).
 - **24 px** de marge à l'intérieur d'une carte.
 - **18 px** entre deux champs.
-- Angles : 14 px pour les cartes, 10 px pour les champs, 9 px pour les
-  boutons, 999 px pour les pastilles.
-- Ombres : une seule, très douce (`0 1px 2px rgba(17,17,17,.03)`). Une ombre
-  qu'on remarque est une ombre ratée.
-- Largeur de lecture du dashboard : 1 060 px. Pas plus.
+- Angles : 14 px cartes, 10 px champs, 9 px boutons, 999 px pastilles.
+- **Pas d'ombre portée** : sur fond noir, une ombre ne se voit pas. On
+  sépare avec un filet ou une nuance de noir, jamais avec une ombre.
+- Largeur de lecture du dashboard : 1 060 px.
 
 ---
 
 ## 6. Le tiroir
 
-Une page pose **trois questions**. Tout le reste descend dans un tiroir
+Une page pose **trois questions**. Le reste descend dans un tiroir
 « ▸ Plus de réglages ».
 
 **Rien n'est jamais supprimé** : ce qui est plié est toujours dans la page, et
 le tiroir s'ouvre tout seul quand les réglages qu'il contient sont déjà
-remplis. Personne ne doit croire qu'on lui a volé une case.
+remplis.
 
 ---
 
 ## 7. Ce qui est interdit
 
-- Plus d'une couleur d'accent à l'écran.
-- Un emoji dans une interface (dans le contenu du marchand, c'est son choix).
-- Deux boutons pleins côte à côte.
-- Un dégradé, une ombre portée marquée, une bordure de 3 px.
-- Du texte en dessous de 12 px.
-- Un filet sous chaque ligne, alors que le vide suffit.
+- Une couleur qui n'est pas dans la palette.
+- Deux boutons vert fluo côte à côte.
+- Du vert fluo en petit texte sur du blanc.
+- Un emoji dans l'interface (dans le contenu du marchand, c'est son choix).
+- Un dégradé, une ombre portée, une bordure de 3 px.
+- Du texte en dessous de 12 px, ou sous 4,5:1 de contraste.
 
 ---
 
-## 8. La vitrine
+## 8. Ce qui ne bouge pas
 
-La vitrine (ce que voit le client) garde aujourd'hui son noir `#111111` comme
-accent, avec ses six présentations : Calme, Claire (celle par défaut), Centré,
-Affiche, Séparé, Large. **Les boutiques en ligne ne bougent pas** : le passage
-de la vitrine sous cette charte se fera en une fois, quand on la rangera, et
-les boutiques déjà publiées garderont leur rendu tant qu'on ne l'a pas décidé.
+**La vitrine garde ses couleurs.** Elle est claire, avec son noir `#111111`
+et ses six présentations (Calme, Claire — celle par défaut —, Centré,
+Affiche, Séparé, Large). Les boutiques déjà en ligne ne bougent pas d'un
+pouce.
+
+Une seule exception, volontaire : **l'aperçu du formulaire**, dans le
+dashboard, reste clair — parce qu'il montre ce que voit le client.
