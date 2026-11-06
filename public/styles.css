@@ -7673,7 +7673,7 @@ details.domain-opt > .dns-box{margin-bottom:16px}
 /* ---------- l'accueil : AUJOURD'HUI / POUR AVANCER / LE RESTE ---------- */
 .dash .home-titre{
   margin:30px 0 14px;
-  font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;
+  font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;
   color:var(--faint);
 }
 .dash .home-titre:first-of-type{margin-top:0}
@@ -7699,7 +7699,7 @@ details.domain-opt > .dns-box{margin-bottom:16px}
 .reste-grp{display:flex;flex-wrap:wrap;gap:4px 14px;padding:7px 0;border-bottom:1px solid #F7F5F2}
 .reste-grp:last-child{border-bottom:0}
 .reste-grp>b{
-  flex:0 0 110px;font-size:12px;font-weight:700;text-transform:uppercase;
+  flex:0 0 110px;font-size:12.5px;font-weight:700;text-transform:uppercase;
   letter-spacing:.05em;color:var(--faint);padding-top:2px;
 }
 .reste-grp>p{margin:0;flex:1;font-size:13.5px;line-height:1.9}
