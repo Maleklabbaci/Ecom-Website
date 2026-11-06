@@ -621,38 +621,73 @@ const inlineOrderForm = (store, p, variants) => {
     : (groups.length ? optionPicker(store, p, VARIANTES.lire(p.option_groups)) : "")
   const flow = CF.pieces(store)
   const noteLast = flow.length && flow[flow.length - 1].id === "paynote"
-  const parts = []
-  /* Le sélecteur de variantes liées doit être vu, même si le bloc « variantes »
-     n'est pas coché dans l'écran Formulaire : sans lui, le client ne peut pas
-     choisir sa combinaison. On le pose en tête, à sa place. */
+  /* Vitrine v9 — une fiche produit, trois questions.
+     Ce que le client a vraiment à décider (la variante, la quantité, la
+     façon de livrer) reste sous ses yeux. Ses coordonnées partent dans un
+     pli « 2. Vos informations » qui s'ouvre d'un clic sur le bouton.
+     Rien n'est supprimé : sans JavaScript, le pli est ouvert d'office. */
+  const ordered = []
   let variantesPosees = false
   let fieldBuf = []
+  let moreBuf = []
   const flush = () => {
-    if (!fieldBuf.length) return
-    parts.push(`<div class="ck-grid">${fieldBuf.join("")}</div>`)
-    fieldBuf = []
+    if (fieldBuf.length) { ordered.push({ step: 2, html: `<div class="ck-grid">${fieldBuf.join("")}</div>` }); fieldBuf = [] }
+    if (moreBuf.length) { ordered.push({ step: 3, html: `<div class="ck-grid">${moreBuf.join("")}</div>` }); moreBuf = [] }
   }
   let deliveryOn = false
   for (const piece of (noteLast ? flow.slice(0, -1) : flow)) {
     if (piece.kind === "field") {
-      fieldBuf.push(CF.renderField(piece.field, store, extra, lang, def, look))
+      const f = piece.field
+      /* un champ que le marchand a rendu facultatif part dans « Plus » */
+      ;(f.required ? fieldBuf : moreBuf).push(CF.renderField(f, store, extra, lang, def, look))
       continue
     }
     flush()
-    if (piece.id === "variants" && choices) { parts.push(choices); variantesPosees = true }
-    else if (piece.id === "qty") parts.push(qtyBlock(p, open, CF.pieceText(store, "qty", lang)))
+    if (piece.id === "variants" && choices) { ordered.push({ step: 1, html: choices }); variantesPosees = true }
+    else if (piece.id === "qty") ordered.push({ step: 1, html: qtyBlock(p, open, CF.pieceText(store, "qty", lang)) })
     else if (piece.id === "delivery") {
       deliveryOn = true
-      parts.push(deliveryChoice(store, p, look))
+      ordered.push({ step: 1, html: deliveryChoice(store, p, look) })
     } else if (piece.id === "position") {
-      parts.push(CF.geoBlock(store, lang, CF.pieceText(store, "position", lang)))
+      ordered.push({ step: 2, geo: 1, html: CF.geoBlock(store, lang, CF.pieceText(store, "position", lang)) })
     } else if (piece.id === "paynote") {
-      parts.push(`<p class="ndz-buyform-note">${icon("shield", 13)} ${esc(CF.pieceText(store, "paynote", lang))}</p>`)
+      ordered.push({ step: 1, html: `<p class="ndz-buyform-note">${icon("shield", 13)} ${esc(CF.pieceText(store, "paynote", lang))}</p>` })
     }
   }
   flush()
-  if (choices && !variantesPosees) parts.unshift(choices)
-  if (!deliveryOn) parts.push(`<input type="hidden" name="delivery" value="home">`)
+  if (choices && !variantesPosees) ordered.unshift({ step: 1, html: choices })
+  if (!deliveryOn) ordered.push({ step: 1, html: `<input type="hidden" name="delivery" value="home">` })
+  /* ce qui se suit se regroupe : jamais deux plis collés l'un à l'autre */
+  const runs = []
+  for (const it of ordered) {
+    const st = it.step === 3 ? 2 : it.step
+    const last = runs.length ? runs[runs.length - 1] : null
+    if (last && last.step === st) last.items.push(it)
+    else runs.push({ step: st, items: [it] })
+  }
+  let premierPli = true
+  const parts = runs.map((r) => {
+    if (r.step === 1) return r.items.map((i) => i.html).join("\n  ")
+    /* le bouton « Ma position » passe devant : il remplit wilaya et commune */
+    const tri = r.items.slice().sort((x, y) => (y.geo ? 1 : 0) - (x.geo ? 1 : 0))
+    let corps = ""
+    let enPlus = []
+    const videPlus = () => {
+      if (!enPlus.length) return
+      corps += `<details class="ck-more"><summary>${esc(I18N.t(lang, "Plus d'options"))}</summary>${enPlus.join("")}</details>`
+      enPlus = []
+    }
+    for (const it of tri) {
+      if (it.step === 3) enPlus.push(it.html)
+      else { videPlus(); corps += it.html }
+    }
+    videPlus()
+    const titre = premierPli
+      ? `<p class="ck-step-t"><b>2</b> ${esc(I18N.t(lang, "Vos informations"))}</p>` : ""
+    premierPli = false
+    return `<div class="ck-step2" data-ck-step="2">${titre}${corps}</div>`
+  })
+  const plie = parts.some((h) => h.indexOf('data-ck-step="2"') !== -1)
   /* Le bouton « Commander » : le marchand choisit le mot, le fond, la police… */
   const buy = CF.btnText(look, say("Commander"))
   const btnLook = CF.btnOf(look.btn)
@@ -662,7 +697,17 @@ const inlineOrderForm = (store, p, variants) => {
     : "" 
   const note = noteLast ? `<p class="ndz-buyform-note">${icon("shield", 13)} ${esc(CF.pieceText(store, "paynote", lang))}</p>` : ""
   const lock = look.lang === "fr"
+  /* le pli est refermé tout de suite par le JavaScript ; sans JavaScript le
+     <noscript> le laisse grand ouvert et le formulaire marche comme avant */
+  const cssPli = plie
+    ? `<style>.ck-step2:not(.ck-open){display:none}.ndz-buyform.ndz-ouvert .ndz-buyform-hint{display:none}</style>` +
+      `<noscript><style>.ck-step2{display:block !important}</style></noscript>`
+    : ""
+  const aide = plie
+    ? `<p class="ndz-buyform-hint">${esc(I18N.t(lang, "Un clic de plus pour nous dire où livrer."))}</p>`
+    : ""
   const form = `
+${cssPli}
 <form class="ndz-buyform varform ck-shell ck-shell-${look.model}${lang === "ar" ? " ck-ar" : ""}" data-p="${p.id}" style="${CF.lookStyle(look)}" method="post" action="/${esc(store.slug)}/checkout" dir="${lang === "ar" ? "rtl" : "ltr"}" data-price="${Number(p.price_cents) || 0}" data-cur="${esc(cur(store))}" data-slug="${esc(store.slug)}" data-lang="${esc(lang)}">
   <input type="hidden" name="buy_id" value="${p.id}">
   /* le choix de variantes liées : la clé pour le stock, le libellé pour la commande */
@@ -674,6 +719,7 @@ const inlineOrderForm = (store, p, variants) => {
     data-label="${esc(buy)}" style="${esc(CF.btnStyle(look))}">
     ${esc(buy)} — ${price(store, p.price_cents)}
   </button>
+  ${aide}
   ${note}
 </form>`
   return lock ? `<!--ndz-lock-->${form}<!--/ndz-lock-->` : form
@@ -1285,14 +1331,20 @@ const footerHtml = (store) => {
   </footer>`
 }
 
-const askBox = (store) => `<form class="ndz-ask" method="post" action="/${esc(store.slug)}/question">
-  <b>Une question pour la boutique</b>
+/* Vitrine v9 : la question à la boutique se range dans un pli. Elle était
+   dépliée en bas de CHAQUE page — accueil, fiche, panier, commande — et
+   ajoutait quatre cases là où le client était venu pour autre chose.
+   Rien n'est enlevé : un clic l'ouvre. */
+const askBox = (store) => `<details class="ndz-askbox">
+  <summary><b>Une question pour la boutique</b></summary>
+  <form class="ndz-ask" method="post" action="/${esc(store.slug)}/question">
   <p>Le marchand reçoit le message dans ses notifications. Personne ne répond à votre place.</p>
   <input name="name" maxlength="60" placeholder="Votre nom" autocomplete="name">
   <input name="phone" maxlength="20" placeholder="Téléphone" autocomplete="tel">
   <textarea name="text" required maxlength="400" placeholder="Votre question"></textarea>
   <button type="submit">Envoyer au marchand</button>
-</form>`
+  </form>
+</details>`
 
 /* -------- bandeau d'annonce (réglage vendeur, éteint par défaut) -------- */
 const announceHtml = (store) => {

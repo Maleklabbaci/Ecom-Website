@@ -166,6 +166,8 @@ const DICT = [
   ["Commander directement", "اطلب مباشرة"],
   ["Finaliser la commande", "إتمام الطلب"],
   ["Vos informations", "معلوماتك"],
+  ["Plus d'options", "خيارات إضافية"],
+  ["Un clic de plus pour nous dire où livrer.", "نقرة واحدة لنعرف أين نوصل إليك."],
   ["Votre commande", "طلبك"],
   ["Confirmer · ", "تأكيد · "],
   ["Confirmer la commande", "تأكيد الطلب"],

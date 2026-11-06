@@ -306,7 +306,25 @@ const pieces = (store, opts = {}) => {
     })
   }
   const order = look.order && look.order.length ? look.order : DEFAULT_ORDER
-  const rank = new Map(order.map((id, i) => [id, i]))
+  /* Un bloc absent de l'ordre enregistré garde la place qu'il a par défaut,
+     au lieu d'être rejeté tout en bas du formulaire (la quantité après
+     l'adresse, par exemple, quand l'ordre vient d'une ancienne boutique). */
+  const vu = new Set(order)
+  const complet = order.slice()
+  for (const id of DEFAULT_ORDER) {
+    if (vu.has(id)) continue
+    const i = DEFAULT_ORDER.indexOf(id)
+    const avant = DEFAULT_ORDER.slice(0, i).reverse().find((x) => vu.has(x))
+    let pos
+    if (avant) pos = complet.indexOf(avant) + 1
+    else {
+      const apres = DEFAULT_ORDER.slice(i + 1).find((x) => vu.has(x))
+      pos = apres ? Math.max(0, complet.indexOf(apres)) : complet.length
+    }
+    complet.splice(pos, 0, id)
+    vu.add(id)
+  }
+  const rank = new Map(complet.map((id, i) => [id, i]))
   items.sort((a, b) => (rank.has(a.id) ? rank.get(a.id) : 800) - (rank.has(b.id) ? rank.get(b.id) : 800))
   if (opts.all) return items.filter((p) => !p.gone)
   return items.filter((p) => p.on && !p.gone)
@@ -541,13 +559,19 @@ const fields = (store, extra = {}) => {
   const idle = new Set(look.idle || [])
   const hasGeo = !extra.skipGeo && !off.has("position") && !idle.has("position")
     && list.some((f) => f.key === "address" || f.key === "commune" || f.type === "wilaya")
+  /* Vitrine v9 : « Ma position » passe devant les champs — un clic remplit
+     la wilaya et la commune, alors qu'en dessous il arrivait trop tard.
+     Ce que le marchand a laissé facultatif part dans « Plus d'options ». */
+  const grille = (arr) =>
+    arr.length ? `<div class="ck-grid">${arr.map((f) => renderField(f, store, extra, lang, def, look)).join("\n  ")}</div>` : ""
+  const obl = list.filter((f) => f.required)
+  const fac = list.filter((f) => !f.required)
   return `
 <div class="ck-look ck-${look.model}" style="${lookStyle(look)}">
-<div class="ck-grid">
-  ${list.map((f) => renderField(f, store, extra, lang, def, look)).join("\n  ")}
-</div>
-<p class="ck-eta" data-eta></p>
 ${hasGeo ? geoBlock(store, lang, pieceText(store, "position", lang)) : ""}
+${grille(obl)}
+${fac.length ? `<details class="ck-more"><summary>${esc(I18N.t(lang, "Plus d\'options"))}</summary>${grille(fac)}</details>` : ""}
+<p class="ck-eta" data-eta></p>
 </div>`
 }
 

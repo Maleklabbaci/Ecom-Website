@@ -102,6 +102,67 @@
   if (window.MutationObserver) {
     new MutationObserver(parts).observe(root, { attributes: true, attributeFilter: ["data-parts", "data-drawer", "data-drawer-open"] })
   }
+  /* ---- Vitrine v9 : la fiche produit en deux temps ---------------------
+     Le formulaire de commande de la fiche produit garde tous ses champs ;
+     ceux des coordonnées attendent dans un pli que le bouton ouvre.
+     Sans JavaScript, le pli n'est jamais refermé : tout reste visible et
+     le formulaire fonctionne exactement comme avant.                     */
+  /* Rien de ce qu'on écrit ici ne doit pouvoir être enregistré dans la page :
+     l'éditeur (Studio) sauvegarde quelquefois le HTML tel qu'il est à l'écran.
+     On ne touche donc jamais à `disabled` — un champ désactivé serait
+     enregistré désactivé et ne partirait plus à la commande. On retire
+     seulement `required`, que le serveur revérifie de toute façon. */
+  var deja = []
+  function plis(form) {
+    if (deja.indexOf(form) !== -1) return
+    deja.push(form)
+    var folds = form.querySelectorAll('.ck-step2[data-ck-step="2"]')
+    if (!folds.length) return
+    var btn = form.querySelector(".ndz-buyform-btn")
+    if (!btn) return
+    function each(fn) {
+      for (var i = 0; i < folds.length; i++) {
+        var cs = folds[i].querySelectorAll("input, select, textarea, button")
+        for (var j = 0; j < cs.length; j++) fn(cs[j])
+      }
+    }
+    function fermer() {
+      for (var i = 0; i < folds.length; i++) folds[i].classList.remove("ck-open")
+      each(function (c) {
+        if (c.required) { c.setAttribute("data-req", "1"); c.required = false }
+      })
+      form.classList.remove("ndz-ouvert")
+    }
+    function ouvrir() {
+      for (var i = 0; i < folds.length; i++) folds[i].classList.add("ck-open")
+      each(function (c) {
+        if (c.getAttribute("data-req") === "1") c.required = true
+      })
+      form.classList.add("ndz-ouvert")
+    }
+    fermer()
+    form.addEventListener("submit", function (e) {
+      if (form.classList.contains("ndz-ouvert")) return
+      e.preventDefault()
+      ouvrir()
+      var premier = null
+      for (var i = 0; i < folds.length && !premier; i++) {
+        premier = folds[i].querySelector("input:not([type=hidden]), select, textarea")
+      }
+      if (premier) {
+        try { premier.scrollIntoView({ behavior: "smooth", block: "center" }) } catch (err) { premier.scrollIntoView() }
+        try { premier.focus({ preventScroll: true }) } catch (err) {}
+      }
+    })
+  }
+  function initPlis() {
+    var forms = document.querySelectorAll(".ndz-buyform")
+    for (var i = 0; i < forms.length; i++) plis(forms[i])
+  }
+  document.addEventListener("ndz-design", initPlis)
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initPlis)
+  else initPlis()
+
   var css = document.createElement("style")
   css.textContent = '#ndzDrawer{position:fixed;inset:0;z-index:80;display:none}#ndzDrawer.on{display:block}.ndz-drawer-bg{position:absolute;inset:0;background:rgba(17,17,17,.42)}.ndz-drawer{position:absolute;top:0;right:0;height:100%;width:min(380px,92vw);background:#fff;color:#111;border-left:1px solid #E4E4E7;display:flex;flex-direction:column;font:14px/1.4 Inter,system-ui,sans-serif}.ndz-drawer header,.ndz-drawer footer{padding:14px 16px;border-bottom:1px solid #E4E4E7}.ndz-drawer footer{border-bottom:0;border-top:1px solid #E4E4E7;display:flex;flex-direction:column;gap:8px}.ndz-drawer header{display:flex;align-items:center;justify-content:space-between}.ndz-drawer header button{border:0;background:transparent;font-size:22px;cursor:pointer;color:#111}.ndz-drawer-body{flex:1;overflow:auto;padding:8px 16px}.ndz-drawer-row{display:grid;grid-template-columns:64px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid #E4E4E7}.ndz-drawer-row img,.ndz-drawer-row span:empty{width:64px;height:64px;object-fit:cover;background:#FAFAFA;border-radius:8px}.ndz-drawer-row b{display:block;font-size:13px}.ndz-drawer-row form{display:flex;gap:8px;align-items:center;margin-top:6px}.ndz-drawer-row button{width:26px;height:26px;border:1px solid #E4E4E7;border-radius:7px;background:#fff;cursor:pointer}.ndz-drawer-go{height:40px;border-radius:9px;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;text-decoration:none;font-weight:600}.ndz-drawer-page,.ndz-drawer footer .ndz-empty-link{font-size:12px;color:#71717A;text-align:center}.ndz-drawer-total{display:flex;justify-content:space-between;font-weight:600}.ndz-parts{display:block;margin-top:3px;font-size:11px;color:#71717A;font-weight:500}.ndz-drawer-lock{overflow:hidden}'
   document.head.appendChild(css)

@@ -7761,3 +7761,47 @@ details.domain-opt > .dns-box{margin-bottom:16px}
 .dash details.adv[open]>summary{border-bottom:1px solid #F0EEEA;margin-bottom:6px;color:var(--ink)}
 .dash details.adv>summary b{color:var(--ink)}
 .dash details.adv .ship-grid{padding:8px 18px 18px}
+
+/* ==========================================================================
+   VITRINE v9 — la fiche produit en deux temps
+   --------------------------------------------------------------------------
+   Une fiche produit pose trois questions : la variante, la quantité, la
+   façon de livrer. Les coordonnées du client attendent dans un pli qui
+   s'ouvre d'un clic sur le bouton — jamais supprimées, seulement rangées.
+   Couleurs neutres (gris à faible opacité) : le pli se lit sur les six
+   présentations, claires comme sombres.
+   ========================================================================== */
+.ck-step2 { margin: 4px 0 0; padding: 14px 0 2px; border-top: 1px solid rgba(127, 127, 127, .26); }
+.ck-step2:not(.ck-open) { display: none; }
+.ck-step-t { display: flex; align-items: center; gap: 9px; margin: 0 0 14px;
+  font-size: 13.5px; font-weight: 600; letter-spacing: .01em; }
+.ck-step-t b { display: inline-flex; align-items: center; justify-content: center;
+  width: 21px; height: 21px; border-radius: 999px; flex: 0 0 auto;
+  background: rgba(127, 127, 127, .18); font-size: 11.5px; font-weight: 700; }
+.ck-more { margin: 2px 0 0; }
+.ck-more > summary { display: flex; align-items: center; gap: 8px; cursor: pointer;
+  list-style: none; padding: 9px 0; font-size: 13px; font-weight: 600; }
+.ck-more > summary::-webkit-details-marker { display: none; }
+.ck-more > summary::before { content: "+"; display: inline-flex; align-items: center;
+  justify-content: center; width: 19px; height: 19px; border-radius: 999px; flex: 0 0 auto;
+  background: rgba(127, 127, 127, .18); font-size: 13px; line-height: 1; }
+.ck-more[open] > summary::before { content: "−"; }
+.ndz-buyform-hint { margin: 9px 0 0; font-size: 12.5px; line-height: 1.5; opacity: .72; }
+.ndz-buyform.ndz-ouvert .ndz-buyform-hint { display: none; }
+@media (max-width: 640px) {
+  .ck-step2 { padding-top: 12px; }
+  .ck-step-t { font-size: 14px; }
+}
+
+/* Vitrine v9 — la question à la boutique, rangée dans un pli */
+.ndz-askbox { margin: 0; }
+.ndz-askbox > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px;
+  padding: 10px 0; font-size: 14px; font-weight: 600; }
+.ndz-askbox > summary::-webkit-details-marker { display: none; }
+.ndz-askbox > summary::before { content: "+"; display: inline-flex; align-items: center; justify-content: center;
+  width: 19px; height: 19px; border-radius: 999px; flex: 0 0 auto;
+  background: rgba(127, 127, 127, .18); font-size: 13px; line-height: 1; }
+.ndz-askbox[open] > summary::before { content: "−"; }
+.ndz-askbox > summary b { font-weight: 600; }
+.ndz-askbox form.ndz-ask { padding: 2px 0 6px; }
+/* un pli ouvert par le client reste ouvert : le marchand n'y peut rien, c'est voulu */
