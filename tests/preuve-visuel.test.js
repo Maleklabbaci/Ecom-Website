@@ -19,6 +19,17 @@ const OUT = process.env.PREUVE_OUT || path.join(os.tmpdir(), "preuve-shots")
 const BROWSER = (() => {
   const candidates = [
     process.env.CHROME_PATH,
+    /* celui que `scripts/preparer-chrome.js` a déplié (il tourne en
+       `pretest`) : c'est ce qui permet à ces tests de tourner sur une
+       machine qui n'a pas de Chrome installé. */
+    ...(() => {
+      try {
+        const c = JSON.parse(fs.readFileSync(path.join(os.tmpdir(), "ndz-chromium", "chemin.json"), "utf8"))
+        if (c.lib) process.env.LD_LIBRARY_PATH = [process.env.LD_LIBRARY_PATH, c.lib].filter(Boolean).join(path.delimiter)
+        if (c.fonts) process.env.FONTCONFIG_PATH = c.fonts
+        return [c.executable]
+      } catch (_) { return [] }
+    })(),
     "/usr/bin/chromium", "/usr/bin/chromium-browser",
     "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable",
     "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",

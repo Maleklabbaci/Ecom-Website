@@ -137,7 +137,13 @@ Après l'installation, dans le dossier de la boutique :
 
     npm test
 
-Vous devez lire :  # tests 516   # pass 514   # fail 0   # skipped 2
+Vous devez lire :  # tests 516   # pass 516   # fail 0   # skipped 0
+
+Si votre machine n'a pas de navigateur installé, les deux tests visuels
+sont sautés proprement (vous lirez # skipped 2) — ce n'est pas une erreur,
+c'est juste que les captures ne peuvent pas être prises. Le script
+scripts/preparer-chrome.js s'en occupe et déplie un navigateur quand il le
+faut.
 
 Les outils de mesure qui ont trouvé les défauts décrits plus haut sont
 dans le dépôt, dossier outils-photo/. Ils se rejouent en une commande et
