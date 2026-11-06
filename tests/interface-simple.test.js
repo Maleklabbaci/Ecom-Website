@@ -159,7 +159,7 @@ test("un seul bouton en couleur par écran", async () => {
   assert.match(css.text, /--accent:\s*#d6ff45/i, "l'accent, c'est le vert fluo de la landing")
   assert.ok(!/0F766E|0B5A53|5EEAD4/i.test(css.text), "plus aucune trace de l'ancien vert")
   /* le vert fluo remplit, il ne s'écrit pas : le bouton plein est en texte noir */
-  assert.match(css.text, /--accent-ink:\s*#0{3,6}\b/i, "le texte posé sur le vert fluo est noir")
+  assert.match(css.text, /--accent-ink:\s*#(000000|111111|000|111)\b/i, "le texte posé sur le vert fluo est noir")
 })
 
 test("blanc, noir, gris et le vert fluo — rien d'autre", async () => {
@@ -182,19 +182,23 @@ test("blanc, noir, gris et le vert fluo — rien d'autre", async () => {
   assert.deepEqual([...new Set(vives)], [], `couleur(s) interdite(s) dans la landing : ${[...new Set(vives)].join(", ")}`)
 })
 
-test("le dashboard a les mêmes couleurs que la landing page", async () => {
-  const fs = require("node:fs", )
+test("le même vert fluo que la landing, sur un dashboard clair", async () => {
+  const fs = require("node:fs")
   const app = fs.readFileSync(path.join(__dirname, "..", "public", "styles.css"), "utf8")
   const landing = fs.readFileSync(path.join(__dirname, "..", "public", "landing.css"), "utf8")
-  const vert = /--lime:\s*#d6ff45/i.exec(landing)
+  /* le vert du dashboard est exactement celui de la landing */
+  const vert = /--lime:\s*(#[0-9a-f]{6})/i.exec(landing)
   assert.ok(vert, "le vert de la landing")
-  /* ce même vert est l'accent du dashboard */
-  assert.match(app, /--accent:\s*#d6ff45/i, "le dashboard prend le même vert")
-  /* et le fond, les cartes et le texte reprennent les valeurs de la landing */
-  const dash = app.slice(app.indexOf(".dash{\n  --bg:#000000"))
-  assert.match(dash, /--bg:#000000/, "fond noir, comme la landing")
-  assert.match(dash, /--card:#0c0c0c/, "cartes #0c0c0c, comme la landing")
-  assert.match(dash, /--ink:#ffffff/, "texte blanc, comme la landing")
+  assert.match(app, new RegExp("--accent:\\s*" + vert[1], "i"), "le dashboard prend le même vert, au même endroit")
+  /* et il ne reste aucun vert inventé ici ou là */
+  assert.ok(!/0F766E|0B5A53|5EEAD4/i.test(app), "plus aucune trace d'un autre vert")
+  /* le dashboard reste CLAIR : c'est une décision, on la verrouille */
+  assert.match(app, /--paper:#F6F5F3/i, "fond des pages clair")
+  assert.match(app, /--card:#FFFFFF/i, "cartes blanches")
+  assert.ok(!/--bg:#000000/.test(app), "le dashboard n'est pas sombre")
+  /* le vert fluo remplit : le bouton plein est vert fluo avec du texte noir */
+  assert.match(app, /background:var\(--accent\);color:var\(--accent-ink\)/, "le bouton plein")
+  assert.match(app, /--accent-ink:\s*#111111/i, "le texte posé sur le vert fluo est noir")
 })
 
 /* ------------------------------------------------------------------ 4 */
