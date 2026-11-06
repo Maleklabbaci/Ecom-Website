@@ -23,6 +23,19 @@ const payNames = (store) =>
 
 const uid = (p = "s") => p + Math.random().toString(36).slice(2, 8)
 
+/* Les icônes des cartes. Avant c'était un signe « + » posé là, le même pour
+   « ajouter au panier » et pour « acheter maintenant » : personne ne pouvait
+   les distinguer, et selon le thème il se retrouvait écrasé (34×15 px sur
+   « soin » — introuvable au doigt). Deux gestes, deux dessins, et une boîte
+   carrée que le thème ne peut plus réduire (voir .p-add dans styles.css). */
+const ICO_PANIER = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  <path d="M3 4h2.2l2.3 11.1a1.9 1.9 0 0 0 1.9 1.5h8.1a1.9 1.9 0 0 0 1.9-1.5L21 8H6"/>
+  <circle cx="10" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/></svg>`
+const ICO_DIRECT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  <path d="M13.2 2.5 4.8 13.6h6.1l-1 7.9 8.4-11.4h-6.1z"/></svg>`
+
 /* ------------------------------- types ------------------------------- */
 const TYPES = {
   hero: {
@@ -1528,8 +1541,8 @@ const productItem = (store, p, s) => {
       ${s.settings.showPrice !== false ? `<span class="p-price">${moneyOf(store, p.price_cents)}</span>` : "<span></span>"}
       ${s.settings.showAdd !== false
         ? `<form class="ndz-buy" method="post" action="/${esc(store.slug)}/cart"><input type="hidden" name="product_id" value="${p.id}">
-             <button class="p-add ndz-cart-add" ${p.stock === 0 ? "disabled" : ""} aria-label="Ajouter au panier">+</button>
-             <button class="p-add ndz-buy-now" formaction="/${esc(store.slug)}/direct" ${p.stock === 0 ? "disabled" : ""} aria-label="Acheter maintenant">+</button></form>`
+             <button class="p-add ndz-cart-add" ${p.stock === 0 ? "disabled" : ""} aria-label="Ajouter au panier">${ICO_PANIER}</button>
+             <button class="p-add ndz-buy-now" formaction="/${esc(store.slug)}/direct" ${p.stock === 0 ? "disabled" : ""} aria-label="Acheter maintenant">${ICO_DIRECT}</button></form>`
         : ""}
     </div>
   </div>
@@ -1784,7 +1797,7 @@ const RENDER = {
         <a class="sec-rail-name" href="/${esc(store.slug)}/p/${p.id}">${esc(p.title)}</a>
         <div class="sec-rail-row">
           ${st.showPrice !== false ? `<span>${moneyOf(store, p.price_cents)}</span>` : "<span></span>"}
-          ${st.showAdd !== false && p.stock !== 0 ? `<form class="ndz-buy" method="post" action="/${esc(store.slug)}/cart"><input type="hidden" name="product_id" value="${p.id}"><button class="p-add ndz-cart-add" aria-label="Ajouter au panier">+</button><button class="p-add ndz-buy-now" formaction="/${esc(store.slug)}/direct" aria-label="Acheter maintenant">+</button></form>` : ""}
+          ${st.showAdd !== false && p.stock !== 0 ? `<form class="ndz-buy" method="post" action="/${esc(store.slug)}/cart"><input type="hidden" name="product_id" value="${p.id}"><button class="p-add ndz-cart-add" aria-label="Ajouter au panier">${ICO_PANIER}</button><button class="p-add ndz-buy-now" formaction="/${esc(store.slug)}/direct" aria-label="Acheter maintenant">${ICO_DIRECT}</button></form>` : ""}
         </div>
       </article>`).join("")}
     </div>

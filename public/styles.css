@@ -7805,3 +7805,87 @@ details.domain-opt > .dns-box{margin-bottom:16px}
 .ndz-askbox > summary b { font-weight: 600; }
 .ndz-askbox form.ndz-ask { padding: 2px 0 6px; }
 /* un pli ouvert par le client reste ouvert : le marchand n'y peut rien, c'est voulu */
+
+/* ==========================================================================
+   CARTES ET ICÔNES — rien ne dépasse, tout est aligné
+   --------------------------------------------------------------------------
+   Trois défauts trouvés en mesurant les 19 thèmes dans un navigateur :
+
+   1. UNE PHOTO QUI SORT DU CADRE. `height:100%` ne marche pas dans une
+      vignette qui tient sa hauteur d'un `aspect-ratio` et qui centre son
+      contenu (`display:grid;place-items:center`) : la hauteur en pourcentage
+      n'a rien à quoi se rapporter, l'image reprend sa taille naturelle et
+      DÉPASSE le cadre — de 90 px sur les cartes, jusqu'à 1 300 px sur la
+      fiche produit du thème « catalogue ». Elle était ensuite coupée
+      n'importe comment par `overflow:hidden`.
+      → On la pose en absolu : elle épouse le cadre, quel que soit le thème.
+
+   2. UNE CARTE DÉCALÉE. Le prix se posait juste sous le nom : un nom sur une
+      ligne et un nom sur deux, et les prix ne tombaient plus en face.
+      → La zone de texte prend toute la hauteur restante et la ligne du prix
+      est poussée en bas : tous les prix d'une même rangée sont alignés.
+
+   3. UNE ICÔNE JETÉE LÀ. Un signe « + » identique pour deux gestes
+      différents, et une boîte que certains thèmes écrasaient à 34×15 px.
+      → Boîte carrée garantie, dessin centré, et les deux boutons côte à
+      côte au lieu de l'un sous l'autre.
+   ========================================================================== */
+
+/* --- 1. une photo remplit toujours son cadre --- */
+.p-thumb, .ca-thumb, .sec-mtile, .sec-fig, .gal-main, .gal-thumb,
+.mn-cthumb, .ca-cthumb, .ed-tthumb, .ct-item-thumb,
+.mn-detail-thumb, .p-detail-thumb, .sec-rail-thumb { position: relative; }
+
+/* La grande photo de la fiche : sortir la photo du flux laisse le cadre VIDE,
+   et les thèmes qui dimensionnent ce cadre par son contenu (« minimal »,
+   « editorial », « catalogue ») le voient s'écraser à 2 px — la photo
+   disparaît, ce qui est pire que de dépasser. On donne donc à l'enveloppe la
+   largeur et la hauteur de sa case : elle garde sa taille sans la photo, et
+   la photo posée dessus ne peut plus déborder. */
+.gal, .gal-main { width: 100%; height: 100%; }
+.gal > .gal-main { flex: 1 1 auto; min-width: 0; min-height: 0; }
+
+.p-thumb > img, .p-thumb > .p-img, .p-thumb > .ph,
+.ca-thumb > img, .sec-mtile > img, .sec-fig > img,
+.gal-main > img, .gal-thumb > img,
+.mn-cthumb > img, .ca-cthumb > img, .ed-tthumb > img, .ct-item-thumb > img,
+.mn-detail-thumb > img, .p-detail-thumb > img, .sec-rail-thumb > img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  max-width: none; max-height: none; object-fit: cover;
+}
+/* la vignette vide reste centrée, elle ne grandit pas */
+.p-thumb > .ph, .ca-thumb > .ph, .sec-fig > .ph { display: grid; place-items: center; }
+
+/* --- 2. des cartes de la même hauteur, le prix toujours en bas --- */
+.sec-items > .p-item, .sec-rail-card, .p-item { min-width: 0; }
+.p-item > .p-meta { flex: 1 1 auto; min-width: 0; }
+.p-item > .p-meta > .p-name {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; overflow-wrap: anywhere;
+}
+.p-item > .p-meta > .p-row { margin-top: auto; }
+
+/* --- 3. l'icône de la carte : carrée, centrée, toujours cliquable -------
+   Les deux boutons se posent CÔTE À CÔTE (le thème « electro » les empilait
+   dans un formulaire en colonne, et le premier prenait alors les 280 px de
+   la carte). La boîte fait 36 px de côté — 44 px sur téléphone — et aucun
+   thème ne peut plus l'écraser : « soin » la réduisait à 34×15 px, soit
+   quinze pixels à viser au doigt. Elle reste en flex pour qu'un thème qui
+   écrit un mot à côté (le « Ajouter » de « bureau ») garde le dessin et le
+   mot l'un à côté de l'autre, jamais l'un sur l'autre.                   */
+.p-item .ndz-buy, .sec-rail-card .ndz-buy {
+  flex-direction: row; align-items: center; gap: 6px; margin: 0;
+}
+.theme .p-add, .tp .p-add, .p-add {
+  width: 36px; height: 36px;
+  min-width: 36px !important; min-height: 36px !important;
+  display: inline-flex !important; align-items: center !important; justify-content: center !important;
+  gap: 6px; padding: 0 !important; flex: 0 0 auto; line-height: 1;
+}
+.p-add > svg { width: 18px; height: 18px; display: block; flex: 0 0 auto; }
+@media (max-width: 640px) {
+  .theme .p-add, .tp .p-add, .p-add {
+    width: 44px; height: 44px; min-width: 44px !important; min-height: 44px !important;
+  }
+  .p-add > svg { width: 20px; height: 20px; }
+}

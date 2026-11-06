@@ -1620,6 +1620,14 @@
   min-width: 0 !important;
   box-sizing: border-box;
 }
+/* « electro » veut un bouton qui traverse la carte. Le dessin seul y
+   flotterait au milieu de 280 px, perdu : on lui met le mot à côté, comme
+   « bureau » le fait déjà. Le geste se lit, la cible devient évidente. */
+.theme.tp.tpx-electro .sec-grid .ndz-cart-add::after {
+  content: "Ajouter";
+  font: 600 14px/1 var(--tpx-f-body, inherit);
+  letter-spacing: 0; text-transform: none;
+}
 .theme.tp.tpx-electro .sec-bgrid { align-items: stretch; }
 .theme.tp.tpx-electro .sec-bitem { align-items: center; min-height: 72px; }
 
