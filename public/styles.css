@@ -7632,7 +7632,7 @@ details.domain-opt > .dns-box{margin-bottom:16px}
 .dash input[type=tel],.dash input[type=password],.dash input[type=search],
 .dash input[type=url],.dash input[type=date],.dash select,.dash textarea{
   width:100%;box-sizing:border-box;
-  min-height:42px;padding:10px 13px;
+  min-height:40px;height:40px;padding:9px 13px;
   font-size:15px;color:var(--ink);
   background:#fff;border:1px solid var(--field-line);border-radius:10px;
   transition:border-color .15s ease,box-shadow .15s ease;
@@ -7889,3 +7889,62 @@ details.domain-opt > .dns-box{margin-bottom:16px}
   }
   .p-add > svg { width: 20px; height: 20px; }
 }
+
+/* ==========================================================================
+   TABLEAU DE BORD — cartes et icônes : un seul gabarit, rien ne dépasse
+   --------------------------------------------------------------------------
+   Mesuré dans un vrai navigateur, marchand connecté, sur 12 pages du
+   tableau de bord. Trois défauts, tous du même ordre :
+
+   1. DES CHAMPS ET DES BOUTONS DE TROIS HAUTEURS DIFFÉRENTES DANS UNE MÊME
+      LIGNE. Quatre règles se disputaient la hauteur : 44 px (règle générale
+      des champs), 42 px (champs du tableau de bord), 40 px (formulaire) et
+      38 px (boutons). Résultat : 40 / 42 / 38 dans le formulaire,
+      44 / 38 dans le marketing, 34 / 38 sur l'accueil. Un seul gabarit.
+
+   2. UNE PHOTO QUI SORT DE SON CADRE. Sur la page de stock le cadre fait
+      30 px et la photo 34 px : elle dépassait de 4 px et se faisait rogner
+      n'importe comment.
+
+   3. UNE PASTILLE PLUS BASSE QUE SA VOISINE. Le dessin posé dans une
+      pastille reste en ligne : il se cale sur la ligne de texte et descend
+      de quelques dixièmes de pixel.
+   ========================================================================== */
+
+/* --- 1. un seul gabarit pour les champs et les boutons ------------------ */
+.dash input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]):not([type=hidden]),
+.dash select {
+  min-height: 40px; height: 40px;
+}
+.dash .btn { height: 40px; }
+.dash .btn-sm { height: 34px; }
+.dash textarea { min-height: 96px; height: auto; }
+
+/* Rien à excepter : la règle ne touche que les champs et les listes. Les
+   pastilles de couleur, les boutons à une icône et la cloche gardent la
+   taille que leur propre règle leur donne — c'est leur dessin. */
+
+/* --- 2. la photo remplit son cadre, dans le tableau de bord aussi ------- */
+.t-ph { position: relative; overflow: hidden; border-radius: 7px; }
+.t-ph > .t-img {
+  position: absolute; inset: 0;
+  width: 100% !important; height: 100% !important;
+  max-width: none; object-fit: cover;
+}
+/* le cadre suit la taille que le thème a choisie pour la photo */
+.stock-prod .t-ph, .ord-item .t-ph { width: 34px; height: 34px; }
+
+/* --- 3. le pas-à-pas du stock : une seule hauteur pour toute la ligne --- */
+.dash .stock-ctrl .stock-step { height: 34px; overflow: hidden; }
+.dash .stock-ctrl .stock-step > button,
+.dash .stock-ctrl .stock-step > input { height: 100%; min-height: 0; }
+.dash .stock-ctrl .stock-set { height: 34px; min-height: 0; }
+
+/* --- 4. un dessin dans une pastille : un bloc, centré net -------------- */
+.dash :is(.start-dot, .shop-tile, .ml-thumb, .fm-swatch, .icon-btn) > svg { display: block; }
+
+/* le rond des étapes « Pour commencer » : son `display:grid` lui était
+   repris par la règle `.start-item span{display:block}` — deux classes
+   contre une, elle gagnait. Le rond redevenait un bloc, et la coche
+   restait collée en haut à gauche au lieu d'être au centre. */
+.start-item .start-dot { display: grid; place-items: center; }

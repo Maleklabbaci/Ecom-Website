@@ -931,7 +931,11 @@ body.studio .devbar{display:flex}
 .devbar .dots i{width:7px;height:7px;border-radius:50%;background:#E2E2E8;display:block}
 .devbar .dots i:first-child{background:#D8D8DF}
 .devbar .url{flex:1;text-align:center;font-size:10.5px;color:#9C9CA5;letter-spacing:.02em;
-  background:#F7F7F9;border-radius:99px;padding:3px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  background:#F7F7F9;border-radius:99px;padding:3px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  /* l'adresse est écrite par le javascript un instant plus tard : sans cette
+     hauteur minimale la barre d'adresse restait un filet de 6 px à côté
+     d'une étiquette de 19 px, et toute la barre d'aperçu était de travers. */
+  line-height:13px;min-height:19px;box-sizing:border-box}
 .devbar .tag{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#5A5A63;
   background:#F4F4F7;border:1px solid #E7E7EC;border-radius:99px;padding:3px 8px}
 body.studio .paper{border-radius:0 0 14px 14px;border-top:0;box-shadow:none}
