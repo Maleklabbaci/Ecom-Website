@@ -4419,56 +4419,25 @@ ${error ? `<div class="alert">${esc(error)}</div>` : ""}
 }
 
 /* ============================== DASHBOARD : SÉCURITÉ & PIXELS ============================== */
-const dashMarketing = (user, store, data) => dashLayout(user, store, `
-<header class="dash-head">
-  <div><h1>Anti-fraude &amp; pixels</h1><p class="muted">Bloquez les fausses commandes et envoyez vos conversions depuis le serveur, pour ne rien perdre.</p></div>
+const dashMarketing = (user, store, data) => {
+  const aVerifier = data.suspects.length
+  /* Le tiroir s'ouvre tout seul dès que le marchand a COLLÉ quelque chose —
+     une clé, un identifiant de pixel. Même règle que la fiche produit : ce
+     qu'on a déjà rempli ne se cache pas. Fermé sinon : on ne montre pas six
+     cases de clés Google à quelqu'un qui n'a jamais ouvert la page.
+     Attention : « captcha_enabled » vaut 1 dans toute boutique neuve, ce
+     n'est pas un choix du marchand — donc il ne compte pas. */
+  const dejaRegle = Boolean(
+    store.captcha_site || store.captcha_secret
+    || store.pixel_meta || store.pixel_tiktok || store.snap_pixel,
+  )
+  return dashLayout(user, store, `<header class="dash-head">
+  <div><h1>Anti-fraude &amp; pixels</h1>
+    ${aVerifier
+      ? `<p class="muted"><b>${aVerifier} commande${aVerifier > 1 ? "s" : ""} à vérifier.</b> Confirme celles dont le client est réel. Bloque les autres : elles ne reviendront plus.</p>`
+      : `<p class="muted">Rien à vérifier pour l'instant. Les commandes passent toutes seules, sans contrôle de ta part.</p>`}
+  </div>
 </header>
-
-<section class="panel">
-  <div class="panel-head"><h2>CAPTCHA et vérifications</h2>
-    <span class="pill ${store.captcha_enabled && store.captcha_site ? "ok" : "off"}">${store.captcha_enabled && store.captcha_site ? "actif" : "inactif"}</span></div>
-  <form method="post" action="/dashboard/marketing/security">
-    <div class="grid-2">
-      <label>Activation
-        <select name="captcha_enabled">
-          <option value="0" ${!store.captcha_enabled ? "selected" : ""}>Désactivé</option>
-          <option value="1" ${store.captcha_enabled ? "selected" : ""}>Activé</option>
-        </select></label>
-      <label>Type de CAPTCHA
-        <select name="captcha_version">
-          <option value="v3" ${store.captcha_version === "v3" ? "selected" : ""}>v3 — invisible, avec score</option>
-          <option value="v2" ${store.captcha_version === "v2" ? "selected" : ""}>v2 — case à cocher</option>
-          <option value="v2i" ${store.captcha_version === "v2i" ? "selected" : ""}>v2 — invisible</option>
-        </select></label>
-      <label>Clé du site (site key)<input name="captcha_site" value="${esc(store.captcha_site || "")}" placeholder="6Lc..."></label>
-      <label>Clé secrète (secret key)<input name="captcha_secret" value="${esc(store.captcha_secret || "")}" placeholder="6Lc..."></label>
-      <label>Score minimum v3<input name="captcha_min_score" type="number" min="0" max="1" step="0.1" value="${store.captcha_min_score || 0.5}"></label>
-      <label>Téléphone strict
-        <select name="phone_strict">
-          <option value="0" ${!store.phone_strict ? "selected" : ""}>Souple</option>
-          <option value="1" ${store.phone_strict ? "selected" : ""}>Refuser un numéro invalide</option>
-        </select></label>
-    </div>
-    <p class="muted" style="font-size:12.5px">Les clés se créent sur <b>google.com/recaptcha/admin</b> (gratuit). Sans clé, la commande n'est pas bloquée : elle est marquée « à vérifier ».</p>
-    <div class="form-actions"><button class="btn btn-primary">Enregistrer</button></div>
-  </form>
-</section>
-
-<section class="panel">
-  <div class="panel-head"><h2>Pixels (facultatif)</h2>
-    <span class="pill ${store.pixel_meta || store.pixel_tiktok || store.snap_pixel ? "ok" : "off"}">${store.pixel_meta || store.pixel_tiktok || store.snap_pixel ? "identifiant enregistré" : "aucun"}</span></div>
-  <form method="post" action="/dashboard/marketing/pixels">
-    <div class="grid-2">
-      <label>Meta — identifiant du pixel<input name="pixel_meta" value="${esc(store.pixel_meta || "")}" placeholder="123456789012345"></label>
-      <label>TikTok — identifiant du pixel<input name="pixel_tiktok" value="${esc(store.pixel_tiktok || "")}" placeholder="CXXXXXXXXXXXXX"></label>
-      <label>Snapchat — identifiant du pixel<input name="snap_pixel" value="${esc(store.snap_pixel || "")}" placeholder="xxxx-xxxx"></label>
-    </div>
-    <p class="muted" style="font-size:12.5px">Colle seulement l'identifiant, si tu en as un. Aucune clé, aucun code à copier.</p>
-    <div class="form-actions"><button class="btn btn-primary">Enregistrer</button></div>
-  </form>
-</section>
-
-${soonCard("Envoi serveur des événements", "Le suivi côté serveur (Conversions API) arrive bientôt. Il enverra les achats aux trois régies sans aucune clé à copier.", ["Meta, TikTok et Snapchat en un seul réglage", "Téléphone haché (SHA-256) automatiquement"])}
 
 <div class="kpis">
   <div class="kpi"><span>Événements envoyés (7 j)</span><b>${data.stats.ok}</b><i>${data.stats.erreur} en erreur</i></div>
@@ -4509,7 +4478,56 @@ ${soonCard("Envoi serveur des événements", "Le suivi côté serveur (Conversio
   </table>` : `<p class="muted" style="font-size:13px">Aucun numéro bloqué.</p>`}
 </section>
 
-<section class="panel">
+<details class="tiroir"${dejaRegle ? " open" : ""}>
+  <summary>Plus de réglages <span class="tiroir-n">(CAPTCHA, pixels, journal)</span></summary>
+
+  <section class="panel">
+  <div class="panel-head"><h2>CAPTCHA et vérifications</h2>
+    <span class="pill ${store.captcha_enabled && store.captcha_site ? "ok" : "off"}">${store.captcha_enabled && store.captcha_site ? "actif" : "inactif"}</span></div>
+  <form method="post" action="/dashboard/marketing/security">
+    <div class="grid-2">
+      <label>Activation
+        <select name="captcha_enabled">
+          <option value="0" ${!store.captcha_enabled ? "selected" : ""}>Désactivé</option>
+          <option value="1" ${store.captcha_enabled ? "selected" : ""}>Activé</option>
+        </select></label>
+      <label>Type de CAPTCHA
+        <select name="captcha_version">
+          <option value="v3" ${store.captcha_version === "v3" ? "selected" : ""}>v3 — invisible, avec score</option>
+          <option value="v2" ${store.captcha_version === "v2" ? "selected" : ""}>v2 — case à cocher</option>
+          <option value="v2i" ${store.captcha_version === "v2i" ? "selected" : ""}>v2 — invisible</option>
+        </select></label>
+      <label>Clé du site (site key)<input name="captcha_site" value="${esc(store.captcha_site || "")}" placeholder="6Lc..."></label>
+      <label>Clé secrète (secret key)<input name="captcha_secret" value="${esc(store.captcha_secret || "")}" placeholder="6Lc..."></label>
+      <label>Score minimum v3<input name="captcha_min_score" type="number" min="0" max="1" step="0.1" value="${store.captcha_min_score || 0.5}"></label>
+      <label>Téléphone strict
+        <select name="phone_strict">
+          <option value="0" ${!store.phone_strict ? "selected" : ""}>Souple</option>
+          <option value="1" ${store.phone_strict ? "selected" : ""}>Refuser un numéro invalide</option>
+        </select></label>
+    </div>
+    <p class="muted" style="font-size:12.5px">Les clés se créent sur <b>google.com/recaptcha/admin</b> (gratuit). Sans clé, la commande n'est pas bloquée : elle est marquée « à vérifier ».</p>
+    <div class="form-actions"><button class="btn btn-primary">Enregistrer</button></div>
+  </form>
+</section>
+
+  <section class="panel">
+  <div class="panel-head"><h2>Pixels (facultatif)</h2>
+    <span class="pill ${store.pixel_meta || store.pixel_tiktok || store.snap_pixel ? "ok" : "off"}">${store.pixel_meta || store.pixel_tiktok || store.snap_pixel ? "identifiant enregistré" : "aucun"}</span></div>
+  <form method="post" action="/dashboard/marketing/pixels">
+    <div class="grid-2">
+      <label>Meta — identifiant du pixel<input name="pixel_meta" value="${esc(store.pixel_meta || "")}" placeholder="123456789012345"></label>
+      <label>TikTok — identifiant du pixel<input name="pixel_tiktok" value="${esc(store.pixel_tiktok || "")}" placeholder="CXXXXXXXXXXXXX"></label>
+      <label>Snapchat — identifiant du pixel<input name="snap_pixel" value="${esc(store.snap_pixel || "")}" placeholder="xxxx-xxxx"></label>
+    </div>
+    <p class="muted" style="font-size:12.5px">Colle seulement l'identifiant, si tu en as un. Aucune clé, aucun code à copier.</p>
+    <div class="form-actions"><button class="btn btn-primary">Enregistrer</button></div>
+  </form>
+</section>
+
+${soonCard("Envoi serveur des événements", "Le suivi côté serveur (Conversions API) arrive bientôt. Il enverra les achats aux trois régies sans aucune clé à copier.", ["Meta, TikTok et Snapchat en un seul réglage", "Téléphone haché (SHA-256) automatiquement"])}
+
+  <section class="panel">
   <div class="panel-head"><h2>Journal des événements</h2><span class="muted">${data.events.length} dernier(s)</span></div>
   ${data.events.length ? `<table class="table">
     <thead><tr><th>Date</th><th>Régie</th><th>Événement</th><th>Commande</th><th>Statut</th><th>Réponse</th></tr></thead>
@@ -4522,7 +4540,9 @@ ${soonCard("Envoi serveur des événements", "Le suivi côté serveur (Conversio
       <td><small class="muted">${esc((e.message || "").slice(0, 80) || (e.code || ""))}</small></td>
     </tr>`).join("")}</tbody></table>`
     : `<div class="empty-state"><h3>Aucun événement</h3><p>Configurez un pixel et passez une commande de test : les envois apparaîtront ici avec leur code de réponse.</p></div>`}
-</section>`, "marketing")
+</section>
+</details>`, "marketing")
+}
 
 
 /* ============================== DASHBOARD : TRANSPORTEUR ============================== */

@@ -51,6 +51,16 @@ const champsVisibles = (html) => {
   return { vu: compte(garde), tout: compte(t) }
 }
 
+/* Le cadre du tableau de bord (recherche, assistant) traîne deux champs sur
+   chaque page. Pour juger une page, on ne compte que son CONTENU. */
+const contenu = (html) => {
+  const t = String(html || "")
+  const a = t.indexOf('<main class="dash-main">')
+  if (a < 0) return t
+  const b = t.indexOf("</main>", a)
+  return b < 0 ? t.slice(a) : t.slice(a, b)
+}
+
 before(async () => {
   const s = await startServer({ db: DB })
   child = s.child
@@ -147,6 +157,7 @@ test("un seul bouton en couleur par écran", async () => {
   const ecrans = [
     "/dashboard", "/dashboard/products", "/dashboard/stock", "/dashboard/shipping",
     "/dashboard/paiement", "/dashboard/stats", "/dashboard/discounts", "/dashboard/categories",
+    "/dashboard/marketing",
   ]
   for (const u of ecrans) {
     const r = await req(u)
@@ -213,6 +224,37 @@ test("les écrans lourds respirent : moins de champs à l'écran", async () => {
   assert.ok(mesures["Réglages"] <= 14, `Réglages : ${mesures["Réglages"]} champs à l'écran`)
   assert.ok(mesures["Livraison"] <= 14, `Livraison : ${mesures["Livraison"]} champs à l'écran (les 69 wilayas sont pliées)`)
   assert.ok(mesures["Catégories"] <= 8, `Catégories : ${mesures["Catégories"]} champs à l'écran`)
+})
+
+/* ------------------------------------------------------------------ 5 */
+
+test("Anti-fraude : on voit le travail du jour, les clés sont pliées", async () => {
+  const r = await req("/dashboard/marketing")
+  assert.equal(r.status, 200)
+  /* ce qu'on voit sans rien ouvrir : une seule question, bloquer un numéro */
+  const vu = champsVisibles(contenu(r.text)).vu
+  assert.ok(vu <= 2, `${vu} champs à l'écran sur Anti-fraude (au plus 2)`)
+  /* les six cases de clés Google sont pliées — et surtout pas supprimées */
+  assert.match(r.text, /class="tiroir"/, "le tiroir existe")
+  for (const nom of ["captcha_site", "captcha_secret", "captcha_min_score", "pixel_meta", "pixel_tiktok", "snap_pixel"]) {
+    assert.ok(r.text.includes(`name="${nom}"`), `le champ ${nom} existe toujours, il est seulement plié`)
+  }
+  /* le travail du jour, lui, reste devant */
+  assert.match(r.text, /Commandes à vérifier/, "les commandes à vérifier restent à l'écran")
+  assert.match(r.text, /Numéros bloqués/, "les numéros bloqués restent à l'écran")
+  /* cette boutique n'a collé aucune clé : le tiroir reste fermé */
+  assert.ok(!/class="tiroir" open/.test(r.text), "le tiroir est fermé tant qu'on n'a rien configuré")
+})
+
+test("Anti-fraude : le tiroir s'ouvre seul dès qu'on a collé un identifiant", async () => {
+  const avant = await req("/dashboard/marketing")
+  assert.ok(!/class="tiroir" open/.test(avant.text), "fermé avant")
+  const post = await req("/dashboard/marketing/pixels", form({ pixel_meta: "123456789012345" }))
+  assert.ok([302, 303].includes(post.status))
+  const apres = await req("/dashboard/marketing")
+  assert.match(apres.text, /class="tiroir" open/, "le tiroir s'ouvre : ce qu'on a déjà rempli ne se cache pas")
+  /* et on peut tout remettre à zéro */
+  await req("/dashboard/marketing/pixels", form({ pixel_meta: "" }))
 })
 
 test("et la boutique, elle, n'a pas bougé d'un pouce", async () => {
