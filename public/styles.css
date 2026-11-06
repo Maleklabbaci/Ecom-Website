@@ -7948,3 +7948,42 @@ details.domain-opt > .dns-box{margin-bottom:16px}
    contre une, elle gagnait. Le rond redevenait un bloc, et la coche
    restait collée en haut à gauche au lieu d'être au centre. */
 .start-item .start-dot { display: grid; place-items: center; }
+
+/* ==========================================================================
+   PAGE « FORMULAIRE » — ce que le marchand doit remplir, rien de plus
+   --------------------------------------------------------------------------
+   La page comptait 49 cases et 33 boutons ouverts en même temps : dix
+   modèles, six couleurs, douze réglages de bouton, et onze champs de saisie
+   rien que pour les noms des questions. Le marchand n'y touche qu'une fois,
+   puis plus jamais — mais il voyait tout, tout le temps.
+
+   On applique la règle des trois questions : ce qui compte reste devant
+   (les questions posées au client), l'allure part dans un tiroir. Et le
+   tiroir s'ouvre tout seul si le marchand a déjà personnalisé, pour qu'il
+   ne croie pas avoir perdu ses réglages.
+   ========================================================================== */
+
+/* les blocs empilés dans le tiroir gardent leur respiration */
+.fm-studio .fm-side > .tiroir > .fm-block + .fm-block { margin-top: 14px; }
+.fm-studio .fm-side > .tiroir { margin-top: 0; }
+
+/* Le nom d'une question n'est pas une case. Le marchand ne renomme presque
+   jamais « Nom », « Téléphone » ou « Wilaya » : on lui montrait pourtant
+   onze champs ouverts en permanence, ce qui donnait l'impression d'une page
+   à remplir. Le nom s'affiche comme du texte ; au survol ou au clic il
+   redevient un champ. Aucun javascript : la valeur part toujours avec le
+   formulaire, il n'y a donc rien à casser. */
+.fld-row input.fld-label,
+.fld-line input.fld-label {
+  border-color: transparent; background: transparent; box-shadow: none;
+  padding-left: 4px; padding-right: 4px;
+  font-weight: 600; font-size: 13.5px; color: var(--ink, #111);
+  text-overflow: ellipsis;
+}
+.fld-row input.fld-label:hover,
+.fld-line input.fld-label:hover { border-color: var(--line, #E7E4DE); background: #fff; }
+.fld-row input.fld-label:focus,
+.fld-line input.fld-label:focus {
+  border-color: #E9C400; background: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 212, 0, .22);
+}

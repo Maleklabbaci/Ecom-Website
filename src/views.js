@@ -2515,6 +2515,12 @@ const startBlock = (store, steps, done) => {
 const dashForm = (user, store, list, ok) => {
   const look = CF.lookOf(store)
   const btn = look.btn || CF.btnOf()
+  /* Le tiroir « Plus de réglages » s'ouvre tout seul quand le marchand a DÉJÀ
+     choisi un modèle, une couleur ou un bouton : sinon il croirait avoir
+     perdu ses réglages. Une boutique qui n'a rien demandé garde le modèle et
+     la couleur de son thème, et le tiroir reste fermé. */
+  const fmTouche = look.model !== "classique" || look.color !== "#111111"
+    || !!look.lang || CF.btnCustomized(look)
   const typeName = (f) => f.type === "wilaya" ? "Wilaya" : f.type === "commune" ? "Commune" : f.type === "select" ? "Liste" : f.type === "tel" ? "Téléphone" : f.type === "email" ? "E-mail" : f.type === "textarea" ? "Texte long" : "Texte"
   const rows = CF.pieces(store, { all: true })
   const gone = CF.pieces(store, { all: true }).length
@@ -2583,6 +2589,9 @@ ${ok ? `<div class="alert ok">Formulaire enregistré. Il est déjà sur la bouti
 
 <div class="fm-studio">
 <form method="post" action="/dashboard/formulaire" class="form fm-side" id="fldForm">
+  <details class="tiroir"${fmTouche ? " open" : ""}>
+    <summary>Plus de réglages <span class="tiroir-n">(mod&egrave;le, couleur, bouton)</span></summary>
+
   <section class="fm-block">
     <h2>Modèle</h2>
     <div class="fm-models">
@@ -2653,18 +2662,20 @@ ${ok ? `<div class="alert ok">Formulaire enregistré. Il est déjà sur la bouti
     </div>
   </section>
 
+  </details>
+
   <section class="fm-block">
     <h2>Ajouter un détail</h2>
     <div class="fm-add">
-      <input id="fmAddName" maxlength="40" placeholder="Pointure, cadeau, étage…" aria-label="Nom du détail">
-      <select id="fmAddType" aria-label="Type">
+      <input id="fmAddName" name="add_label" maxlength="40" placeholder="Pointure, cadeau, étage…" aria-label="Nom du détail">
+      <select id="fmAddType" name="add_type" aria-label="Type">
         <option value="text">Texte</option>
         <option value="tel">Téléphone</option>
         <option value="email">E-mail</option>
         <option value="textarea">Texte long</option>
         <option value="select">Liste</option>
       </select>
-      <input id="fmAddOpts" maxlength="120" placeholder="36, 37, 38" aria-label="Choix" hidden>
+      <input id="fmAddOpts" name="add_options" maxlength="120" placeholder="36, 37, 38" aria-label="Choix" hidden>
       <button type="button" class="btn" id="fmAdd">Ajouter</button>
     </div>
     <div class="fm-presets" id="fmChips"></div>

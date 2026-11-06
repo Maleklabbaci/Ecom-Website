@@ -380,7 +380,17 @@ const saveFromBody = (db, store, body = {}) => {
   const posted = []
   const blocks = []
   let sawKey = false
-  for (let i = 0; i < 40; i++) {
+  /* Les indices ne vont pas forcément de 0 à 39. Une ligne ajoutée par le
+     javascript part de 200, pour ne jamais marcher sur une ligne déjà
+     rendue par le serveur. On parcourait bêtement 0…39 : la question que le
+     marchand venait d'ajouter était donc jetée en silence, sans message
+     d'erreur — il croyait l'avoir enregistrée et elle disparaissait.
+     On lit maintenant les indices réellement présents dans la requête. */
+  const indices = Object.keys(body)
+    .filter((k) => /^key_\d+$/.test(k))
+    .map((k) => Number(k.slice(4)))
+    .sort((a, b) => a - b)
+  for (const i of indices) {
     const key = body[`key_${i}`]
     if (!key) continue
     sawKey = true
